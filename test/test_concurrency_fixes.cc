@@ -167,15 +167,21 @@ TEST_CASE("CameraServiceImpl: concurrent GetTasks reads are safe", "[CameraServi
     cosmo::test::MockServiceRegistry mocks;
     cosmo::service::CameraServiceImpl svc;
 
+    std::atomic<bool> go{false};
     std::atomic<bool> stop{false};
     std::atomic<int> readCount{0};
+    std::atomic<int> readyCount{0};
     constexpr int kReaderCount = 4;
 
     // Start multiple reader threads concurrently calling GetTasks
     std::vector<std::thread> readers;
     for (int i = 0; i < kReaderCount; i++) {
         readers.emplace_back([&]() {
-            while (!stop.load(std::memory_order_relaxed)) {
+            readyCount.fetch_add(1, std::memory_order_release);
+            while (!go.load(std::memory_order_acquire)) {
+                std::this_thread::yield();
+            }
+            while (!stop.load(std::memory_order_acquire)) {
                 auto tasks = svc.GetTasks("non_existent_camera");
                 // tasks should be empty but not crash
                 (void)tasks;
@@ -184,12 +190,18 @@ TEST_CASE("CameraServiceImpl: concurrent GetTasks reads are safe", "[CameraServi
         });
     }
 
+    // Wait for all readers to be ready before starting writes
+    while (readyCount.load(std::memory_order_acquire) < kReaderCount) {
+        std::this_thread::yield();
+    }
+    go.store(true, std::memory_order_release);
+
     // Simultaneously do writes on the main thread
     for (int i = 0; i < 100; i++) {
         svc.NotifyAlgorithmsDeleted({"alg_" + std::to_string(i)});
     }
 
-    stop.store(true);
+    stop.store(true, std::memory_order_release);
     for (auto& t : readers) {
         t.join();
     }
@@ -348,22 +360,20 @@ TEST_CASE("SystemServiceImpl: concurrent DebugMode/ActionSwitch toggle is safe",
 
     cosmo::service::SystemServiceImpl sut;
 
+    std::atomic<bool> go{false};
     std::atomic<bool> stop{false};
     std::atomic<int> switchChecks{0};
+    std::atomic<int> readyCount{0};
 
-    // Toggle debug mode rapidly
-    std::thread toggler([&]() {
-        for (int i = 0; i < 200; i++) {
-            sut.SetDebugMode(i % 2 == 0);
-            sut.SetShieldedActions({"action_" + std::to_string(i % 5)});
-        }
-    });
-
-    // Read ActionSwitch concurrently
+    // Start readers first, wait for all to be ready
     std::vector<std::thread> readers;
     for (int i = 0; i < 3; i++) {
         readers.emplace_back([&]() {
-            while (!stop.load(std::memory_order_relaxed)) {
+            readyCount.fetch_add(1, std::memory_order_release);
+            while (!go.load(std::memory_order_acquire)) {
+                std::this_thread::yield();
+            }
+            while (!stop.load(std::memory_order_acquire)) {
                 // Should not crash regardless of debug state
                 sut.GetActionSwitch("action_0");
                 sut.GetDebugMode();
@@ -373,8 +383,23 @@ TEST_CASE("SystemServiceImpl: concurrent DebugMode/ActionSwitch toggle is safe",
         });
     }
 
+    // Wait for readers to be ready, then allow them to run
+    while (readyCount.load(std::memory_order_acquire) < 3) {
+        std::this_thread::yield();
+    }
+    go.store(true, std::memory_order_release);
+
+    // Toggle debug mode rapidly while readers are running
+    std::thread toggler([&]() {
+        for (int i = 0; i < 200; i++) {
+            sut.SetDebugMode(i % 2 == 0);
+            sut.SetShieldedActions({"action_" + std::to_string(i % 5)});
+            std::this_thread::yield();  // give readers a chance to acquire the shared lock
+        }
+    });
+
     toggler.join();
-    stop.store(true);
+    stop.store(true, std::memory_order_release);
     for (auto& t : readers)
         t.join();
 

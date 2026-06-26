@@ -23,13 +23,16 @@ jobs:
       - name: Install clang-format
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-format
+          sudo apt-get install -y clang-format-18
+          sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-18 100
 
       - name: Check C++ formatting (changed files only)
         run: |
+          clang-format --version
           BASE=$(git merge-base HEAD origin/main)
+          echo "merge-base: $BASE"
           CHANGED=$(git diff --name-only --diff-filter=ACMR "$BASE" HEAD -- \
-            '*.cc' '*.h' | grep -vE '(^|/)3rd/')
+            '*.cc' '*.h' | grep -vE '(^|/)(3rd|prebuild|node_modules)/')
           if [ -z "$CHANGED" ]; then
             echo "No C++ files changed."
             exit 0

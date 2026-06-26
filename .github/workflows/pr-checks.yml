@@ -32,7 +32,7 @@ jobs:
           BASE=$(git merge-base HEAD origin/main)
           echo "merge-base: $BASE"
           CHANGED=$(git diff --name-only --diff-filter=ACMR "$BASE" HEAD -- \
-            '*.cc' '*.h' | grep -vE '(^|/)(3rd|prebuild|node_modules)/')
+            '*.cc' '*.h' | grep -vE '(^|/)(3rd|prebuild|node_modules)/' || true)
           if [ -z "$CHANGED" ]; then
             echo "No C++ files changed."
             exit 0

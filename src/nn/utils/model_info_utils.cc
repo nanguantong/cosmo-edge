@@ -2,10 +2,9 @@
 
 #include <algorithm>
 #include <fstream>
+#include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <vector>
-
-#include <nlohmann/json.hpp>
 
 #include "nn/core/macros.h"
 
@@ -13,34 +12,34 @@ namespace cosmo::nn {
 
 namespace {
 
-const nlohmann::json* FindMember(const nlohmann::json& value, const char* key) {
-    if (!value.is_object())
-        return nullptr;
-    auto iter = value.find(key);
-    if (iter == value.end())
-        return nullptr;
-    return &(*iter);
-}
+    const nlohmann::json* FindMember(const nlohmann::json& value, const char* key) {
+        if (!value.is_object())
+            return nullptr;
+        auto iter = value.find(key);
+        if (iter == value.end())
+            return nullptr;
+        return &(*iter);
+    }
 
-const nlohmann::json& NullJson() {
-    static const nlohmann::json value;
-    return value;
-}
+    const nlohmann::json& NullJson() {
+        static const nlohmann::json value;
+        return value;
+    }
 
-const nlohmann::json& GetMemberOrNull(const nlohmann::json& value, const char* key) {
-    const nlohmann::json* member = FindMember(value, key);
-    return member ? *member : NullJson();
-}
+    const nlohmann::json& GetMemberOrNull(const nlohmann::json& value, const char* key) {
+        const nlohmann::json* member = FindMember(value, key);
+        return member ? *member : NullJson();
+    }
 
-int ToInt(const nlohmann::json& value) {
-    if (value.is_number_integer())
-        return value.get<int>();
-    return static_cast<int>(value.get<double>());
-}
+    int ToInt(const nlohmann::json& value) {
+        if (value.is_number_integer())
+            return value.get<int>();
+        return static_cast<int>(value.get<double>());
+    }
 
-float ToFloat(const nlohmann::json& value) {
-    return value.get<float>();
-}
+    float ToFloat(const nlohmann::json& value) {
+        return value.get<float>();
+    }
 
 }  // namespace
 
@@ -349,23 +348,18 @@ Status ParseModelsConfig(nlohmann::json& config_value, CombinedModelConfig& conf
     try {
         CheckObject(config_value, "config value must be Object.");
         // face_info
-        auto face_info_value =
-            Get<nlohmann::json>(config_value, "feature_info", nlohmann::json());
+        auto face_info_value = Get<nlohmann::json>(config_value, "feature_info", nlohmann::json());
         if (!face_info_value.is_null()) {
             CheckObject(face_info_value, "face info value must be Object.");
 
-            config.face_info.testset_name =
-                Get<std::string>(face_info_value, "testset_name", "");
-            config.face_info.score_level =
-                Get<std::vector<float>>(face_info_value, "score_level");
-            config.face_info.cmp_score =
-                Get<std::vector<float>>(face_info_value, "cmp_score");
-            config.face_info.feature_dim = Get<int>(face_info_value, "feature_dim");
+            config.face_info.testset_name = Get<std::string>(face_info_value, "testset_name", "");
+            config.face_info.score_level  = Get<std::vector<float>>(face_info_value, "score_level");
+            config.face_info.cmp_score    = Get<std::vector<float>>(face_info_value, "cmp_score");
+            config.face_info.feature_dim  = Get<int>(face_info_value, "feature_dim");
         }
 
         // instruction
-        auto instructions_value =
-            Get<nlohmann::json>(config_value, "instruction", nlohmann::json());
+        auto instructions_value = Get<nlohmann::json>(config_value, "instruction", nlohmann::json());
         if (instructions_value.is_null())
             return COSMO_NN_OK;
 
@@ -379,8 +373,8 @@ Status ParseModelsConfig(nlohmann::json& config_value, CombinedModelConfig& conf
             instruction.output_node = Get<std::string>(instruction_value, "output_node");
             instruction.shape       = Get<DimsVector>(instruction_value, "shape");
 
-            auto instruction_categories_value = Get<nlohmann::json>(
-                instruction_value, "categories", nlohmann::json());
+            auto instruction_categories_value =
+                Get<nlohmann::json>(instruction_value, "categories", nlohmann::json());
             if (!instruction_categories_value.is_null()) {
                 CheckArray(instruction_categories_value, "categories must be Array.");
                 auto instruction_categories_size = instruction_categories_value.size();
@@ -389,18 +383,16 @@ Status ParseModelsConfig(nlohmann::json& config_value, CombinedModelConfig& conf
                     CheckNullAndObject(instruction_categories_element_value,
                                        "instruction categories element must be Object.");
                     CategoryInfo category_info;
-                    category_info.class_name = Get<std::string>(instruction_categories_element_value,
-                                                                "class_name");
-                    category_info.split =
-                        Get<int>(instruction_categories_element_value, "split");
-                    category_info.threshold = Get<std::vector<float>>(instruction_categories_element_value,
-                                                                      "threshold");
+                    category_info.class_name =
+                        Get<std::string>(instruction_categories_element_value, "class_name");
+                    category_info.split = Get<int>(instruction_categories_element_value, "split");
+                    category_info.threshold =
+                        Get<std::vector<float>>(instruction_categories_element_value, "threshold");
                     instruction.categories.emplace_back(category_info);
                 }
             }
 
-            auto instruction_output_infos_value =
-                Get<nlohmann::json>(instruction_value, "output_info");
+            auto instruction_output_infos_value = Get<nlohmann::json>(instruction_value, "output_info");
             CheckArray(instruction_output_infos_value, "instruction output info must be Array");
             auto instruction_output_info_size = instruction_output_infos_value.size();
             instruction.infos.resize(instruction_output_info_size);
@@ -408,8 +400,7 @@ Status ParseModelsConfig(nlohmann::json& config_value, CombinedModelConfig& conf
                 auto instruction_output_info_value = instruction_output_infos_value[i];
                 CheckNullAndObject(instruction_output_info_value, "output_info must be Object");
 
-                instruction.infos.at(i).label =
-                    Get<std::string>(instruction_output_info_value, "label");
+                instruction.infos.at(i).label = Get<std::string>(instruction_output_info_value, "label");
                 instruction.infos.at(i).class_name =
                     Get<std::string>(instruction_output_info_value, "class_name");
                 instruction.infos.at(i).thresholds =
@@ -431,17 +422,15 @@ Status ParseModelInputOp(nlohmann::json& op_value, std::unique_ptr<Op>& op_out) 
         if (op_name == "resize") {
             auto resize     = std::make_unique<Resize>();
             resize->dsize   = Get<std::vector<int>>(op_value, "dsize");
-            resize->gravity = Get<int>(op_value, "gravity",
-                                       Get<int>(op_value, "padding_gravity", 0));
+            resize->gravity = Get<int>(op_value, "gravity", Get<int>(op_value, "padding_gravity", 0));
             resize->color   = Get<std::vector<int>>(op_value, "color");
             resize->skip    = Get<bool>(op_value, "skip", false);
             op_out          = std::move(resize);
             return COSMO_NN_OK;
         } else if (op_name == "normalize") {
-            auto normalize  = std::make_unique<Normalize>();
-            normalize->mean = Get<std::vector<float>>(op_value, "mean");
-            normalize->std =
-                Get<std::vector<float>>(op_value, "std", std::vector<float>());
+            auto normalize    = std::make_unique<Normalize>();
+            normalize->mean   = Get<std::vector<float>>(op_value, "mean");
+            normalize->std    = Get<std::vector<float>>(op_value, "std", std::vector<float>());
             normalize->scale  = Get<float>(op_value, "scale");
             normalize->is_bgr = Get<bool>(op_value, "is_bgr");
             normalize->skip   = Get<bool>(op_value, "skip", false);
@@ -510,9 +499,8 @@ Status ParseModelInputOp(nlohmann::json& op_value, std::unique_ptr<Op>& op_out) 
             op_out                  = std::move(dino_encode);
             return COSMO_NN_OK;
         } else if (op_name == "sam_prompt_encode") {
-            auto sam_prompt_encode = std::make_unique<SAMPromptEncode>();
-            sam_prompt_encode->prompt_type =
-                Get<std::string>(op_value, "prompt_type", "point");
+            auto sam_prompt_encode          = std::make_unique<SAMPromptEncode>();
+            sam_prompt_encode->prompt_type  = Get<std::string>(op_value, "prompt_type", "point");
             sam_prompt_encode->normalize    = Get<bool>(op_value, "normalize", true);
             sam_prompt_encode->encoder_size = Get<int>(op_value, "encoder_size", 1024);
             sam_prompt_encode->max_points   = Get<int>(op_value, "max_points", 6);
@@ -541,16 +529,14 @@ Status ParseModelOutputOp(nlohmann::json& op_value, std::unique_ptr<Op>& op_out)
             op_out                        = std::move(yolo_post);
             return COSMO_NN_OK;
         } else if (op_name == "yolo_npu_postprocess") {
-            auto yolo_npu_post           = std::make_unique<YoloNpuPost>();
-            yolo_npu_post->nms_threshold = Get<float>(op_value, "nms_threshold");
-            yolo_npu_post->nms_detection_conf =
-                Get<float>(op_value, "nms_detection_conf");
-            yolo_npu_post->top_k = Get<int>(op_value, "top_k");
-            yolo_npu_post->anchors =
-                Get<std::vector<std::vector<std::vector<float>>>>(op_value, "anchors");
-            yolo_npu_post->stride = Get<std::vector<float>>(op_value, "stride");
-            std::string des       = yolo_npu_post->Description();
-            op_out                = std::move(yolo_npu_post);
+            auto yolo_npu_post                = std::make_unique<YoloNpuPost>();
+            yolo_npu_post->nms_threshold      = Get<float>(op_value, "nms_threshold");
+            yolo_npu_post->nms_detection_conf = Get<float>(op_value, "nms_detection_conf");
+            yolo_npu_post->top_k              = Get<int>(op_value, "top_k");
+            yolo_npu_post->anchors = Get<std::vector<std::vector<std::vector<float>>>>(op_value, "anchors");
+            yolo_npu_post->stride  = Get<std::vector<float>>(op_value, "stride");
+            std::string des        = yolo_npu_post->Description();
+            op_out                 = std::move(yolo_npu_post);
             return COSMO_NN_OK;
         } else if (op_name == "yolov8_postprocess") {
             // YOLOv8 uses the same output format as YOLOv5 when anchor decoding is in the model
@@ -586,12 +572,11 @@ Status ParseModelOutputOp(nlohmann::json& op_value, std::unique_ptr<Op>& op_out)
             op_out                      = std::move(dino_decode);
             return COSMO_NN_OK;
         } else if (op_name == "sam_decode") {
-            auto sam_decode       = std::make_unique<SAMDecode>();
-            sam_decode->threshold = Get<float>(op_value, "threshold", 0.0f);
-            sam_decode->output_size =
-                Get<std::vector<int>>(op_value, "output_size", std::vector<int>());
-            sam_decode->skip = Get<bool>(op_value, "skip", false);
-            op_out           = std::move(sam_decode);
+            auto sam_decode         = std::make_unique<SAMDecode>();
+            sam_decode->threshold   = Get<float>(op_value, "threshold", 0.0f);
+            sam_decode->output_size = Get<std::vector<int>>(op_value, "output_size", std::vector<int>());
+            sam_decode->skip        = Get<bool>(op_value, "skip", false);
+            op_out                  = std::move(sam_decode);
             return COSMO_NN_OK;
         } else {
             return Status(COSMO_NN_ERR_JSON_PARSE, "Unsupport output op");
@@ -625,9 +610,9 @@ Status ParseModelInputNode(nlohmann::json& input_node_info_value, InputNodeInfo&
         input_node.name  = Get<std::string>(input_node_info_value, "input_node");
         input_node.shape = Get<DimsVector>(input_node_info_value, "shape");
 
-        input_node.data_type      = Get<int>(input_node_info_value, "data_type");
-        auto input_node_ops_value = Get<nlohmann::json>(input_node_info_value, "preprocess",
-                                                     nlohmann::json());
+        input_node.data_type = Get<int>(input_node_info_value, "data_type");
+        auto input_node_ops_value =
+            Get<nlohmann::json>(input_node_info_value, "preprocess", nlohmann::json());
         if (!input_node_ops_value.is_null()) {
             CheckArray(input_node_ops_value, "input node ops must be Array.");
             RETURN_ON_FAIL(ParseModelInputOps(input_node_ops_value, input_node.ops));
@@ -663,8 +648,8 @@ Status ParseModelOutputNode(nlohmann::json& output_node_value, OutputNodeInfo& o
         output_node.name      = Get<std::string>(output_node_value, "output_node");
         output_node.shape     = Get<DimsVector>(output_node_value, "shape");
         output_node.data_type = Get<int>(output_node_value, "data_type");
-        auto output_node_post_process_value = Get<nlohmann::json>(
-            output_node_value, "post_process", nlohmann::json());
+        auto output_node_post_process_value =
+            Get<nlohmann::json>(output_node_value, "post_process", nlohmann::json());
         if (!output_node_post_process_value.is_null())
             RETURN_ON_FAIL(ParseModelOutputOp(output_node_post_process_value, output_node.op));
     } catch (std::exception& e) {
@@ -739,8 +724,7 @@ Status ParseModelConvert(nlohmann::json& convert_value, Convert& convert) {
         convert.type      = Get<std::string>(convert_value, "type");
         convert.max_batch = Get<int>(convert_value, "max_batch");
         convert.precision = Get<std::string>(convert_value, "precision");
-        auto models_value =
-            Get<nlohmann::json>(convert_value, "model", nlohmann::json());
+        auto models_value = Get<nlohmann::json>(convert_value, "model", nlohmann::json());
         if (models_value.is_null())
             return COSMO_NN_OK;
 
@@ -749,15 +733,12 @@ Status ParseModelConvert(nlohmann::json& convert_value, Convert& convert) {
         for (unsigned int i = 0; i < models_value.size(); i++) {
             auto model_value = models_value[i];
             CheckNullAndObject(model_value, "inner must be Object.");
-            convert.models.at(i).mean  = Get<std::vector<float>>(model_value, "mean", {});
-            convert.models.at(i).scale = Get<float>(model_value, "scale", 0.f);
-            convert.models.at(i).is_bgr = Get<bool>(model_value, "is_bgr", false);
-            convert.models.at(i).is_opconvert =
-                Get<bool>(model_value, "is_opconvert", true);
-            convert.models.at(i).is_optimize =
-                Get<bool>(model_value, "is_optimize", true);
-            convert.models.at(i).is_normalize =
-                Get<bool>(model_value, "is_normalize", false);
+            convert.models.at(i).mean         = Get<std::vector<float>>(model_value, "mean", {});
+            convert.models.at(i).scale        = Get<float>(model_value, "scale", 0.f);
+            convert.models.at(i).is_bgr       = Get<bool>(model_value, "is_bgr", false);
+            convert.models.at(i).is_opconvert = Get<bool>(model_value, "is_opconvert", true);
+            convert.models.at(i).is_optimize  = Get<bool>(model_value, "is_optimize", true);
+            convert.models.at(i).is_normalize = Get<bool>(model_value, "is_normalize", false);
         }
     } catch (std::exception& e) {
         return Status(COSMO_NN_ERR_JSON_PARSE, e.what());
@@ -780,13 +761,11 @@ Status ModelInfoUtils::ParseModelInfo(const std::string& info_content_, Combined
         auto model_value   = Get<nlohmann::json>(root, "model");
         RETURN_ON_FAIL(ParseModelsInfo(model_value, info.models));
 
-        auto config_value =
-            Get<nlohmann::json>(root, "config", nlohmann::json());
+        auto config_value = Get<nlohmann::json>(root, "config", nlohmann::json());
         if (!config_value.is_null())
             RETURN_ON_FAIL(ParseModelsConfig(config_value, info.config));
 
-        auto convert_value =
-            Get<nlohmann::json>(root, "cwnn_convert", nlohmann::json());
+        auto convert_value = Get<nlohmann::json>(root, "cwnn_convert", nlohmann::json());
         if (!convert_value.is_null())
             RETURN_ON_FAIL(ParseModelConvert(convert_value, info.convert));
 

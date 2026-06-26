@@ -1,28 +1,27 @@
 #include "nn/pipeline/pipeline_utils.h"
 
-#include <utility>
-
 #include <nlohmann/json.hpp>
+#include <utility>
 
 #include "util/Log.h"
 
 namespace cosmo::nn {
 namespace pipeline_utils {
-namespace {
+    namespace {
 
-    const nlohmann::json* FindObjectMember(const nlohmann::json& json, const char* key) {
-        if (!json.is_object())
-            return nullptr;
-        auto iter = json.find(key);
-        return iter == json.end() ? nullptr : &(*iter);
-    }
+        const nlohmann::json* FindObjectMember(const nlohmann::json& json, const char* key) {
+            if (!json.is_object())
+                return nullptr;
+            auto iter = json.find(key);
+            return iter == json.end() ? nullptr : &(*iter);
+        }
 
-    void WarnInvalidField(const char* key, const char* expected, const nlohmann::json& actual) {
-        LOG_WARN("Invalid JSON field '{}' type: expected {}, actual {}; using default", key, expected,
-                 actual.type_name());
-    }
+        void WarnInvalidField(const char* key, const char* expected, const nlohmann::json& actual) {
+            LOG_WARN("Invalid JSON field '{}' type: expected {}, actual {}; using default", key, expected,
+                     actual.type_name());
+        }
 
-}  // namespace
+    }  // namespace
 
     nlohmann::json ParseJsonObject(const std::string& raw) {
         if (raw.empty())
@@ -118,8 +117,8 @@ namespace {
         }
     }
 
-    std::vector<int> ReadIntArray(const nlohmann::json& json, const char* key,
-                                  std::vector<int> defaults, size_t min_size) {
+    std::vector<int> ReadIntArray(const nlohmann::json& json, const char* key, std::vector<int> defaults,
+                                  size_t min_size) {
         const nlohmann::json* value = FindObjectMember(json, key);
         if (!value || value->is_null())
             return defaults;
@@ -183,9 +182,8 @@ namespace {
     }
 
     std::vector<std::vector<std::vector<float>>> ReadFloat3DArray(
-        const nlohmann::json& json, const char* key,
-        std::vector<std::vector<std::vector<float>>> defaults, size_t min_outer_size,
-        size_t min_middle_size, size_t min_inner_size) {
+        const nlohmann::json& json, const char* key, std::vector<std::vector<std::vector<float>>> defaults,
+        size_t min_outer_size, size_t min_middle_size, size_t min_inner_size) {
         const nlohmann::json* value = FindObjectMember(json, key);
         if (!value || value->is_null())
             return defaults;
@@ -225,22 +223,25 @@ namespace {
                     return defaults;
                 }
                 if (middle.size() < min_inner_size) {
-                    LOG_WARN("Invalid JSON field '{}' inner length: expected at least {}, actual {}; using default",
-                             key, min_inner_size, middle.size());
+                    LOG_WARN(
+                        "Invalid JSON field '{}' inner length: expected at least {}, actual {}; using "
+                        "default",
+                        key, min_inner_size, middle.size());
                     return defaults;
                 }
                 outer.push_back(std::move(middle));
             }
             if (outer.size() < min_middle_size) {
-                LOG_WARN("Invalid JSON field '{}' middle length: expected at least {}, actual {}; using default",
-                         key, min_middle_size, outer.size());
+                LOG_WARN(
+                    "Invalid JSON field '{}' middle length: expected at least {}, actual {}; using default",
+                    key, min_middle_size, outer.size());
                 return defaults;
             }
             values.push_back(std::move(outer));
         }
         if (values.size() < min_outer_size) {
-            LOG_WARN("Invalid JSON field '{}' outer length: expected at least {}, actual {}; using default", key,
-                     min_outer_size, values.size());
+            LOG_WARN("Invalid JSON field '{}' outer length: expected at least {}, actual {}; using default",
+                     key, min_outer_size, values.size());
             return defaults;
         }
         return values;
@@ -464,7 +465,7 @@ namespace {
                 if (inputs && inputs->is_array()) {
                     for (const auto& in : *inputs) {
                         PipelineModelConfig::InputDef input;
-                        input.name = ReadString(in, "name", std::string());
+                        input.name                  = ReadString(in, "name", std::string());
                         const nlohmann::json* shape = FindObjectMember(in, "shape");
                         input.shape                 = shape ? GetIntArray(*shape) : std::vector<int>();
                         input.data_type             = ReadInt(in, "data_type", 0);
@@ -476,7 +477,7 @@ namespace {
                 if (outputs && outputs->is_array()) {
                     for (const auto& out : *outputs) {
                         PipelineModelConfig::OutputDef output;
-                        output.name = ReadString(out, "name", std::string());
+                        output.name                 = ReadString(out, "name", std::string());
                         const nlohmann::json* shape = FindObjectMember(out, "shape");
                         output.shape                = shape ? GetIntArray(*shape) : std::vector<int>();
                         output.data_type            = ReadInt(out, "data_type", 0);
@@ -495,8 +496,8 @@ namespace {
             if (labels && labels->is_array()) {
                 for (const auto& l : *labels) {
                     PipelineLabelInfo label;
-                    label.id   = ReadString(l, "id", std::string());
-                    label.name = ReadString(l, "name", std::string());
+                    label.id                        = ReadString(l, "id", std::string());
+                    label.name                      = ReadString(l, "name", std::string());
                     const nlohmann::json* threshold = FindObjectMember(l, "threshold");
                     label.threshold = threshold ? GetFloatArray(*threshold) : std::vector<float>();
                     config.labels.push_back(label);

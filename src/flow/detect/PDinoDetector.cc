@@ -35,7 +35,7 @@ bool PDinoDetector::ActionInit() {
     std::string cfgPath   = "";
     std::string modelPath = "";
     auto cfgRet           = service::ServiceRegistry::Instance().Get<service::IModelService>().GetModelCfg(
-                  GetAtomicCode(), cfgPath, modelPath);
+        GetAtomicCode(), cfgPath, modelPath);
     if (!cfgRet) {
         LOG_WARN("Get Model Configure Failed. AlgCode:{} code:{}", GetAtomicCode(), cfgRet);
         return false;

@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include <vector>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "flow/common/AlgDetectTypes.h"
 #include "flow/task/TaskBaseParam.h"

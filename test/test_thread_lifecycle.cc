@@ -1,9 +1,8 @@
-#include "catch_amalgamated.hpp"
-
 #include <atomic>
 #include <chrono>
 #include <thread>
 
+#include "catch_amalgamated.hpp"
 #include "util/Thread.h"
 
 namespace {

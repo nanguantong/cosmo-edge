@@ -1,11 +1,10 @@
 #pragma once
 
-#include <memory>
 #include <cstddef>
+#include <memory>
+#include <nlohmann/json_fwd.hpp>
 #include <string>
 #include <vector>
-
-#include <nlohmann/json_fwd.hpp>
 
 #include "nn/core/status.h"
 #include "nn/pipeline/model_pipeline.h"
@@ -76,8 +75,8 @@ namespace pipeline_utils {
 
     bool ReadBool(const nlohmann::json& json, const char* key, bool defaults = false);
 
-    std::vector<int> ReadIntArray(const nlohmann::json& json, const char* key,
-                                  std::vector<int> defaults = {}, size_t min_size = 0);
+    std::vector<int> ReadIntArray(const nlohmann::json& json, const char* key, std::vector<int> defaults = {},
+                                  size_t min_size = 0);
 
     std::vector<float> ReadFloatArray(const nlohmann::json& json, const char* key,
                                       std::vector<float> defaults = {}, size_t min_size = 0);

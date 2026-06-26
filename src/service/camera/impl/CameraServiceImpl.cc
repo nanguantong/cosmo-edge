@@ -384,7 +384,7 @@ util::ErrorEnum CameraServiceImpl::MakeCameraTask(const CameraEntityPtr& camera,
     task->task_id_        = ChannelAlgIdToTaskId(camera->videoChannelId, task->algorithm_code_);
     task->algorithm_name_ = algData->algorithmName;
     auto taskUnit         = std::make_shared<CameraTaskUnit>(camera->conf_file_path_, camera->videoChannelId,
-                                                     task->algorithm_code_, models);
+                                                             task->algorithm_code_, models);
     if (!taskUnit->IsReady()) {
         auto status = taskUnit->GetStatus();
         LOG_WARN("[{}/{}] Make Task failed, unit status:{}", camera->videoChannelId, task->algorithm_code_,
@@ -443,13 +443,12 @@ void CameraServiceImpl::SwitchCameraTaskAsync(CameraEntityPtr camera, CameraTask
         camera->switch_thread_.join();
     }
 
-    std::string channelId = camera->videoChannelId;
-    camera->switch_thread_ =
-        std::thread([this, camera, task, channelId]() {
-            LOG_INFO("[{}/{}] SwitchCameraTaskAsync START in background thread", channelId, task->task_id_);
-            SwitchCameraTask(camera, task);
-            LOG_INFO("[{}/{}] SwitchCameraTaskAsync DONE", channelId, task->task_id_);
-        });
+    std::string channelId  = camera->videoChannelId;
+    camera->switch_thread_ = std::thread([this, camera, task, channelId]() {
+        LOG_INFO("[{}/{}] SwitchCameraTaskAsync START in background thread", channelId, task->task_id_);
+        SwitchCameraTask(camera, task);
+        LOG_INFO("[{}/{}] SwitchCameraTaskAsync DONE", channelId, task->task_id_);
+    });
 }
 
 // ============================================================

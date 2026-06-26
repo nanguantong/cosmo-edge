@@ -124,7 +124,7 @@ Status YoloDecodeNode::Forward(std::vector<std::shared_ptr<Blob>>& bottom_blobs,
 
         if (is_normalized) {
             LOG_DEBUG("[YoloDecodeNode] batch {}: detected normalized coordinates, denormalizing by [{}x{}]",
-                     i, input_width_, input_height_);
+                      i, input_width_, input_height_);
         }
 
         int min = std::min(top_k, static_cast<int>(conf_list.size()));

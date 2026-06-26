@@ -6,7 +6,7 @@ namespace cosmo::nn {
 
 class AbstractContext {
 public:
-    virtual ~AbstractContext(){};
+    virtual ~AbstractContext() {};
 
     virtual Status GetCommandQueue(void** queue) = 0;
 

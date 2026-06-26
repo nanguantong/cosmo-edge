@@ -1,7 +1,6 @@
 #include "nn/pipeline/detection_pipeline.h"
 
 #include <cstdio>
-
 #include <nlohmann/json.hpp>
 
 #include "nn/pipeline/pipeline_utils.h"
@@ -39,9 +38,9 @@ static std::vector<std::unique_ptr<Op>> MakeDetPreprocess(const nlohmann::json& 
 
     ops.push_back(pipeline_utils::MakeResizeOp(dsize, gravity, color));
 
-    std::vector<float> mean = pipeline_utils::ReadFloatArray(p, "normalize_mean", {0.f, 0.f, 0.f}, 3);
-    float scale  = pipeline_utils::ReadFloat(p, "normalize_scale", 0.00392157f);
-    bool is_bgr  = pipeline_utils::ReadBool(p, "is_bgr", true);
+    std::vector<float> mean    = pipeline_utils::ReadFloatArray(p, "normalize_mean", {0.f, 0.f, 0.f}, 3);
+    float scale                = pipeline_utils::ReadFloat(p, "normalize_scale", 0.00392157f);
+    bool is_bgr                = pipeline_utils::ReadBool(p, "is_bgr", true);
     std::vector<float> std_dev = pipeline_utils::ReadFloatArray(p, "normalize_std", {}, 3);
 
     ops.push_back(pipeline_utils::MakeNormalizeOp(mean, scale, is_bgr, std_dev));
@@ -140,8 +139,7 @@ Status YoloV5DetPipeline::Init(const PipelineConfig& config, const std::string& 
                     std::vector<std::vector<std::vector<float>>> anchors;
                     std::vector<float> stride;
                     if (!ReadYoloNpuPostParams(p, anchors, stride)) {
-                        return Status(COSMO_NN_ERR_PARAM,
-                                      "Invalid yolo_npu anchors/stride config");
+                        return Status(COSMO_NN_ERR_PARAM, "Invalid yolo_npu anchors/stride config");
                     }
                     output.op =
                         pipeline_utils::MakeYoloNpuPostOp(nms_thresh, conf_thresh, top_k, anchors, stride);
@@ -393,8 +391,7 @@ Status GenericDetectorPipeline::Init(const PipelineConfig& config, const std::st
                     std::vector<std::vector<std::vector<float>>> anchors;
                     std::vector<float> stride;
                     if (!ReadYoloNpuPostParams(p, anchors, stride)) {
-                        return Status(COSMO_NN_ERR_PARAM,
-                                      "Invalid yolo_npu anchors/stride config");
+                        return Status(COSMO_NN_ERR_PARAM, "Invalid yolo_npu anchors/stride config");
                     }
                     output.op =
                         pipeline_utils::MakeYoloNpuPostOp(nms_thresh, conf_thresh, top_k, anchors, stride);

@@ -22,10 +22,10 @@
 #include "api/MessageLiveStreamHandler.h"
 #include "api/MessageModelHandler.h"
 #include "api/MessageNetworkHandler.h"
+#include "api/MessageOnboardingHandler.h"
 #include "api/MessageScheduleHandler.h"
 #include "api/MessageSystemHandler.h"
 #include "api/MessageThingsLibHandler.h"
-#include "api/MessageOnboardingHandler.h"
 #include "api/MessageVideoTaskHandler.h"
 #include "util/IRequestDispatcher.h"
 

@@ -6,9 +6,8 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <sstream>
-
 #include <nlohmann/json.hpp>
+#include <sstream>
 
 #include "bmlib_runtime.h"
 #include "nn/core/blob.h"
@@ -25,9 +24,9 @@ namespace cosmo::nn {
 
 namespace {
 
-    const int SPATIAL_MERGE_SIZE = 2;
-    const int NUM_GRID_PER_SIDE  = 48;
-    const int TOKENS_PER_SECOND  = 2;
+    const int SPATIAL_MERGE_SIZE               = 2;
+    const int NUM_GRID_PER_SIDE                = 48;
+    const int TOKENS_PER_SECOND                = 2;
     constexpr std::streamoff kMaxJsonFileBytes = 10 * 1024 * 1024;
 
     bool LooksLikeJsonContent(const std::string& value) {
@@ -150,8 +149,8 @@ namespace {
     int ReadMaxPixelsFromModelConfig(const std::string& model_config_json_path) {
         nlohmann::json root      = ParseModelConfigRoot(model_config_json_path);
         const nlohmann::json* mp = nullptr;
-        if (root.contains("config") && root["config"].is_object() && root["config"].contains("model_params") &&
-            root["config"]["model_params"].is_object()) {
+        if (root.contains("config") && root["config"].is_object() &&
+            root["config"].contains("model_params") && root["config"]["model_params"].is_object()) {
             mp = &root["config"]["model_params"];
         } else if (root.contains("model_params") && root["model_params"].is_object()) {
             mp = &root["model_params"];

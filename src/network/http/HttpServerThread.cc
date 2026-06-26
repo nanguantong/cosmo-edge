@@ -208,7 +208,7 @@ void MsgHanderThread::ProcessHttpOctetReqTask(HttpReqTask& task) {
     std::string request_id;
     auto uri           = evhttp_request_get_uri(evR);
     auto ackTask       = std::make_unique<HttpAckTask>(static_cast<int>(HttpResponseCode::kOk), evR,
-                                                 std::move(response), std::move(request_id));
+                                                       std::move(response), std::move(request_id));
     ackTask->file_name = std::string(cosmo::util::GetLastPathSegment(uri));
     ackTask->file_path = server_->callbacks().get_user_data_path() + uri;
     LOG_INFO("{} Handle {} interface:{}", Name(), uri, ackTask->file_name);

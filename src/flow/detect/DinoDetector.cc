@@ -96,7 +96,7 @@ bool DinoDetector::DinoSdkInit() {
     std::string cfgPath   = "";
     std::string modelPath = "";
     auto cfgRet           = service::ServiceRegistry::Instance().Get<service::IModelService>().GetModelCfg(
-                  m_algCode, cfgPath, modelPath);
+        m_algCode, cfgPath, modelPath);
     if (!cfgRet) {
         LOG_WARN("{}Get Model Configure Failed. AlgCode:{} code:{}", kTag, m_algCode, cfgRet);
         return false;

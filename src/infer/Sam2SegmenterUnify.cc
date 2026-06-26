@@ -234,8 +234,8 @@ util::ErrorEnum Sam2SegmenterUnify::Forward(const std::vector<VideoFramePtr> &im
     // Inference result log: verify invocation
     for (size_t i = 0; i < results.size(); i++) {
         LOG_DEBUG("[Sam2Segment] Forward done. imageIdx:{} maskSize:{}x{} maskDataLen:{}", i,
-                 results.at(i).mask.width, results.at(i).mask.height,
-                 results.at(i).mask.data.empty() ? 0 : results.at(i).mask.data.size());
+                  results.at(i).mask.width, results.at(i).mask.height,
+                  results.at(i).mask.data.empty() ? 0 : results.at(i).mask.data.size());
     }
     LOG_DEBUG("[Sam2Segment] Forward done. images:{} results:{}", images.size(), results.size());
     return util::ErrorEnum::Success;

@@ -132,10 +132,10 @@ util::ErrorEnum DinoDetectorUnify::Forward(const std::vector<VideoFramePtr>& ima
             dim_str += std::to_string(d.dims[k]);
         }
         LOG_DEBUG("[DinoDetect] input imageIdx:{} blob dims:[{}] dtype:{} device:{}", i, dim_str,
-                 static_cast<int>(d.data_type), static_cast<int>(d.device_type));
+                  static_cast<int>(d.data_type), static_cast<int>(d.device_type));
     }
     LOG_DEBUG("[DinoDetect] input prompt: \"{}\" len:{} promptBlobs:{} eachDims:[1,{}]", prompt_text,
-             prompt_text.size(), prompt_blobs.size(), prompt_text.size());
+              prompt_text.size(), prompt_blobs.size(), prompt_text.size());
 
     auto status = detector_->Forward({image_blobs, prompt_blobs});
     if (!bool(status)) {
@@ -182,7 +182,7 @@ util::ErrorEnum DinoDetectorUnify::Forward(const std::vector<VideoFramePtr>& ima
         for (size_t j = 0; j < results[i].size() && j < 5; j++) {
             const auto& el = results[i][j];
             LOG_DEBUG("[DinoDetect] imageIdx:{} detIdx:{} box:[{},{},{},{}] label:{} conf:{}", i, j, el.box.x,
-                     el.box.y, el.box.width, el.box.height, el.confidence.label, el.confidence.confidence);
+                      el.box.y, el.box.width, el.box.height, el.confidence.label, el.confidence.confidence);
         }
         if (results[i].size() > 5)
             LOG_DEBUG("[DinoDetect] imageIdx:{} total:{} (only first 5 logged)", i, results[i].size());

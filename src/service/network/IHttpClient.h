@@ -22,7 +22,7 @@ public:
     /// Send HTTP POST request (JSON body), return status code and response body
     virtual HttpResponse Post(const std::string& url, const std::string& data,
                               const std::string& contentType = "application/json", long connectTimeoutSec = 2,
-                              long timeoutSec = 3,
+                              long timeoutSec                                                 = 3,
                               const std::vector<std::pair<std::string, std::string>>& headers = {}) = 0;
 };
 

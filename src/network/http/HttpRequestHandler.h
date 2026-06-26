@@ -17,7 +17,7 @@ public:
     /**
      * @return: flush buffered content
      */
-    virtual void Flush(){};
+    virtual void Flush() {};
 };
 
 class HttpStringHandler : public HttpRequestHandler {

@@ -13,17 +13,17 @@
 namespace cosmo::service {
 
 namespace {
-struct OnboardingState {
-    bool onboarding_completed{false};
-};
+    struct OnboardingState {
+        bool onboarding_completed{false};
+    };
 
-void to_json(nlohmann::json& j, const OnboardingState& s) {
-    j = nlohmann::json{{"onboardingCompleted", s.onboarding_completed}};
-}
+    void to_json(nlohmann::json& j, const OnboardingState& s) {
+        j = nlohmann::json{{"onboardingCompleted", s.onboarding_completed}};
+    }
 
-void from_json(const nlohmann::json& j, OnboardingState& s) {
-    j.at("onboardingCompleted").get_to(s.onboarding_completed);
-}
+    void from_json(const nlohmann::json& j, OnboardingState& s) {
+        j.at("onboardingCompleted").get_to(s.onboarding_completed);
+    }
 }  // namespace
 
 // ── Construction ────────────────────────────────────────────────────────
@@ -83,8 +83,8 @@ void OnboardingServiceImpl::LoadState() {
 void OnboardingServiceImpl::SaveState() {
     OnboardingState state;
     state.onboarding_completed = onboarding_completed_;
-    nlohmann::json j = state;
-    auto path         = GetConfigFilePath();
+    nlohmann::json j           = state;
+    auto path                  = GetConfigFilePath();
     cosmo::util::WriteFile(path, j.dump(2));
 }
 

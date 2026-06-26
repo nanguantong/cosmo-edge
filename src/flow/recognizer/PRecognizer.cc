@@ -37,7 +37,7 @@ bool PRecognizer::ActionInit() {
     std::string cfg_path   = "";
     std::string model_path = "";
     auto cfg_ret           = service::ServiceRegistry::Instance().Get<service::IModelService>().GetModelCfg(
-                  GetAtomicCode(), cfg_path, model_path);
+        GetAtomicCode(), cfg_path, model_path);
     if (!cfg_ret) {
         LOG_WARN("Get Model Configure Failed. AlgCode:{} code:{}", GetAtomicCode(), cfg_ret);
         return false;

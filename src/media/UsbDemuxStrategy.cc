@@ -59,9 +59,9 @@ util::ErrorEnum UsbDemuxStrategy::OpenInput(AVFormatContext*& fmt_ctx, const std
     const char* fmtNames[]        = {"mjpg", "mjpeg"};
     const char* framerateRational = "30/1";
     const char* kPresets[][3]     = {
-            {"1920x1080", "1280x720", "640x480"},  // tier 0
-            {"1280x720", "1920x1080", "640x480"},  // tier 1
-            {"640x480", "1280x720", "1920x1080"},  // tier 2
+        {"1920x1080", "1280x720", "640x480"},  // tier 0
+        {"1280x720", "1920x1080", "640x480"},  // tier 1
+        {"640x480", "1280x720", "1920x1080"},  // tier 2
     };
     const char** usbTries = kPresets[tier];
 

@@ -70,8 +70,8 @@ bool AreaAlarm::MultTargetLogicResult(std::vector<MultTargetAreaLimitParam>& tar
     for (auto& param : params_.mult_target_limit_param) {
         int areaTargetCount = 0;
         auto it             = std::find_if(
-                        targetsInfo.begin(), targetsInfo.end(),
-                        [&](const MultTargetAreaLimitParam& dataUnit) { return param.label == dataUnit.label; });
+            targetsInfo.begin(), targetsInfo.end(),
+            [&](const MultTargetAreaLimitParam& dataUnit) { return param.label == dataUnit.label; });
         if (it != targetsInfo.end()) {
             areaTargetCount = it->area_limit_target_count;
         }

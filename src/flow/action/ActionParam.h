@@ -25,7 +25,7 @@ void from_json(const nlohmann::json& j, ActionParam& v);
 using ActionParamPtr = std::shared_ptr<ActionParam>;
 
 struct TaskParam {
-    TaskParam(){};
+    TaskParam() {};
     std::vector<ActionParam> actions;
     friend void to_json(nlohmann::json& j, const TaskParam& v);
     friend void from_json(const nlohmann::json& j, TaskParam& v);

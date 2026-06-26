@@ -10,9 +10,9 @@
 #include "nn/device/sophon/sophon_sequence_node.h"
 #include "nn/device/sophon/sophon_yolo_decode_npu_node.h"
 
-#define ALIGN(x, a) (((x) + ((a)-1)) & ~((a)-1))
+#define ALIGN(x, a) (((x) + ((a) - 1)) & ~((a) - 1))
 
-#define RGBU8_IMAGE_SIZE(width, height) ((width) * (height)*3)
+#define RGBU8_IMAGE_SIZE(width, height) ((width) * (height) * 3)
 
 #define BM_IMAGE_FORMAT FORMAT_BGR_PACKED
 #define USE_MEM_HEAP0 0  // for bmrt

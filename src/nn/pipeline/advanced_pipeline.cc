@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <fstream>
-
 #include <nlohmann/json.hpp>
 
 #include "nn/core/shared_resource.h"
@@ -28,7 +27,7 @@ Status SAM2Pipeline::Init(const PipelineConfig& config, const std::string& model
 
     // --- Encoder ---
     {
-        auto& mc = config.models[0];
+        auto& mc         = config.models[0];
         nlohmann::json p = pipeline_utils::ParseJsonObject(mc.params_json);
 
         ModelInfo model;
@@ -38,8 +37,7 @@ Status SAM2Pipeline::Init(const PipelineConfig& config, const std::string& model
         model.max_batch = mc.max_batch;
         max_batch_      = mc.max_batch;
 
-        std::vector<int> enc_size =
-            pipeline_utils::ReadIntArray(p, "input_size", {1024, 1024}, 2);
+        std::vector<int> enc_size = pipeline_utils::ReadIntArray(p, "input_size", {1024, 1024}, 2);
         std::vector<float> mean =
             pipeline_utils::ReadFloatArray(p, "normalize_mean", {123.675f, 116.28f, 103.53f}, 3);
         std::vector<float> std_dev =
@@ -71,7 +69,7 @@ Status SAM2Pipeline::Init(const PipelineConfig& config, const std::string& model
 
     // --- Decoder ---
     {
-        auto& mc = config.models[1];
+        auto& mc         = config.models[1];
         nlohmann::json p = pipeline_utils::ParseJsonObject(mc.params_json);
 
         ModelInfo model;
@@ -97,9 +95,8 @@ Status SAM2Pipeline::Init(const PipelineConfig& config, const std::string& model
             model.input_node_infos.push_back(std::move(input));
         }
 
-        float sam_threshold = pipeline_utils::ReadFloat(p, "threshold", 0.0f);
-        std::vector<int> output_size =
-            pipeline_utils::ReadIntArray(p, "output_size", {1024, 1024}, 2);
+        float sam_threshold          = pipeline_utils::ReadFloat(p, "threshold", 0.0f);
+        std::vector<int> output_size = pipeline_utils::ReadIntArray(p, "output_size", {1024, 1024}, 2);
 
         for (auto& out_def : mc.outputs) {
             OutputNodeInfo output;
@@ -426,12 +423,10 @@ Status SegmentationPipeline::Init(const PipelineConfig& config, const std::strin
         model.max_batch = mc.max_batch;
         max_batch_      = mc.max_batch;
 
-        std::vector<int> dsize =
-            pipeline_utils::ReadIntArray(p, "input_size", {512, 512}, 2);
-        std::vector<float> mean =
-            pipeline_utils::ReadFloatArray(p, "normalize_mean", {0.f, 0.f, 0.f}, 3);
-        float scale  = pipeline_utils::ReadFloat(p, "normalize_scale", 0.00392157f);
-        bool is_bgr  = pipeline_utils::ReadBool(p, "is_bgr", false);
+        std::vector<int> dsize     = pipeline_utils::ReadIntArray(p, "input_size", {512, 512}, 2);
+        std::vector<float> mean    = pipeline_utils::ReadFloatArray(p, "normalize_mean", {0.f, 0.f, 0.f}, 3);
+        float scale                = pipeline_utils::ReadFloat(p, "normalize_scale", 0.00392157f);
+        bool is_bgr                = pipeline_utils::ReadBool(p, "is_bgr", false);
         std::vector<float> std_dev = pipeline_utils::ReadFloatArray(p, "normalize_std", {}, 3);
 
         std::vector<std::unique_ptr<Op>> preprocess;
@@ -560,8 +555,7 @@ Status OcrPipeline::Init(const PipelineConfig& config, const std::string& model_
         model.max_batch = mc.max_batch;
         max_batch_      = mc.max_batch;
 
-        std::vector<int> dsize =
-            pipeline_utils::ReadIntArray(p, "input_size", {32, 320}, 2);
+        std::vector<int> dsize = pipeline_utils::ReadIntArray(p, "input_size", {32, 320}, 2);
         std::vector<float> mean =
             pipeline_utils::ReadFloatArray(p, "normalize_mean", {127.5f, 127.5f, 127.5f}, 3);
         float scale = pipeline_utils::ReadFloat(p, "normalize_scale", 0.00784314f);

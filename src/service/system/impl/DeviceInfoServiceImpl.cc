@@ -236,9 +236,7 @@ std::vector<HwResourceItem> DeviceInfoServiceImpl::GetHardwareResource(double& c
     std::vector<cosmo::GpuMemSnapshot> devs;
     devs.reserve(gpu_utl.gpudevusage.size());
     std::transform(gpu_utl.gpudevusage.begin(), gpu_utl.gpudevusage.end(), std::back_inserter(devs),
-                   [](const auto& d) -> cosmo::GpuMemSnapshot {
-                       return {d.gpumemtotal, d.gpumemavailable};
-                   });
+                   [](const auto& d) -> cosmo::GpuMemSnapshot { return {d.gpumemtotal, d.gpumemavailable}; });
     custom_score = cosmo::CalcCustomScore(gpu_utl.gpuusage, gpu_utl.gpumemtotal, gpu_utl.gpumemavailable,
                                           devs, used_percent, continues_discard_sec);
     return items;

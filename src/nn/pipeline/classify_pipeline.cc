@@ -29,10 +29,9 @@ Status ClassifyPipeline::Init(const PipelineConfig& config, const std::string& m
         int gravity = pipeline_utils::ReadInt(p, "gravity", pipeline_utils::ReadInt(p, "padding_gravity", 0));
         std::vector<int> color = pipeline_utils::ReadIntArray(p, "padding_color", {114, 114, 114}, 1);
 
-        std::vector<float> mean =
-            pipeline_utils::ReadFloatArray(p, "normalize_mean", {0.f, 0.f, 0.f}, 3);
-        float scale = pipeline_utils::ReadFloat(p, "normalize_scale", 0.00392157f);
-        bool is_bgr = pipeline_utils::ReadBool(p, "is_bgr", false);
+        std::vector<float> mean = pipeline_utils::ReadFloatArray(p, "normalize_mean", {0.f, 0.f, 0.f}, 3);
+        float scale             = pipeline_utils::ReadFloat(p, "normalize_scale", 0.00392157f);
+        bool is_bgr             = pipeline_utils::ReadBool(p, "is_bgr", false);
 
         std::vector<std::unique_ptr<Op>> preprocess;
         bool has_crop = pipeline_utils::ReadBool(p, "crop", false);

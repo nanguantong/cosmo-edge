@@ -1,9 +1,8 @@
 #include "nn/pipeline/feature_pipeline.h"
 
 #include <cmath>
-#include <vector>
-
 #include <nlohmann/json.hpp>
+#include <vector>
 
 #include "nn/pipeline/pipeline_utils.h"
 
@@ -38,20 +37,17 @@ Status FeaturePipeline::Init(const PipelineConfig& config, const std::string& mo
         }
 
         if (use_affine) {
-            float norm_ratio = pipeline_utils::ReadFloat(p, "norm_ratio", 0.4f);
-            int norm_mode    = pipeline_utils::ReadInt(p, "norm_mode", 1);
-            std::vector<int> output_hw =
-                pipeline_utils::ReadIntArray(p, "output_hw", {112, 112}, 2);
-            std::vector<int> center_index =
-                pipeline_utils::ReadIntArray(p, "center_index", {0, 1}, 1);
+            float norm_ratio              = pipeline_utils::ReadFloat(p, "norm_ratio", 0.4f);
+            int norm_mode                 = pipeline_utils::ReadInt(p, "norm_mode", 1);
+            std::vector<int> output_hw    = pipeline_utils::ReadIntArray(p, "output_hw", {112, 112}, 2);
+            std::vector<int> center_index = pipeline_utils::ReadIntArray(p, "center_index", {0, 1}, 1);
             preprocess.push_back(
                 pipeline_utils::MakeAffineCropOp(norm_ratio, norm_mode, output_hw, center_index));
         } else if (pipeline_utils::ReadBool(p, "crop", false)) {
             std::vector<int> dsize = pipeline_utils::ReadIntArray(p, "input_size", {112, 112}, 2);
             int gravity =
                 pipeline_utils::ReadInt(p, "gravity", pipeline_utils::ReadInt(p, "padding_gravity", 0));
-            std::vector<int> color =
-                pipeline_utils::ReadIntArray(p, "padding_color", {114, 114, 114}, 1);
+            std::vector<int> color = pipeline_utils::ReadIntArray(p, "padding_color", {114, 114, 114}, 1);
 
             float top    = pipeline_utils::ReadFloat(p, "crop_h_top", 0.0f);
             float bottom = pipeline_utils::ReadFloat(p, "crop_h_bottom", 0.0f);
@@ -72,15 +68,13 @@ Status FeaturePipeline::Init(const PipelineConfig& config, const std::string& mo
             std::vector<int> dsize = pipeline_utils::ReadIntArray(p, "input_size", {112, 112}, 2);
             int gravity =
                 pipeline_utils::ReadInt(p, "gravity", pipeline_utils::ReadInt(p, "padding_gravity", 0));
-            std::vector<int> color =
-                pipeline_utils::ReadIntArray(p, "padding_color", {114, 114, 114}, 1);
+            std::vector<int> color = pipeline_utils::ReadIntArray(p, "padding_color", {114, 114, 114}, 1);
             preprocess.push_back(pipeline_utils::MakeResizeOp(dsize, gravity, color));
         }
 
-        std::vector<float> mean =
-            pipeline_utils::ReadFloatArray(p, "normalize_mean", {0.f, 0.f, 0.f}, 3);
-        float scale = pipeline_utils::ReadFloat(p, "normalize_scale", 1.f);
-        bool is_bgr = pipeline_utils::ReadBool(p, "is_bgr", true);
+        std::vector<float> mean = pipeline_utils::ReadFloatArray(p, "normalize_mean", {0.f, 0.f, 0.f}, 3);
+        float scale             = pipeline_utils::ReadFloat(p, "normalize_scale", 1.f);
+        bool is_bgr             = pipeline_utils::ReadBool(p, "is_bgr", true);
         preprocess.push_back(pipeline_utils::MakeNormalizeOp(mean, scale, is_bgr));
 
         for (auto& in_def : mc.inputs) {
@@ -104,12 +98,11 @@ Status FeaturePipeline::Init(const PipelineConfig& config, const std::string& mo
 
     nlohmann::json extra_cfg = pipeline_utils::ParseJsonObject(config.extra_config_json);
     if (extra_cfg.contains("feature_info") && extra_cfg["feature_info"].is_object()) {
-        const auto& fi                            = extra_cfg["feature_info"];
+        const auto& fi = extra_cfg["feature_info"];
         model_info_.config.face_info.testset_name =
             pipeline_utils::ReadString(fi, "testset_name", std::string());
-        model_info_.config.face_info.score_level =
-            pipeline_utils::ReadFloatArray(fi, "score_level", {});
-        model_info_.config.face_info.cmp_score = pipeline_utils::ReadFloatArray(fi, "cmp_score", {});
+        model_info_.config.face_info.score_level = pipeline_utils::ReadFloatArray(fi, "score_level", {});
+        model_info_.config.face_info.cmp_score   = pipeline_utils::ReadFloatArray(fi, "cmp_score", {});
         model_info_.config.face_info.feature_dim = pipeline_utils::ReadSize(fi, "feature_dim", 512);
     }
 

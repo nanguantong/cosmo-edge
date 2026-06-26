@@ -58,7 +58,7 @@ protected:
 
 class AbstractFilterCreater {
 public:
-    virtual ~AbstractFilterCreater(){};
+    virtual ~AbstractFilterCreater() {};
     virtual std::shared_ptr<AbstractFilter> CreateFilter(DeviceType type) = 0;
 };
 
@@ -86,7 +86,7 @@ public:
         manager->RegisterAbstractFilterCreater(device_type, creater);
     };
 
-    ~FilterRegister(){};
+    ~FilterRegister() {};
 };
 
 #define DECLARE_FILTER_CREATER(device)                                                                       \

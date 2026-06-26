@@ -70,7 +70,7 @@ util::ErrorEnum Qwen3VLUnify::Generate(const std::vector<VideoFramePtr>& images,
         LOG_DEBUG("[Qwen3VL] Generate input prompt[{}]: {}", i, prompts[i]);
     }
     LOG_DEBUG("[Qwen3VL] Generate param do_sample:{} top_k:{} top_p:{} temperature:{} imageNum:{}",
-             gen_param.do_sample, gen_param.top_k, gen_param.top_p, gen_param.temperature, images.size());
+              gen_param.do_sample, gen_param.top_k, gen_param.top_p, gen_param.temperature, images.size());
 
     size_t image_num{images.size()};
     std::vector<VideoFramePtr> inputs;
@@ -94,7 +94,7 @@ util::ErrorEnum Qwen3VLUnify::Generate(const std::vector<VideoFramePtr>& images,
     }
     for (size_t i = 0; i < results.size(); i++) {
         LOG_DEBUG("[Qwen3VL] Generate output result[{}] frameIndex:{} text: {}", i, results[i].frame_index,
-                 results[i].text);
+                  results[i].text);
     }
     auto end      = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -201,7 +201,7 @@ util::ErrorEnum Qwen3VLUnify::Forward(const std::vector<VideoFramePtr>& images,
         if (preview.length() > 200)
             preview = preview.substr(0, 200) + "...";
         LOG_DEBUG("[Qwen3VL] Forward done. imageIdx:{} frameIndex:{} text:{}", i, results[i].frame_index,
-                 preview);
+                  preview);
     }
     LOG_DEBUG("[Qwen3VL] Forward done. images:{} results:{}", images.size(), results.size());
     return util::ErrorEnum::Success;

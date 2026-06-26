@@ -7,38 +7,38 @@
 namespace cosmo {
 namespace Onboarding {
 
-// ── Query onboarding status ──────────────────────────────────────
+    // ── Query onboarding status ──────────────────────────────────────
 
-struct MsgStatusRecv : public MsgRecvHead {};
+    struct MsgStatusRecv : public MsgRecvHead {};
 
-struct MsgStatusSend : public MsgSendHead {
-    struct ResData {
-        bool onboarding_completed{false};
-    } res_data;
-};
+    struct MsgStatusSend : public MsgSendHead {
+        struct ResData {
+            bool onboarding_completed{false};
+        } res_data;
+    };
 
-void to_json(nlohmann::json& j, const MsgStatusSend::ResData& v);
-void from_json(const nlohmann::json& j, MsgStatusSend::ResData& v);
-void to_json(nlohmann::json& j, const MsgStatusSend& v);
-void from_json(const nlohmann::json& j, MsgStatusSend& v);
+    void to_json(nlohmann::json& j, const MsgStatusSend::ResData& v);
+    void from_json(const nlohmann::json& j, MsgStatusSend::ResData& v);
+    void to_json(nlohmann::json& j, const MsgStatusSend& v);
+    void from_json(const nlohmann::json& j, MsgStatusSend& v);
 
-// ── Complete onboarding ──────────────────────────────────────────
+    // ── Complete onboarding ──────────────────────────────────────────
 
-struct MsgCompleteRecv : public MsgRecvHead {};
+    struct MsgCompleteRecv : public MsgRecvHead {};
 
-struct MsgCompleteSend : public MsgSendHead {};
+    struct MsgCompleteSend : public MsgSendHead {};
 
-void to_json(nlohmann::json& j, const MsgCompleteSend& v);
-void from_json(const nlohmann::json& j, MsgCompleteSend& v);
+    void to_json(nlohmann::json& j, const MsgCompleteSend& v);
+    void from_json(const nlohmann::json& j, MsgCompleteSend& v);
 
-// ── Reset onboarding ─────────────────────────────────────────────
+    // ── Reset onboarding ─────────────────────────────────────────────
 
-struct MsgResetRecv : public MsgRecvHead {};
+    struct MsgResetRecv : public MsgRecvHead {};
 
-struct MsgResetSend : public MsgSendHead {};
+    struct MsgResetSend : public MsgSendHead {};
 
-void to_json(nlohmann::json& j, const MsgResetSend& v);
-void from_json(const nlohmann::json& j, MsgResetSend& v);
+    void to_json(nlohmann::json& j, const MsgResetSend& v);
+    void from_json(const nlohmann::json& j, MsgResetSend& v);
 
 }  // namespace Onboarding
 }  // namespace cosmo

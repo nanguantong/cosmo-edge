@@ -44,7 +44,8 @@ std::ostream& WriteExportCsvHeader(std::ostream& os, ExportType type, bool is_en
         case ExportType::Behavior:
             if (is_en) {
                 os << "\"No.\",";
-                os << "\"Full Image\",\"Alarm Type\",\"Channel Name\",\"Area Name\",\"Alarm Time\",\"Status\"\n";
+                os << "\"Full Image\",\"Alarm Type\",\"Channel Name\",\"Area Name\",\"Alarm "
+                      "Time\",\"Status\"\n";
             } else {
                 os << "\"序号\",";
                 os << "\"全景照\",\"告警类型\",\"通道名称\",\"区域名称\",\"告警时间\",\"状态\"\n";
@@ -52,10 +53,12 @@ std::ostream& WriteExportCsvHeader(std::ostream& os, ExportType type, bool is_en
             break;
         case ExportType::Recognize:
             if (is_en) {
-                os << "\"No.\",\"Event Type\",\"Face Capture\",\"Face Base Image\",\"Full Image\",\"Face Library\",\"Similarity\","
+                os << "\"No.\",\"Event Type\",\"Face Capture\",\"Face Base Image\",\"Full Image\",\"Face "
+                      "Library\",\"Similarity\","
                       "\"Name\",\"ID\",\"Channel Name\",\"Capture Time\",\"Status\"\n";
             } else {
-                os << "\"序号\",\"事件类型\",\"人脸抓拍照\",\"人脸底库照\",\"全景照\",\"所属脸库\",\"相似度\","
+                os << "\"序号\",\"事件类型\",\"人脸抓拍照\",\"人脸底库照\",\"全景照\",\"所属脸库\","
+                      "\"相似度\","
                       "\"人员姓名\",\"人员编号\",\"通道名称\",\"抓拍时间\",\"状态\"\n";
             }
             break;
@@ -153,7 +156,8 @@ void WriteCsvRowBehavior(std::ostream& os, const MsgEventUnit& el, const std::st
 // ── Full CSV export orchestration ───────────────────────────────────
 
 std::string ExportAlarmRecordsToCsv(const std::vector<MsgEventUnit>& records, ExportType export_type,
-                                    const std::string& host_ip, service::IAlgorithmQuery& alg_query, const std::string& language) {
+                                    const std::string& host_ip, service::IAlgorithmQuery& alg_query,
+                                    const std::string& language) {
     auto date = util::DateTime(util::GetMilliseconds() / 1000);
     auto csv_name =
         date.Date().ToYMD() + "_" + date.Time().ToHMS() + "_" + util::GenerateUUID().substr(0, 4) + ".csv";

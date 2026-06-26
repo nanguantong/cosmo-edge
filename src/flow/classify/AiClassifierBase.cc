@@ -41,7 +41,7 @@ bool AiClassifierBase::AiSdkInit() {
     std::string cfg_path   = "";
     std::string model_path = "";
     auto cfg_ret           = service::ServiceRegistry::Instance().Get<service::IModelService>().GetModelCfg(
-                  alg_code_, cfg_path, model_path);
+        alg_code_, cfg_path, model_path);
     if (!cfg_ret) {
         LOG_WARN("{}Get Model Configure Failed. AlgCode:{} code:{}", log_tag_, alg_code_, cfg_ret);
         return false;

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Box 可视化测试平台</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>AI Box 可视化测试平台</h1>
+            <nav>
+                <button class="nav-btn active" data-tab="http-alerts">HTTP 告警可视化</button>
+                <button class="nav-btn" data-tab="mqtt-test">MQTT 接口测试</button>
+                <button class="nav-btn" data-tab="mqtt-auto-test">MQTT 自动化测试</button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- HTTP Alerts Tab -->
+        <section id="http-alerts" class="tab-content active">
+            <div class="section-header">
+                <h2>HTTP 实时告警</h2>
+                <button id="clear-alerts" class="btn btn-secondary">清空列表</button>
+            </div>
+            <div id="alerts-list" class="alerts-grid">
+                <!-- Alerts will be injected here -->
+            </div>
+        </section>
+
+        <!-- MQTT Test Tab -->
+        <section id="mqtt-test" class="tab-content">
+            <div class="mqtt-layout">
+                <div class="mqtt-sidebar">
+                    <h3>在线设备</h3>
+                    <ul id="device-list" class="device-list">
+                        <!-- Devices will be injected here -->
+                    </ul>
+                </div>
+                <div class="mqtt-main">
+                    <div class="card">
+                        <h3>发送 MQTT 指令</h3>
+                        <div class="form-group">
+                            <label for="target-device">目标设备 (SN):</label>
+                            <input type="text" id="target-device" placeholder="选择或输入设备 SN">
+                        </div>
+                        <div class="form-group">
+                            <label for="mqtt-action">业务动作 (Action):</label>
+                            <select id="mqtt-action">
+                                <optgroup label="核心任务">
+                                    <option value="/v1/cwai/aihost/TaskCreate">创建任务 (TaskCreate)</option>
+                                    <option value="/v1/cwai/aihost/TaskCancle">取消任务 (TaskCancle)</option>
+                                    <option value="/v1/cwai/aihost/Info">核心信息 (Info)</option>
+                                </optgroup>
+                                <optgroup label="系统">
+                                    <option value="/gtw/cwai/System/QueryDeviceInfo">查询设备信息</option>
+                                    <option value="/gtw/cwai/System/QueryHardwareResource">查询硬件资源</option>
+                                    <option value="/gtw/cwai/System/QueryMqttAdapterParam">查询 MQTT 参数</option>
+                                    <option value="/gtw/cwai/System/SetMqttAdapterParam">设置 MQTT 参数</option>
+                                    <option value="/gtw/cwai/System/QueryRunModeParam">查询运行模式</option>
+                                    <option value="/gtw/cwai/System/ModifyRunModeParam">修改运行模式</option>
+                                    <option value="/gtw/cwai/System/QueryIotNetworkParam">查询 IoT 网络参数</option>
+                                    <option value="/gtw/cwai/System/ModifyIotNetworkParam">修改 IoT 网络参数</option>
+                                </optgroup>
+                                <optgroup label="任务配置">
+                                    <option value="/gtw/cwai/Task/SaveOrUpdate">保存任务配置并启用</option>
+                                    <option value="/gtw/cwai/Task/ModifyParam">修改任务参数</option>
+                                    <option value="/gtw/cwai/Task/QueryParam">查询任务参数</option>
+                                    <option value="/gtw/cwai/Task/SwitchTask">切换任务状态</option>
+                                    <option value="/gtw/cwai/Task/Delete">删除任务配置</option>
+                                    <option value="/gtw/cwai/Task/SelectAllAlgorithmInfo">查询通道可配算法</option>
+                                    <option value="/gtw/cwai/Task/SelectConfigByAlgorithmId">查询指定算法配置</option>
+                                </optgroup>
+                                <optgroup label="摄像机">
+                                    <option value="/gtw/cwai/Camera/Add">添加通道</option>
+                                    <option value="/gtw/cwai/Camera/Update">更新通道</option>
+                                    <option value="/gtw/cwai/Camera/Page">分页查询通道</option>
+                                    <option value="/gtw/cwai/Camera/Delete">删除通道</option>
+                                    <option value="/gtw/cwai/Camera/BatchDelete">批量删除通道</option>
+                                    <option value="/gtw/cwai/Camera/GetPicture">通道抓图</option>
+                                    <option value="/gtw/cwai/Camera/AddVideo">添加本地视频通道</option>
+                                </optgroup>
+                                <optgroup label="算法">
+                                    <option value="/gtw/cwai/Algorithm/Page">分页查询算法</option>
+                                    <option value="/gtw/cwai/Algorithm/Add">添加算法配置</option>
+                                    <option value="/gtw/cwai/Algorithm/Update">编辑算法配置</option>
+                                    <option value="/gtw/cwai/Algorithm/Delete">删除算法配置</option>
+                                    <option value="/gtw/cwai/algorithm/layout/save">保存算法布控</option>
+                                    <option value="/gtw/cwai/algorithm/layout/list">查询编排算法列表</option>
+                                    <option value="/gtw/cwai/algorithm/layout/detail">查询编排算法详情</option>
+                                    <option value="/gtw/cwai/atomic/action/list">查询原子动作列表</option>
+                                </optgroup>
+                                <option value="custom">自定义...</option>
+                            </select>
+                            <input type="text" id="custom-action" class="hidden" placeholder="输入自定义 Action">
+                        </div>
+                        <div class="form-group">
+                            <label for="mqtt-payload">指令内容 (JSON Body):</label>
+                            <textarea id="mqtt-payload" rows="10">{
+  "resCode": 1,
+  "resMsg": []
+}</textarea>
+                        </div>
+                        <div id="mqtt-help" class="mqtt-help"></div>
+                        <button id="send-mqtt" class="btn btn-primary">发送指令</button>
+                    </div>
+
+                    <div class="card mt-20">
+                        <h3>MQTT 日志</h3>
+                        <div id="mqtt-logs" class="log-viewer">
+                            <!-- Logs will be injected here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- MQTT 自动化测试 Tab -->
+        <section id="mqtt-auto-test" class="tab-content">
+            <div class="auto-test-layout">
+                <!-- 左侧控制面板 -->
+                <div class="auto-test-sidebar">
+                    <div class="card">
+                        <h3>⚙️ 测试配置</h3>
+                        <div class="form-group">
+                            <label>目标设备 SN:</label>
+                            <select id="auto-test-sn" style="width:100%;" onchange="onDeviceSnChange()">
+                                <option value="test-device-auto-001">🖥️ 模拟测试设备</option>
+                            </select>
+                            <div id="auto-test-device-warning" class="device-warning hidden">
+                                ⚠️ 已选择真实设备 <strong class="warn-device-sn"></strong>，
+                                修改性用例 (🔧) 已自动取消勾选。发送 <code>SetMqttAdapterParam</code> 等指令会<strong>实际修改设备配置</strong>，请谨慎操作！
+                            </div>
+                            <p class="text-muted" style="font-size:0.7rem;margin-top:4px;">
+                                💡 "模拟测试设备"使用内置模拟器，安全验证协议通路；真实设备仅建议执行 📖 只读查询。
+                            </p>
+                        </div>
+                        <div class="form-group">
+                            <label>超时设置 (ms):</label>
+                            <input type="number" id="auto-test-timeout" value="5000" min="1000" max="30000" step="500">
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>📂 测试范围</h3>
+                        <div id="auto-test-categories" class="category-checklist">
+                            <!-- 由 JS 动态填充 -->
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <button id="auto-test-select-all" class="btn btn-sm btn-ghost">全选</button>
+                            <button id="auto-test-deselect-all" class="btn btn-sm btn-ghost">取消全选</button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button id="auto-test-start" class="btn btn-primary" style="flex: 1;">▶ 开始测试</button>
+                            <button id="auto-test-stop" class="btn btn-danger" style="flex: 1;" disabled>■ 停止</button>
+                        </div>
+                    </div>
+
+                    <!-- 历史报告区域 -->
+                    <div class="card">
+                        <h3>📊 历史报告</h3>
+                        <div id="auto-test-history" class="history-list">
+                            <p class="text-muted">加载中...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧执行区 -->
+                <div class="auto-test-main">
+                    <!-- 进度条 -->
+                    <div id="auto-test-progress-bar" class="progress-bar-container hidden">
+                        <div class="progress-bar-inner" style="width: 0%;"></div>
+                        <span class="progress-bar-text">0 / 0</span>
+                    </div>
+
+                    <!-- 汇总面板 -->
+                    <div id="auto-test-summary" class="test-summary hidden">
+                        <div class="summary-card summary-pass"><span class="summary-num" id="sum-pass">0</span><span class="summary-label">Pass</span></div>
+                        <div class="summary-card summary-fail"><span class="summary-num" id="sum-fail">0</span><span class="summary-label">Fail</span></div>
+                        <div class="summary-card summary-timeout"><span class="summary-num" id="sum-timeout">0</span><span class="summary-label">Timeout</span></div>
+                        <div class="summary-card summary-warn"><span class="summary-num" id="sum-warn">0</span><span class="summary-label">Warn</span></div>
+                        <div class="summary-card summary-rate"><span class="summary-num" id="sum-rate">0%</span><span class="summary-label">通过率</span></div>
+                        <div class="summary-card summary-elapsed"><span class="summary-num" id="sum-elapsed">0s</span><span class="summary-label">耗时</span></div>
+                    </div>
+
+                    <!-- 实时结果列表 -->
+                    <div class="card">
+                        <h3>📋 测试结果 <span id="auto-test-status" class="text-muted">(待开始)</span></h3>
+                        <div id="auto-test-results" class="test-results-list">
+                            <p class="text-muted" id="auto-test-placeholder">点击"开始测试"执行 MQTT 接口自动化验证</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal for Video/Image Details -->
+    <div id="detail-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

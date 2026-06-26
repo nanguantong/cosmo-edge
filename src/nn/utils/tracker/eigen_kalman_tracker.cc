@@ -15,7 +15,9 @@ void EigenKalmanTracker::Update(Rect2f stateMat, double score) {
     hits += 1;
     hit_streak += 1;
     confidence = score;
-    if (score <= config.thresh[class_id - 1] and score >= config.thresh_low[class_id - 1]) {
+    if (class_id > 0 && config.thresh.size() >= static_cast<size_t>(class_id) &&
+        config.thresh_low.size() >= static_cast<size_t>(class_id) &&
+        score <= config.thresh.at(class_id - 1) && score >= config.thresh_low.at(class_id - 1)) {
         low_thresh_count++;
     } else {
         low_thresh_count = 0;

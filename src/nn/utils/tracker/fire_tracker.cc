@@ -143,7 +143,8 @@ Status FireTracker::Update(const std::vector<TrackingBox>& bboxes, std::vector<T
     for (size_t i = 0; i < bboxes.size(); i++) {
         float score  = bboxes.at(i).confidence;
         int class_id = bboxes.at(i).class_id;
-        if (config.thresh.size() >= class_id && config.thresh.size() == config.thresh_low.size()) {
+        if (class_id > 0 && config.thresh.size() >= static_cast<size_t>(class_id) &&
+            config.thresh.size() == config.thresh_low.size()) {
             if (score > config.thresh.at(class_id - 1)) {
                 high_conf_boxes.push_back(bboxes.at(i));
             } else if (score >= config.thresh_low.at(class_id - 1)) {

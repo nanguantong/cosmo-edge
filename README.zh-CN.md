@@ -427,8 +427,8 @@ Licensed under the Apache License, Version 2.0
 
 <div align="center">
 
-Built by Cosmos Wanderer AI Technology
+An open-source project by Cosmo Wander AI and the CosmoEdge contributors.
 
-Industrial edge intelligence, from model to production.
+Turn video AI models into deployable edge applications.
 
 </div>

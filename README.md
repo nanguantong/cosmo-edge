@@ -344,23 +344,26 @@ Certified devices add deployment readiness, not locked software features.
 | [Build Guide](docs/en/guide/build.md)                                                           | Developers     | Build x86 Docker and Sophon packages      |
 | [API Overview](docs/en/reference/api.md)                                                        | Developers     | REST/WebSocket/MQTT-facing API categories |
 
-## Roadmap
+## Release Status and Roadmap
+
+CosmoEdge is currently versioned as `v0.1.0`. The project is release-candidate complete for `v1.0`; the remaining release gate is the final regression pass.
 
 - [X] C++17 edge inference engine
 - [X] Visual pipeline orchestrator
 - [X] Web management console
 - [X] x86 developer mode for Linux and Windows
+- [X] Sophon BM1688 release packaging
 - [X] VLM and GroundingDINO integration
 - [X] 18 CV pipelines internally validated
-- [ ] Public x86 one-command startup
+- [ ] Final v1.0 regression pass
+- [ ] v1.0 release tag and release notes
 - [ ] Additional public performance summaries
-- [ ] Release packaging for v1.0
 - [ ] Community model and scenario examples
 - [ ] GB28181 protocol support
 
 ## Contributing
 
-CosmoEdge is in active development toward v1.0. Contributions are welcome in focused areas:
+CosmoEdge is preparing the v1.0 release. Contributions are welcome in focused areas:
 
 - Bug reports with logs and reproduction steps.
 - Documentation fixes and tutorial improvements.
@@ -402,7 +405,7 @@ CosmoEdge is an application runtime for complete edge AI workflows, not only a m
 <details>
 <summary><b>Is CosmoEdge production-ready?</b></summary>
 
-The codebase comes from production-oriented commercial development and has passed internal stress, pipeline, and regression validation. The first public release is still marked v0.1.0 while public APIs, packaging, and contributor workflows stabilize toward v1.0.
+The codebase comes from production-oriented commercial development and has passed internal stress, pipeline, and regression validation. CosmoEdge is currently versioned as `v0.1.0` while the project completes the final v1.0 regression pass. Core workflows and release packaging are production-oriented; public APIs and contributor workflows may still receive minor stabilization updates before v1.0.
 
 </details>
 

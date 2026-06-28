@@ -1,21 +1,8 @@
-<!--
-Repository metadata suggestion:
-
-Description:
-Production-grade C++ edge AI engine for video analytics, with visual pipeline orchestration and on-device VLM support.
-
-Topics:
-cpp, c-plus-plus, computer-vision, video-analytics, edge-ai, edge-computing,
-object-detection, video-processing, rtsp, webrtc, mqtt, inference,
-visual-programming, workflow-orchestration, industrial-ai,
-vision-language-model, vlm, sophon, bm1688, real-time
--->
-
 <div align="center">
 
 <img src="docs/assets/cosmoedge-logo.png" width="320" alt="CosmoEdge">
 
-**Production-grade C++ edge AI engine for video analytics, with visual pipeline orchestration and on-device VLM support**
+**C++ edge AI engine for production video analytics, visual pipeline orchestration, and on-device VLM workflows**
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE)
 [![Runtime](https://img.shields.io/badge/runtime-C%2B%2B17-orange?style=flat-square)](#c-native-runtime)
@@ -32,28 +19,19 @@ vision-language-model, vlm, sophon, bm1688, real-time
 
 ---
 
-<!--
-TODO before public launch:
-- Replace all placeholder image paths with real assets.
-- Confirm Quick Start commands.
-- Confirm public benchmark values.
-- Confirm final public release assets and URLs.
-- Confirm certified hardware URL.
--->
-
 <div align="center">
 
-<https://github.com/user-attachments/assets/23a014a5-d753-432f-8de5-c750bc82d8e2>
+https://github.com/user-attachments/assets/23a014a5-d753-432f-8de5-c750bc82d8e2
 
 </div>
 
-*Multiple AI pipelines, real-time OSD, and live event output on one edge device.*
+*Run multiple AI pipelines with real-time OSD overlays and live event output on a single edge device.*
 
-CosmoEdge is a C++ native edge AI engine for building production-oriented video analytics systems on edge devices. It turns models into visual, manageable applications: import a model, compose a pipeline, connect video sources, watch AI overlays in the browser, and push structured events to MQTT or HTTP.
+CosmoEdge is a C++ edge AI engine for production video analytics at the edge. It helps teams move from model files to running applications: import models, compose pipelines, connect video sources, view AI overlays in the browser, and send structured events over MQTT or HTTP.
 
-The runtime is built in C++ for efficient multi-channel video processing, hardware decoding, OSD rendering, and low-overhead edge deployment. Python remains excellent for research, experimentation, and model tooling; CosmoEdge is optimized for the part where integrators need long-running edge applications with predictable resource usage.
+The runtime is designed for multi-channel video processing, hardware decoding, OSD rendering, and low-overhead edge deployment. Python remains useful for research and model tooling; CosmoEdge focuses on the long-running services integrators need in the field.
 
-Instead of stopping at an inference API or demo script, CosmoEdge focuses on the next step: helping integrators turn AI models into complete edge applications that can be deployed, monitored, debugged, and maintained.
+Rather than exposing only an inference API or demo script, CosmoEdge provides the runtime, web console, and integration path needed to deploy, monitor, debug, and maintain edge AI applications.
 
 ## What You Can Build
 
@@ -61,18 +39,18 @@ Instead of stopping at an inference API or demo script, CosmoEdge focuses on the
 - People counting, line crossing, zone intrusion, and traffic statistics.
 - Visual inspection workflows powered by on-device VLM prompts.
 - Long-tail object detection with text-prompted GroundingDINO.
-- End-to-end edge AI systems with model management, scenario tasks, alarms, and data push.
+- Edge AI deployments with model management, scenario tasks, alarms, and data export.
 
 ## Key Features
 
 ### C++ Native Runtime
 
-CosmoEdge is built around a C++17 runtime rather than a Python service loop. This matters for edge video systems where decode, inference scheduling, OSD rendering, event generation, and stream output all run continuously on resource-constrained devices.
+CosmoEdge uses a C++17 runtime at its core. For edge video systems, decoding, inference scheduling, OSD rendering, event generation, and stream output must run continuously on resource-constrained devices.
 
-- Lower runtime overhead for long-running multi-channel video workloads.
-- Direct integration with hardware decode, NPU runtime, memory pools, and streaming components.
-- Better fit for appliance-style edge devices where predictable CPU, memory, and thread behavior matter.
-- Same engine core for x86 developer mode and Sophon production deployment.
+- Lower overhead for long-running multi-channel video workloads.
+- Direct integration with hardware decoding, NPU runtimes, memory pools, and streaming components.
+- Predictable CPU, memory, and thread behavior for appliance-style edge deployments.
+- One engine core across x86 developer mode and Sophon production deployments.
 
 ### Visual Pipeline Orchestration
 
@@ -80,13 +58,13 @@ Build video AI workflows in a browser. Connect video sources, AI models, post-pr
 
 <div align="center">
 
-<https://github.com/user-attachments/assets/94b9418b-36c8-47b6-a730-ad8f508a6709>
+https://github.com/user-attachments/assets/94b9418b-36c8-47b6-a730-ad8f508a6709
 
 </div>
 
-### Complete Application Loop
+### Application Workflow
 
-CosmoEdge links the runtime, web console, and integration layer into one field workflow:
+CosmoEdge connects the runtime, web console, and integration layer into one deployment workflow:
 
 ```text
 Model Repository -> Scenario Task -> Real-time Analysis -> Alarm Management -> Data Push
@@ -113,7 +91,7 @@ Model Repository -> Scenario Task -> Real-time Analysis -> Alarm Management -> D
 
 ### Real-time Visual Debugging
 
-CosmoEdge includes a production-oriented OSD system designed for operators and developers:
+CosmoEdge includes an OSD system for both operators and developers:
 
 - Business labels instead of raw model class names.
 - Semantic colors for normal, warning, violation, and uncertain states.
@@ -122,7 +100,7 @@ CosmoEdge includes a production-oriented OSD system designed for operators and d
 
 ### Prompt-driven AI: GroundingDINO + VLM
 
-CosmoEdge supports prompt-driven visual intelligence on edge devices. GroundingDINO and VLM are part of the same capability family, but they solve different problems:
+CosmoEdge can run prompt-driven vision models on edge devices. GroundingDINO and VLM are part of the same capability family, but they solve different problems:
 
 | Capability         | How it works                                    | Typical use                                           |
 | ------------------ | ----------------------------------------------- | ----------------------------------------------------- |
@@ -132,7 +110,7 @@ CosmoEdge supports prompt-driven visual intelligence on edge devices. GroundingD
 
 <div align="center">
 
-<https://github.com/user-attachments/assets/212a33a8-e662-4678-9945-02c78d808e4d>
+https://github.com/user-attachments/assets/212a33a8-e662-4678-9945-02c78d808e4d
 
 </div>
 
@@ -142,9 +120,9 @@ CosmoEdge supports compatible Qwen3 VLM series models and Qwen3.5 multimodal mod
 
 ### Model Sources
 
-**Integrated end-to-end in CosmoEdge:**
+**Available in CosmoEdge:**
 
-The capabilities below are integrated end-to-end; different model types map to different runtime modes.
+The following capabilities are integrated in the runtime; different model types use different execution modes.
 
 | Category                  | Supported Models / Architectures                                    | Pipeline Support    |
 | :------------------------ | :------------------------------------------------------------------ | :------------------ |
@@ -175,7 +153,7 @@ CosmoEdge runs on the Sophon BM1688 inference stack. Models from SOPHGO's offici
 
 ### Option A: x86 Developer Mode
 
-No edge hardware is required for the first experience. The x86 developer mode uses the same UI and workflow as edge deployment, with lower throughput than Sophon NPU mode.
+You can try CosmoEdge without edge hardware. The x86 developer mode uses the same UI and workflow as edge deployment, with lower throughput than Sophon NPU mode.
 
 ```bash
 # 1. Clone
@@ -183,7 +161,7 @@ git clone https://github.com/cosmo-wander-ai/cosmo-edge.git
 cd cosmo-edge
 
 # 2. Start in x86 mode
-# Preferred release target (Linux):
+# Linux:
 sudo docker compose -f docker-compose.x86.yml up -d --build
 
 # Windows (PowerShell/CMD):
@@ -195,7 +173,7 @@ docker compose -f docker-compose.x86.windows.yml up -d --build
 
 > **USB cameras**: If you have USB cameras attached, uncomment the `devices` block in `docker-compose.x86.yml` before starting.
 
-Once running, follow the [Scenario Configuration tutorial](docs/en/tutorials/02-scenario-config/scenario-config.md) to set up your first AI detection scenario.
+After startup, follow the [Scenario Configuration tutorial](docs/en/tutorials/02-scenario-config/scenario-config.md) to set up your first AI detection scenario.
 
 ### Option B: Sophon Edge Device
 
@@ -239,32 +217,31 @@ After installing the package and rebooting the device:
 - **Default Username**: `admin`
 - **Default Password**: `admin` (it is highly recommended to change this password after your first login)
 
-This path builds, exports, and installs release packages. Ready for production hardware? Certified CosmoEdge devices provide preconfigured Sophon acceleration, production model packages, and deployment support. See [CosmoEdge-ready devices](#cosmoedge-ready-devices).
+This path builds a release package and installs it on a Sophon device. For teams that need production hardware, certified CosmoEdge devices include preconfigured Sophon acceleration, production model packages, and deployment support. See [CosmoEdge-ready devices](#cosmoedge-ready-devices).
 
 ## Validation
 
-CosmoEdge is built from a commercial codebase and has gone through recent internal system validation before open-source release.
+CosmoEdge comes from a commercial codebase and has completed internal system validation before open-source release.
 
 | Area                   | Current validation status                                                                                    |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------ |
-| Video stress test      | 200 video samples used in continuous playback testing, with no memory leak or crash observed during the test |
-| CV pipeline validation | 18/18 CV pipelines precision-aligned against internal industry baselines                                     |
+| Video stress test      | Continuous playback test with 200 video samples; no memory leaks or crashes observed                        |
+| CV pipeline validation | 18/18 CV pipelines validated against internal scenario baselines                                             |
 | Concurrent CV workload | 16-channel CV inference verified on a single BM1688 device                                                   |
-| Regression testing     | Multi-round system regression with dedicated QA                                                              |
+| Regression testing     | Multi-round system regression completed with dedicated QA; final release regression pending                  |
 | Pilot deployments      | Validated in de-identified pilot scenarios across education, smart campus, and industrial safety             |
 
 ### Performance Benchmarks
 
-The numbers below are representative system-level combinations based on internal records. A video channel means one decoded input stream; multiple scenario tasks can share the same decoded stream. E2E latency means frame-to-OSD or frame-to-event latency under the listed workload, not single-model inference time.
+The numbers below are representative system combinations based on internal records. A video channel means one decoded input stream; multiple scenario tasks can share the same decoded stream. E2E latency is frame-to-OSD or frame-to-event latency under the listed workload, not single-model inference time.
 
-| Workload                               | Video channels | Scenario task num |  FPS target | E2E&nbsp;latency&nbsp;(ms) | Hardware                                    | Notes                                                                                                    |
-| -------------------------------------- | -------------: | ----------------: | ----------: | --------------------------: | ------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Full-stream YOLOv8n detection          |             16 |                16 |   3/channel |                   32&#8209;68 | BM1688                                      | Decode + inference + OSD enabled; stable upper-limit case                                                |
-| Shared-codec dense CV tasks            |              4 |                20 |   3/channel |                  84&#8209;141 | BM1688                                      | Multiple scenario tasks share decoded streams; demonstrates task concurrency                             |
-| Safety compliance pipeline             |             16 |                16 |   3/channel |                 182&#8209;314 | BM1688                                      | Detection + tracking + attribute/rule + alarm; representative business pipeline                          |
-| Prompt-driven AI pipeline              |              8 |                 8 | 0.2/channel |               3154&#8209;4128 | BM1688                                      | Validated `CosmoEdge-VL-Judge-0.8B`; VLM async nodes; event-driven slow path, not frame-synchronous OSD |
-| One-stream<br />YOLOv8n<br />detection |              1 |                 1 |  24/channel |                   25&#8209;30 | BM1688                                      | YOLOv8n development and evaluation workload                                                              |
-| x86 developer mode                     |              1 |                 1 |  24/channel |                 235&#8209;250 | x86CPU<br />(Intel(R) Core(TM) i7-14700HX) | YOLOv8n development and evaluation workload                                                              |
+| Workload                      | Video channels | Scenario tasks |  FPS target |   E2E latency | Hardware                                   | Notes                                                                                                    |
+| ----------------------------- | -------------: | ----------------: | ----------: | ------------: | ------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| Full-stream YOLOv8n detection |             16 |                16 |   3/channel |     32-68(ms) | BM1688                                     | Decode + inference + OSD enabled; stable high-load case                                                  |
+| Shared-codec dense CV tasks   |              4 |                20 |   3/channel |    84-141(ms) | BM1688                                     | Multiple scenario tasks share decoded streams; demonstrates task concurrency                             |
+| Safety compliance pipeline    |             16 |                16 |   3/channel |   182-314(ms) | BM1688                                     | Detection + tracking + attribute/rule + alarm; representative safety pipeline                            |
+| Prompt-driven AI pipeline     |              8 |                 8 | 0.2/channel | 3154-4128(ms) | BM1688                                     | Validated `CosmoEdge-VL-Judge-0.8B`; VLM async nodes; event-driven path, not frame-synchronous OSD      |
+| x86 developer mode            |              1 |                 1 |   3/channel |     45-50(ms) | x86 CPU<br />(Intel(R) Core(TM) i9-13900F) | YOLOv8n development and evaluation workload                                                              |
 
 ## Architecture
 
@@ -293,7 +270,7 @@ The numbers below are representative system-level combinations based on internal
 | Layer       | Technology                                  |
 | ----------- | ------------------------------------------- |
 | Engine      | C++17, CMake, FFmpeg, SQLiteCpp             |
-| Inference   | Sophon BMRT, ONNX Runtime for x86 mode      |
+| Inference   | Sophon BMRT/SAIL, ONNX Runtime for x86 mode |
 | Frontend    | Vue.js, Vue Flow, Element Plus              |
 | Streaming   | SRS 6.0, WebRTC, HTTP-FLV                   |
 | Integration | REST API, WebSocket, MQTT, HTTP webhook     |
@@ -311,7 +288,7 @@ The numbers below are representative system-level combinations based on internal
 
 CosmoEdge is open source. The repository provides the same engine, web UI, and workflow used by certified device packages. You can bring your own models, run on x86 for development, and deploy on compatible edge hardware.
 
-Certified devices are for teams that want to skip hardware bring-up and model packaging. They add preconfigured NPU acceleration, production model packages, and dedicated support.
+Certified devices help teams avoid hardware bring-up and model packaging work. They include preconfigured NPU acceleration, production model packages, and dedicated support.
 
 | Capability                   |               Open-source repository               |    Certified device package    |
 | ---------------------------- | :------------------------------------------------: | :-----------------------------: |
@@ -325,9 +302,7 @@ Certified devices are for teams that want to skip hardware bring-up and model pa
 | GroundingDINO package        |          Bring your own or custom package          |          Pre-installed          |
 | Deployment support           |                     Community                     |            Dedicated            |
 
-Certified devices add deployment readiness, not locked software features.
-
-<!-- TODO: Replace with final hardware page URL. -->
+Certified devices improve deployment readiness; they do not lock software features behind a hardware SKU.
 
 [Get a certified device](https://cosmoedge.dev/hardware)
 
@@ -336,17 +311,17 @@ Certified devices add deployment readiness, not locked software features.
 | Start here                                                                                   | For            | Description                               |
 | -------------------------------------------------------------------------------------------- | -------------- | ----------------------------------------- |
 | [Documentation Home](docs/en/index.md)                                                          | Everyone       | Full documentation index and reading path |
-| [Quick Start Guide](docs/en/tutorials/01-quickstart/quickstart.md)                              | Everyone       | First working experience                  |
+| [Quick Start Guide](docs/en/tutorials/01-quickstart/quickstart.md)                              | Everyone       | First setup and scenario run              |
 | [Scenario Configuration](docs/en/tutorials/02-scenario-config/scenario-config.md)               | Integrators    | Build scene-level AI workflows            |
 | [VLM Guide](docs/en/tutorials/03-vlm-guide/vlm-guide.md)                                        | Developers     | Use visual state judgment with prompts    |
 | [Pipeline Orchestration](docs/en/tutorials/04-pipeline-orchestration/pipeline-orchestration.md) | Advanced users | Compose custom pipelines visually         |
-| [Model Porting Guide](docs/en/tutorials/05-model-porting/model-porting.md)                      | ML engineers   | Bring your own ONNX or target model       |
+| [Model Porting Guide](docs/en/tutorials/05-model-porting/model-porting.md)                      | ML engineers   | Import ONNX or target-runtime models      |
 | [Build Guide](docs/en/guide/build.md)                                                           | Developers     | Build x86 Docker and Sophon packages      |
-| [API Overview](docs/en/reference/api.md)                                                        | Developers     | REST/WebSocket/MQTT-facing API categories |
+| [API Overview](docs/en/reference/api.md)                                                        | Developers     | REST, WebSocket, and MQTT API categories  |
 
 ## Release Status and Roadmap
 
-CosmoEdge is currently versioned as `v0.1.0`. The project is release-candidate complete for `v1.0`; the remaining release gate is the final regression pass.
+CosmoEdge is currently versioned as `v0.1.0` and is in the `v1.0` release-candidate stage. The remaining release gate is the final regression pass.
 
 - [X] C++17 edge inference engine
 - [X] Visual pipeline orchestrator
@@ -363,12 +338,12 @@ CosmoEdge is currently versioned as `v0.1.0`. The project is release-candidate c
 
 ## Contributing
 
-CosmoEdge is preparing the v1.0 release. Contributions are welcome in focused areas:
+CosmoEdge is preparing the v1.0 release. We welcome focused contributions in these areas:
 
 - Bug reports with logs and reproduction steps.
 - Documentation fixes and tutorial improvements.
 - Scenario examples and integration notes.
-- Small, scoped pull requests discussed through issues first.
+- Small, scoped pull requests after an issue discussion.
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
@@ -391,29 +366,29 @@ The open-source repository does not include production model weights by default.
 <details>
 <summary><b>Can I use my own trained models?</b></summary>
 
-Yes. CosmoEdge is designed around model import and model lifecycle management. The final public guide will document the recommended path from ONNX or target runtime formats into the model repository.
+Yes. CosmoEdge is designed around model import and model lifecycle management. The model porting guide documents the recommended path from ONNX or target runtime formats into the model repository.
 
 </details>
 
 <details>
 <summary><b>How is CosmoEdge different from inference servers or NVR projects?</b></summary>
 
-CosmoEdge is an application runtime for complete edge AI workflows, not only a model-serving layer or video recorder.
+CosmoEdge is an application runtime for complete edge AI workflows, not just a model-serving layer or video recorder.
 
 </details>
 
 <details>
 <summary><b>Is CosmoEdge production-ready?</b></summary>
 
-The codebase comes from production-oriented commercial development and has passed internal stress, pipeline, and regression validation. CosmoEdge is currently versioned as `v0.1.0` while the project completes the final v1.0 regression pass. Core workflows and release packaging are production-oriented; public APIs and contributor workflows may still receive minor stabilization updates before v1.0.
+The codebase comes from commercial development for production deployments and has passed internal stress, pipeline, and regression validation. CosmoEdge is currently versioned as `v0.1.0` while the project completes the final v1.0 regression pass. Core workflows and release packaging are built for field deployment; public APIs and contributor workflows may still receive minor stabilization updates before v1.0.
 
 </details>
 
 ## Contact
 
-- 💬 Community: [GitHub Discussions](https://github.com/cosmo-wander-ai/cosmo-edge/discussions)
-- 📧 Partnership & Enterprise: <hello@cosmowander.ai>
-- 🔒 Security: see [SECURITY.md](SECURITY.md) for private vulnerability reporting
+- Community: [GitHub Discussions](https://github.com/cosmo-wander-ai/cosmo-edge/discussions)
+- Partnership & Enterprise: hello@cosmowander.ai
+- Security: see [SECURITY.md](SECURITY.md) for private vulnerability reporting
 
 ## License
 

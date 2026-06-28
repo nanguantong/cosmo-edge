@@ -235,13 +235,14 @@ CosmoEdge comes from a commercial codebase and has completed internal system val
 
 The numbers below are representative system combinations based on internal records. A video channel means one decoded input stream; multiple scenario tasks can share the same decoded stream. E2E latency is frame-to-OSD or frame-to-event latency under the listed workload, not single-model inference time.
 
-| Workload                      | Video channels | Scenario tasks |  FPS target |   E2E latency | Hardware                                   | Notes                                                                                                    |
-| ----------------------------- | -------------: | ----------------: | ----------: | ------------: | ------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| Full-stream YOLOv8n detection |             16 |                16 |   3/channel |     32-68(ms) | BM1688                                     | Decode + inference + OSD enabled; stable high-load case                                                  |
-| Shared-codec dense CV tasks   |              4 |                20 |   3/channel |    84-141(ms) | BM1688                                     | Multiple scenario tasks share decoded streams; demonstrates task concurrency                             |
-| Safety compliance pipeline    |             16 |                16 |   3/channel |   182-314(ms) | BM1688                                     | Detection + tracking + attribute/rule + alarm; representative safety pipeline                            |
-| Prompt-driven AI pipeline     |              8 |                 8 | 0.2/channel | 3154-4128(ms) | BM1688                                     | Validated `CosmoEdge-VL-Judge-0.8B`; VLM async nodes; event-driven path, not frame-synchronous OSD      |
-| x86 developer mode            |              1 |                 1 |   3/channel |     45-50(ms) | x86 CPU<br />(Intel(R) Core(TM) i9-13900F) | YOLOv8n development and evaluation workload                                                              |
+| Workload                               | Video channels | Scenario tasks |  FPS target | E2E&nbsp;latency&nbsp;(ms) | Hardware                                    | Notes                                                                                                   |
+| -------------------------------------- | -------------: | -------------: | ----------: | -------------------------: | ------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Full-stream YOLOv8n detection          |             16 |             16 |   3/channel |                 32&#8209;68 | BM1688                                      | Decode + inference + OSD enabled; stable high-load case                                                 |
+| Shared-codec dense CV tasks            |              4 |             20 |   3/channel |                84&#8209;141 | BM1688                                      | Multiple scenario tasks share decoded streams; demonstrates task concurrency                            |
+| Safety compliance pipeline             |             16 |             16 |   3/channel |               182&#8209;314 | BM1688                                      | Detection + tracking + attribute/rule + alarm; representative safety pipeline                           |
+| Prompt-driven AI pipeline              |              8 |              8 | 0.2/channel |             3154&#8209;4128 | BM1688                                      | Validated `CosmoEdge-VL-Judge-0.8B`; VLM async nodes; event-driven path, not frame-synchronous OSD     |
+| One-stream<br />YOLOv8n<br />detection |              1 |              1 |  24/channel |                 25&#8209;30 | BM1688                                      | YOLOv8n development and evaluation workload                                                             |
+| x86 developer mode                     |              1 |              1 |  24/channel |               235&#8209;250 | x86 CPU<br />(Intel(R) Core(TM) i7-14700HX) | YOLOv8n development and evaluation workload                                                             |
 
 ## Architecture
 
@@ -270,7 +271,7 @@ The numbers below are representative system combinations based on internal recor
 | Layer       | Technology                                  |
 | ----------- | ------------------------------------------- |
 | Engine      | C++17, CMake, FFmpeg, SQLiteCpp             |
-| Inference   | Sophon BMRT/SAIL, ONNX Runtime for x86 mode |
+| Inference   | Sophon BMRT, ONNX Runtime for x86 mode      |
 | Frontend    | Vue.js, Vue Flow, Element Plus              |
 | Streaming   | SRS 6.0, WebRTC, HTTP-FLV                   |
 | Integration | REST API, WebSocket, MQTT, HTTP webhook     |

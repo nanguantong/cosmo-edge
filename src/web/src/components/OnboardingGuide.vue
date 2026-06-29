@@ -97,7 +97,7 @@ const steps = reactive([
     descKey: 'onboarding.step3Desc',
     selector: '#onboarding-channel-name',
     placement: 'right',
-    autoFill: { target: 'channelName', text: '安全帽检测演示', delay: 80 },
+    autoFill: { target: 'channelName', textKey: 'onboarding.channelNameDefault', delay: 80 },
     advanceOn: 'autofill'
   },
   {
@@ -156,7 +156,7 @@ const steps = reactive([
     selector: '#onboarding-area-dialog .el-input',
     placement: 'right',
     waitForSelector: true,
-    autoFill: { target: 'areaName', text: '检测区域1', delay: 80 },
+    autoFill: { target: 'areaName', textKey: 'onboarding.areaNameDefault', delay: 80 },
     advanceOn: 'autofill'
   },
   {
@@ -406,7 +406,8 @@ const typewriterFill = async (step) => {
 
   await new Promise(r => setTimeout(r, 500))
 
-  const { text, delay } = step.autoFill
+  const text = step.autoFill.textKey ? t(step.autoFill.textKey) : step.autoFill.text
+  const { delay } = step.autoFill
   const inputEl = document.querySelector(step.selector + ' input') ||
                   document.querySelector(step.selector)
 
@@ -550,7 +551,7 @@ const navigateAndLocate = async () => {
   setupAutoAdvance(step)
 
   if (step.autoFill) {
-    addLog(`  Autofill: ${step.autoFill.text}`)
+    addLog(`  Autofill: ${step.autoFill.textKey ? t(step.autoFill.textKey) : step.autoFill.text}`)
     await new Promise(r => setTimeout(r, 600))
     typewriterFill(step)
   }

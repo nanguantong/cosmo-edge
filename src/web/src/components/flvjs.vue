@@ -79,20 +79,6 @@ watch(sourceUrl, (val, oldVal) => {
   }
 })
 
-watch(() => props.channelId, () => {
-  isShowStopPreview.value = false
-  getrequestLiveStream()
-}, { immediate: true })
-
-watch(() => props.isOverlay, () => {
-  isShowStopPreview.value = false
-  getrequestLiveStream()
-})
-
-watch(() => props.taskType, () => {
-  isShowStopPreview.value = false
-  getrequestLiveStream()
-})
 
 // Methods
 const dobounce = (fn) => {
@@ -368,6 +354,24 @@ const checkFullScreen = () => {
 
   return !!isFull
 }
+
+// Watchers that reference functions defined above — must come after all const function declarations
+// to avoid TDZ errors in the immediate callback (Vite compilation order sensitivity).
+
+watch(() => props.channelId, () => {
+  isShowStopPreview.value = false
+  getrequestLiveStream()
+}, { immediate: true })
+
+watch(() => props.isOverlay, () => {
+  isShowStopPreview.value = false
+  getrequestLiveStream()
+})
+
+watch(() => props.taskType, () => {
+  isShowStopPreview.value = false
+  getrequestLiveStream()
+})
 
 // Lifecycle hooks
 onMounted(() => {

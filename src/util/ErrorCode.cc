@@ -108,10 +108,10 @@ std::string ErrorCategory::message(int code) const {
         CaseStr(UnknownOperation, "操作类型错误");
 
         CaseStr(AuthFailed, "鉴权失败");
-        CaseStr(LoginFailed, "登陆失败");
+        CaseStr(LoginFailed, "登录失败");
         CaseStr(NotLogin, "未登录");
         CaseStr(OldPasswdWrong, "旧密码错误");
-        CaseStr(LoginFrequence, "登陆太频繁");
+        CaseStr(LoginFrequence, "登录太频繁");
         CaseStr(UnZipFileFailed, "解压文件失败");
         CaseStr(ModelFileName, "模型文件名不对");
         CaseStr(ModelFileLack, "模型文件缺失");

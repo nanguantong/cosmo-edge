@@ -35,7 +35,9 @@
                 </el-tree>
               </div>
             </div>
-            <div class="el-icon-d-arrow-right" :class="{ 'expanded': cameraDrawerVisible }" @click="toggleCameraDrawer"></div>
+            <span class="arrow-toggle" :class="{ 'expanded': cameraDrawerVisible }" @click="toggleCameraDrawer">
+              <el-icon><DArrowRight /></el-icon>
+            </span>
           </div>
 
           <div class="video-body">
@@ -70,7 +72,7 @@
 
 <script setup>
 import { ref, watch, getCurrentInstance } from 'vue'
-import { Search } from '@element-plus/icons-vue'
+import { DArrowRight, Search } from '@element-plus/icons-vue'
 import moment from 'moment'
 import flv from '@/components/flvjs.vue'
 import { t } from '@/i18n'
@@ -335,7 +337,7 @@ const save = () => {
     width: 200px;
   }
 
-  .el-icon-d-arrow-right {
+  .arrow-toggle {
     position: absolute;
     top: 50%;
     left: 50%;

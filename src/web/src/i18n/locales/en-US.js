@@ -1451,7 +1451,7 @@ export default {
     step8Desc: 'Click the "Add Area" button on the right to add a detection zone.',
     step9Title: 'Enter Area Name',
     step9Desc: 'The area name is being filled in automatically…',
-    areaNameDefault: 'Detection Area 1',
+    areaNameDefault: 'Detection_Area_1',
     step10Title: 'Confirm New Area',
     step10Desc: 'Click "OK" to confirm creating the area.',
     step11Title: 'Draw Detection Area',

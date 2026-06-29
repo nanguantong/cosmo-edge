@@ -223,6 +223,7 @@ sudo reboot
 https://github.com/user-attachments/assets/395e5b89-c6af-4276-a89b-577b3400efc1
 
 </div>
+
 ## 验证与性能
 
 CosmoEdge 源自商业化代码库，开源发布前已完成内部系统验证。

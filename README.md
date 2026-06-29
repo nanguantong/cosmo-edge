@@ -222,6 +222,7 @@ Initial Onboarding Guide
 https://github.com/user-attachments/assets/395e5b89-c6af-4276-a89b-577b3400efc1
 
 </div>
+
 ## Validation
 
 CosmoEdge comes from a commercial codebase and has completed internal system validation before open-source release.

@@ -13,7 +13,7 @@ const commandDocs = {
         body: {
             channelType: 0,
             channelName: '测试实时通道',
-            url: 'rtsp://admin:a1234567@192.168.23.113:554/h264/ch1/main/av_stream',
+            url: 'rtsp://<username>:<password>@<camera-ip>:554/h264/ch1/main/av_stream',
             channelCode: '',
             channelPic: ''
         },
@@ -41,7 +41,7 @@ const commandDocs = {
             videoChannelId: 'RT0000000002',
             channelType: 0,
             channelName: '测试实时通道-修改',
-            url: 'rtsp://admin:a1234567@192.168.23.113:554/h264/ch1/main/av_stream',
+            url: 'rtsp://<username>:<password>@<camera-ip>:554/h264/ch1/main/av_stream',
             channelCode: 'CAM-001'
         },
         fields: [
@@ -197,7 +197,7 @@ const commandDocs = {
             taskId: 'task-RT0000000002-ALG0000000001',
             videoChannelId: 'RT0000000002',
             videoChannelName: '测试实时通道',
-            streamUrl: 'rtsp://admin:a1234567@192.168.23.113:554/h264/ch1/main/av_stream',
+            streamUrl: 'rtsp://<username>:<password>@<camera-ip>:554/h264/ch1/main/av_stream',
             algorithmCode: 'helmet_detect',
             algorithmUpdateTime: '1716172800000',
             algorithmId: 'ALG0000000001',
@@ -227,9 +227,9 @@ const commandDocs = {
     '/v1/cwai/aihost/Info': {
         title: 'D03-查询核心信息',
         description: '查询 AI 核心运行信息。',
-        body: { devId: 'CA16T012605060002' },
+        body: { devId: '<device-sn>' },
         fields: [['devId', 'string', '必填', '设备 SN 或设备 ID']],
-        response: '{"resCode":1,"resData":{"devId":"CA16T012605060002","hostStatus":0}}'
+        response: '{"resCode":1,"resData":{"devId":"<device-sn>","hostStatus":0}}'
     },
     '/gtw/cwai/System/QueryDeviceInfo': {
         title: 'E00-查询设备信息',
@@ -260,8 +260,8 @@ const commandDocs = {
             url: '192.168.0.10',
             port: 1883,
             authMode: 0,
-            clientId: 'CA16T012605060002',
-            userName: 'aibox::CA16T012605060002',
+            clientId: '<device-sn>',
+            userName: 'aibox::<device-sn>',
             passwd: '******'
         },
         fields: [

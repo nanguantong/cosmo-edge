@@ -62,6 +62,10 @@ namespace media {
             return enc_type_;
         }
 
+        const std::vector<uint8_t>& GetCodecExtradata() const {
+            return extradata_;
+        }
+
         bool IsLiveStream() const {
             return strategy_ && strategy_->IsLive();
         }
@@ -120,6 +124,7 @@ namespace media {
         int64_t start_pts_{0};                                    // For calculating frame rate
 
         std::unique_ptr<IDemuxStrategy> strategy_;
+        std::vector<uint8_t> extradata_;  // Cached codec extradata (avcC/hevcC) from FindStream
         bool opened_{false};
         bool ready_{false};
         bool end_{false};

@@ -102,6 +102,14 @@ std::string AlgChannel::GetUrl() const {
     return demuxer_.GetUrl();
 }
 
+std::vector<uint8_t> AlgChannel::GetCodecExtradata() const {
+    return demuxer_.GetCodecExtradata();
+}
+
+media::VideoCodecType AlgChannel::GetCodecType() const {
+    return demuxer_.GetVideoCodecType();
+}
+
 util::ErrorEnum AlgChannel::GetUrlStatus() const {
     return demuxer_.GetStatus();
 }

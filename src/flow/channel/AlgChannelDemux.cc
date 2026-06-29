@@ -174,12 +174,17 @@ bool AlgChannelDemux::OpenStream() {
     NotifyOnInfo();
     video_read_count_ += 1;
 
-    is_need_repeat_ = false;
-    is_have_report_ = false;
-    is_opened_      = true;
-    read_frames_    = 0;
+    bool was_repeat  = is_need_repeat_;
+    is_need_repeat_  = false;
+    is_have_report_  = false;
+    is_opened_       = true;
+    read_frames_     = 0;
     SetStatusInfo(service::camera::AlgDemuxStatus::AlgDemuxOpened);
-    action_status_ = util::ErrorEnum::DemuxStreamStart;
+    if (!was_repeat) {
+        action_status_ = util::ErrorEnum::DemuxStreamStart;
+    }
+    // On repeat open, leave action_status_ as Success (set by the last
+    // frame read before StreamEnd) to avoid a transient gap.
     LOG_INFO("{}{} Stream Opened", kTag, channel_id_);
     return true;
 }
@@ -232,7 +237,12 @@ void AlgChannelDemux::HandleStream() {
                 action_status_  = util::ErrorEnum::DemuxReadStreamFail;
             } else {
                 SetStatusInfo(service::camera::AlgDemuxStatus::AlgDemuxReadEnd);
-                action_status_ = util::ErrorEnum::DemuxStreamClosed;
+                if (!is_need_repeat_) {
+                    action_status_ = util::ErrorEnum::DemuxStreamClosed;
+                }
+                // When is_need_repeat_ is true the stream is about to loop —
+                // keep action_status_ as Success from the last frame read to
+                // prevent transient "取流无数据" during the loop transition.
 
                 // Signal unfinished recording tasks to finalize.
                 frame_packet->index = -1;

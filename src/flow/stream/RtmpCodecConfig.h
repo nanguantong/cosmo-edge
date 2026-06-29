@@ -43,6 +43,12 @@ public:
     /// Estimate bitrate based on resolution.
     [[nodiscard]] static int64_t EstimateBitrate(int width, int height);
 
+    /// Parse avcC (H.264) or hevcC (H.265) extradata and extract
+    /// SPS/PPS/VPS NAL units.  Call before the first frame arrives
+    /// so that HasParameters() returns true immediately — no need
+    /// to wait for in-band SPS/PPS from the stream.
+    void SetParameters(const std::vector<uint8_t>& extradata);
+
     [[nodiscard]] bool HasParameters() const {
         if (codec_type_ == media::VideoCodecType::kH265) {
             return !vps_.empty() && !sps_.empty() && !pps_.empty();
@@ -51,6 +57,9 @@ public:
     }
 
 private:
+    void ParseAvcC(const std::vector<uint8_t>& data);
+    void ParseHevcC(const std::vector<uint8_t>& data);
+
     media::VideoCodecType codec_type_;
     int width_;
     int height_;

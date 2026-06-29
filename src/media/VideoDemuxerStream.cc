@@ -73,7 +73,16 @@ namespace media {
 
         AVStream* stream            = fmt_ctx_->streams[video_stream_idx_];
         AVCodecParameters* codecpar = stream->codecpar;
-        AVRational avgFpsRat        = stream->avg_frame_rate;
+
+        // Cache extradata so new RTMP viewers can get SPS/PPS
+        // without waiting for in-band parameters in the stream.
+        if (codecpar->extradata && codecpar->extradata_size > 0) {
+            extradata_.assign(codecpar->extradata, codecpar->extradata + codecpar->extradata_size);
+        } else {
+            extradata_.clear();
+        }
+
+        AVRational avgFpsRat   = stream->avg_frame_rate;
         AVRational codecFpsRat      = av_guess_frame_rate(fmt_ctx_, stream, nullptr);
         AVRational streamFpsRat     = stream->r_frame_rate;
 

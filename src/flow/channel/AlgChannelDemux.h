@@ -65,7 +65,15 @@ public:
 
     [[nodiscard]] util::ErrorEnum GetStatus() const {
         return action_status_;
-    };
+    }
+
+    [[nodiscard]] const std::vector<uint8_t>& GetCodecExtradata() const {
+        return demuxer_.GetCodecExtradata();
+    }
+
+    [[nodiscard]] media::VideoCodecType GetVideoCodecType() const {
+        return demuxer_.GetEncodeType();
+    }
 
     bool GetAttr(MsgCameraAttr& attr);
 

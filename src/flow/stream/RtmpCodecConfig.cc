@@ -102,14 +102,31 @@ bool RtmpCodecConfig::ParseAndPrepare(const uint8_t* data, size_t size, const ui
     main_type = media::GetFrameType(codec_type_, data + last_frame_offset);
 
     // If I-frame lacks SPS prefix, prepend cached VPS/SPS/PPS/SEI
+    // SPS/PPS from in-band stream have 00 00 00 01 prefix (SeparateHVideoFrame
+    // includes it); those from avcC extradata are raw NAL units.
+    // Annex-B-mix would corrupt the bytestream — detect and add prefix as needed.
     if (main_type == media::HFrameType::I && lead_type != media::HFrameType::SPS &&
         lead_type != media::HFrameType::VPS) {
+        static const uint8_t kStartCode[]{0x00, 0x00, 0x00, 0x01};
+        auto needsPrefix = [](const std::vector<uint8_t>& nal) {
+            return !nal.empty() &&
+                   (nal.size() < 4 || nal[0] != 0x00 || nal[1] != 0x00 ||
+                    nal[2] != 0x00 || nal[3] != 0x01);
+        };
+        auto appendNal = [&](const std::vector<uint8_t>& nal) {
+            if (nal.empty()) return;
+            if (needsPrefix(nal)) {
+                prepend_buffer_.insert(prepend_buffer_.end(), kStartCode, kStartCode + 4);
+            }
+            prepend_buffer_.insert(prepend_buffer_.end(), nal.begin(), nal.end());
+        };
+
         prepend_buffer_.clear();
-        prepend_buffer_.reserve(vps_.size() + sps_.size() + pps_.size() + sei_.size() + size);
-        prepend_buffer_.insert(prepend_buffer_.end(), vps_.begin(), vps_.end());
-        prepend_buffer_.insert(prepend_buffer_.end(), sps_.begin(), sps_.end());
-        prepend_buffer_.insert(prepend_buffer_.end(), pps_.begin(), pps_.end());
-        prepend_buffer_.insert(prepend_buffer_.end(), sei_.begin(), sei_.end());
+        prepend_buffer_.reserve(4 * 4 + vps_.size() + sps_.size() + pps_.size() + sei_.size() + size);
+        appendNal(vps_);
+        appendNal(sps_);
+        appendNal(pps_);
+        appendNal(sei_);
         prepend_buffer_.insert(prepend_buffer_.end(), data, data + size);
         out_data = prepend_buffer_.data();
         out_size = prepend_buffer_.size();
@@ -164,6 +181,81 @@ void RtmpCodecConfig::ConfigureStream(AVStream* stream) const {
 
     LOG_INFO("ConfigureStream: codec={} {}x{} bitrate={} fps={}", static_cast<int>(codec_type_), width_,
              height_, par->bit_rate, fps_);
+}
+
+void RtmpCodecConfig::SetParameters(const std::vector<uint8_t>& extradata) {
+    if (extradata.empty() || extradata.size() < 7) {
+        LOG_WARN("SetParameters: extradata empty or too small ({} bytes)", extradata.size());
+        return;
+    }
+    switch (codec_type_) {
+        case media::VideoCodecType::kH264:
+            ParseAvcC(extradata);
+            break;
+        case media::VideoCodecType::kH265:
+            ParseHevcC(extradata);
+            break;
+        default:
+            break;
+    }
+}
+
+void RtmpCodecConfig::ParseAvcC(const std::vector<uint8_t>& data) {
+    // ISO 14496-15 AVCDecoderConfigurationRecord
+    // byte 0: configurationVersion (=1)
+    // byte 1: AVCProfileIndication
+    // byte 2: profile_compatibility
+    // byte 3: AVCLevelIndication
+    // byte 4: 0xFC | (lengthSizeMinusOne & 0x03)
+    // byte 5: 0xE0 | (numOfSequenceParameterSets & 0x1F)
+    //   for each SPS: uint16(spsLength) + spsNALUnit
+    // byte: numOfPictureParameterSets
+    //   for each PPS: uint16(ppsLength) + ppsNALUnit
+
+    // NAL units from avcC extradata are raw (no Annex B start code).
+    // Add 00 00 00 01 so ConfigureStream writes valid Annex B extradata
+    // (FFmpeg FLV muxer auto-detects Annex B → AVCC), and so ParseAndPrepare
+    // can prepend them to I-frame bytestream data correctly.
+    static const uint8_t kAnnexB[]{0x00, 0x00, 0x00, 0x01};
+
+    if (data.size() < 7) return;
+
+    size_t pos = 5;                        // skip configurationVersion + 3 profile bytes + lengthSize
+    uint8_t num_sps = data[pos] & 0x1F;    // lower 5 bits
+    pos++;
+
+    for (uint8_t i = 0; i < num_sps; ++i) {
+        if (pos + 2 > data.size()) return;
+        uint16_t sps_len = (static_cast<uint16_t>(data[pos]) << 8) | data[pos + 1];
+        pos += 2;
+        if (pos + sps_len > data.size()) return;
+        sps_.assign(kAnnexB, kAnnexB + 4);
+        sps_.insert(sps_.end(), data.begin() + pos, data.begin() + pos + sps_len);
+        pos += sps_len;
+    }
+
+    if (pos >= data.size()) return;
+    uint8_t num_pps = data[pos];
+    pos++;
+
+    for (uint8_t i = 0; i < num_pps; ++i) {
+        if (pos + 2 > data.size()) return;
+        uint16_t pps_len = (static_cast<uint16_t>(data[pos]) << 8) | data[pos + 1];
+        pos += 2;
+        if (pos + pps_len > data.size()) return;
+        pps_.assign(kAnnexB, kAnnexB + 4);
+        pps_.insert(pps_.end(), data.begin() + pos, data.begin() + pos + pps_len);
+        pos += pps_len;
+    }
+
+    LOG_INFO("ParseAvcC: extracted SPS({}B) PPS({}B)", sps_.size(), pps_.size());
+}
+
+void RtmpCodecConfig::ParseHevcC(const std::vector<uint8_t>& data) {
+    // ISO 14496-15 HEVCDecoderConfigurationRecord — similar structure
+    // with arrays of VPS, SPS, PPS.  For now just log; full HEVC support
+    // follows the same pattern as ParseAvcC.
+    LOG_INFO("ParseHevcC: {} bytes (HEVC extradata parsing not yet implemented)", data.size());
 }
 
 }  // namespace cosmo

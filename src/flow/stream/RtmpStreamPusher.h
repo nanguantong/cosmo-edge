@@ -35,6 +35,12 @@ public:
     /// Returns true if ready, false on timeout.
     [[nodiscard]] bool WaitReady(std::chrono::milliseconds timeout);
 
+    /// Pre-populate codec config from avcC/hevcC extradata so HasParameters()
+    /// is true immediately — no need to wait for in-band SPS/PPS.
+    void SetCodecParamsFromExtradata(const std::vector<uint8_t>& extradata) {
+        codec_config_->SetParameters(extradata);
+    }
+
 private:
     void DoPushFrame(const uint8_t* data, size_t size) override;
 

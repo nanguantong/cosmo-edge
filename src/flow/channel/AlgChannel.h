@@ -49,6 +49,10 @@ public:
     bool SetPollChannel(const std::string& channel_id);
     [[nodiscard]] std::string GetUrl() const;
 
+    // Get codec extradata (avcC/hevcC) for SPS/PPS injection into RTMP viewers.
+    [[nodiscard]] std::vector<uint8_t> GetCodecExtradata() const;
+    [[nodiscard]] media::VideoCodecType GetCodecType() const;
+
     // Get stream fetch status.
     [[nodiscard]] util::ErrorEnum GetUrlStatus() const;
     [[nodiscard]] bool GetAttr(MsgCameraAttr& attr);

@@ -217,6 +217,10 @@ sudo reboot
 
 该路径会构建发布包并安装到 Sophon 设备。需要生产硬件时，认证 CosmoEdge 设备可提供预配置 Sophon 加速、生产模型包和部署支持。参见 [CosmoEdge-ready 设备](#cosmoedge-ready-设备)。
 
+初始引导指南
+
+https://github.com/user-attachments/assets/395e5b89-c6af-4276-a89b-577b3400efc1
+
 ## 验证与性能
 
 CosmoEdge 源自商业化代码库，开源发布前已完成内部系统验证。

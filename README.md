@@ -216,6 +216,10 @@ After installing the package and rebooting the device:
 
 This path builds a release package and installs it on a Sophon device. For teams that need production hardware, certified CosmoEdge devices include preconfigured Sophon acceleration, production model packages, and deployment support. See [CosmoEdge-ready devices](#cosmoedge-ready-devices).
 
+Initial Onboarding Guide
+
+https://github.com/user-attachments/assets/395e5b89-c6af-4276-a89b-577b3400efc1
+
 ## Validation
 
 CosmoEdge comes from a commercial codebase and has completed internal system validation before open-source release.

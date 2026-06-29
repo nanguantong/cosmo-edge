@@ -57,7 +57,7 @@ Build video AI workflows in a browser. Connect video sources, AI models, post-pr
 
 <div align="center">
 
-https://github.com/user-attachments/assets/b4ffe661-cd06-4c79-ac01-310b1028e0be
+https://github.com/user-attachments/assets/94b9418b-36c8-47b6-a730-ad8f508a6709
 
 </div>
 
@@ -219,7 +219,7 @@ This path builds a release package and installs it on a Sophon device. For teams
 Initial Onboarding Guide
 <div align="center">
 
-https://github.com/user-attachments/assets/395e5b89-c6af-4276-a89b-577b3400efc1
+https://github.com/user-attachments/assets/b4ffe661-cd06-4c79-ac01-310b1028e0be
 
 </div>
 

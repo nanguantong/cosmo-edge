@@ -217,6 +217,8 @@ This path builds a release package and installs it on a Sophon device. For teams
 
 CosmoEdge comes from a commercial codebase and has completed internal system validation before open-source release.
 
+A scenario task (pipeline) bundles model, scheduling, and rule logic; at deployment it binds to specific inputs, zones, and rules. The 26 figure counts validated pipelines — the same set covers far more real deployments as inputs and rules change, with no new code.
+
 | Area                   | Current validation status                                                                                    |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------ |
 | Video stress test      | Continuous playback test with 200 video samples; no memory leaks or crashes observed                        |
@@ -227,12 +229,12 @@ CosmoEdge comes from a commercial codebase and has completed internal system val
 
 ### Performance Benchmarks
 
-The numbers below are representative system combinations based on internal records. A video channel means one decoded input stream; multiple scenario tasks can share the same decoded stream. E2E latency is frame-to-OSD or frame-to-event latency under the listed workload, not single-model inference time.
+The numbers below are representative system combinations based on internal records. A video channel means one decoded input stream; multiple concurrent scenario tasks can share the same decoded stream. E2E latency is frame-to-OSD or frame-to-event latency under the listed workload, not single-model inference time.
 
-| Workload                               | Video channels | Scenario tasks |  FPS target | E2E&nbsp;latency&nbsp;(ms) | Hardware                                    | Notes                                                                                                   |
+| Workload                               | Video channels | Concurrent scenario tasks |  FPS target | E2E&nbsp;latency&nbsp;(ms) | Hardware                                    | Notes                                                                                                   |
 | -------------------------------------- | -------------: | -------------: | ----------: | -------------------------: | ------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | Full-stream YOLOv8n detection          |             16 |             16 |   3/channel |                 32&#8209;68 | BM1688                                      | Decode + inference + OSD enabled; stable high-load case                                                 |
-| Shared-codec dense CV tasks            |              4 |             20 |   3/channel |                84&#8209;141 | BM1688                                      | Multiple scenario tasks share decoded streams; demonstrates task concurrency                            |
+| Shared-codec dense CV tasks            |              4 |             20 |   3/channel |                84&#8209;141 | BM1688                                      | Multiple concurrent scenario tasks share decoded streams; demonstrates task concurrency                 |
 | Safety compliance pipeline             |             16 |             16 |   3/channel |               182&#8209;314 | BM1688                                      | Detection + tracking + attribute/rule + alarm; representative safety pipeline                           |
 | Prompt-driven AI pipeline              |              8 |              8 | 0.2/channel |             3154&#8209;4128 | BM1688                                      | Validated `CosmoEdge-VL-Judge-0.8B`; VLM async nodes; event-driven path, not frame-synchronous OSD     |
 | One-stream<br />YOLOv8n<br />detection |              1 |              1 |  24/channel |                 25&#8209;30 | BM1688                                      | YOLOv8n development and evaluation workload                                                             |
@@ -349,6 +351,13 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 <summary><b>Do I need a Sophon device to try CosmoEdge?</b></summary>
 
 No. Use x86 developer mode on Linux or Windows to try the UI, pipeline workflow, model management, and integration path. Sophon hardware is needed for production-level NPU throughput.
+
+</details>
+
+<details>
+<summary><b>How many scenarios or algorithms does CosmoEdge support?</b></summary>
+
+CosmoEdge has two core concepts: models (AI weights) and scenario tasks — also called pipelines — each an orchestrated graph of model, scheduling, and rule logic that binds to specific inputs, zones, and rules at deployment. The 26 validated pipelines each cover many real deployments as their inputs and rules change. Capability scales with composition, not with a fixed algorithm catalog.
 
 </details>
 

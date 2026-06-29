@@ -3,7 +3,7 @@ title: Five-Volume Tutorials
 description: English tutorial entry points for CosmoEdge users, integrators, and maintainers.
 prev: false
 next:
-  text: 'Volume 1: Quick Start'
+  text: "Volume 1: Quick Start"
   link: /en/tutorials/01-quickstart/quickstart
 ---
 

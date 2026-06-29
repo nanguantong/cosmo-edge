@@ -1,11 +1,12 @@
 ---
-title: 'Volume 5: Model Porting'
+title: "Volume 5: Model Porting"
 description: Convert, upload, and integrate third-party models into CosmoEdge scenario tasks — a complete end-to-end walkthrough.
 prev:
-  text: 'Volume 4: Pipeline Orchestration'
+  text: "Volume 4: Pipeline Orchestration"
   link: /en/tutorials/04-pipeline-orchestration/pipeline-orchestration
 next: false
 ---
+
 # Volume 5: Model Porting
 
 > **Estimated time**: 30–45 minutes
@@ -15,15 +16,15 @@ next: false
 
 **CosmoEdge Scenario Task Orchestration** covers "how to organize existing capabilities." This volume covers "how to bring in new ones." In other words:
 
-+ **CosmoEdge Scenario Task Orchestration** teaches you to orchestrate pipelines
-+ **CosmoEdge Third-Party Model Porting** teaches you to introduce third-party models
+- **CosmoEdge Scenario Task Orchestration** teaches you to orchestrate pipelines
+- **CosmoEdge Third-Party Model Porting** teaches you to introduce third-party models
 
 After completing this volume, you'll be able to:
 
-+ Convert an ONNX model to a device-runnable `bmodel`
-+ Upload the model to CosmoEdge
-+ Configure model metadata and verify the model works
-+ Integrate the third-party model into a new scenario task
+- Convert an ONNX model to a device-runnable `bmodel`
+- Upload the model to CosmoEdge
+- Configure model metadata and verify the model works
+- Integrate the third-party model into a new scenario task
 
 ## Learning Path
 
@@ -55,11 +56,11 @@ We chose it for three reasons:
 
 ### 1.1 Supported Input Formats
 
-| Format             | Notes                             |
-| ------------------ | --------------------------------- |
-| ONNX               | Recommended — best compatibility |
-| PyTorch `.pt`    | Must be exported to ONNX first    |
-| TensorFlow `.pb` | Must be exported to ONNX first    |
+| Format           | Notes                            |
+| ---------------- | -------------------------------- |
+| ONNX             | Recommended — best compatibility |
+| PyTorch `.pt`    | Must be exported to ONNX first   |
+| TensorFlow `.pb` | Must be exported to ONNX first   |
 
 > **Recommendation**
 >
@@ -90,10 +91,10 @@ Model conversion uses an official Docker image provided by Sophon (SOPHGO).
 
 ### 2.1 Install Docker
 
-| Operating System | Installation Method                                                   |
-| ---------------- | --------------------------------------------------------------------- |
-| Ubuntu / Debian  | `sudo apt-get install docker.io`                                    |
-| CentOS           | `sudo yum install docker`                                           |
+| Operating System | Installation Method                                                      |
+| ---------------- | ------------------------------------------------------------------------ |
+| Ubuntu / Debian  | `sudo apt-get install docker.io`                                         |
+| CentOS           | `sudo yum install docker`                                                |
 | Windows          | Install[Docker Desktop](https://www.docker.com/products/docker-desktop/) |
 
 <!-- Screenshot of Docker Desktop -->
@@ -157,8 +158,8 @@ docker load -i sophgo-tpuc_dev-v3.2_191a433358ad.tar.gz
 
 ### 2.3 Useful Docker Commands
 
-| Command                                                                       | Purpose                                    |
-| ----------------------------------------------------------------------------- | ------------------------------------------ |
+| Command                                                                     | Purpose                                    |
+| --------------------------------------------------------------------------- | ------------------------------------------ |
 | `docker images`                                                             | List local images                          |
 | `docker run -it -v /local/path:/container/path sophgo/tpuc_dev:latest bash` | Start a container with a mounted directory |
 | `exit`                                                                      | Exit the container                         |
@@ -178,8 +179,8 @@ docker run -it -v /home/user/models:/workspace sophgo/tpuc_dev:v3.2 bash
 
 This command:
 
-+ Starts the official conversion environment
-+ Mounts your local model directory to `/workspace` inside the container
+- Starts the official conversion environment
+- Mounts your local model directory to `/workspace` inside the container
 
 <!-- Screenshot of container start -->
 
@@ -272,8 +273,8 @@ Fill in the model information:
 | Primary Type  | Detection Algorithm                                                                 |                                  |
 | Sub Type      | yolov8_det                                                                          | Matches the model's YOLO version |
 | Model Name    | VisDrone Drone Detection                                                            | For easy identification          |
-| Upload File   | `visdrone_yolov8s_f16.bmodel`                                                     | The converted model file         |
-| Normalization | 0–1                                                                                |                                  |
+| Upload File   | `visdrone_yolov8s_f16.bmodel`                                                       | The converted model file         |
+| Normalization | 0–1                                                                                 |                                  |
 | Color Channel | RGB                                                                                 |                                  |
 | Class Labels  | pedestrian, people, bicycle, car, van, truck, tricycle, awning-tricycle, bus, motor | For category display and mapping |
 
@@ -283,9 +284,9 @@ Click **OK** to save.
 
 After uploading, verify:
 
-+ The model appears in the Model Repository list.
-+ Status shows as normal.
-+ Name, type, input dimensions, and labels are all correct.
+- The model appears in the Model Repository list.
+- Status shows as normal.
+- Name, type, input dimensions, and labels are all correct.
 
 <!-- Screenshot of model in repository -->
 
@@ -349,8 +350,8 @@ Configure the **business logic parameters**:
 
 ![](images/img_24.webp)
 
-+ Base Model: VisDrone Drone Detection
-+ Select Labels: All selected
+- Base Model: VisDrone Drone Detection
+- Select Labels: All selected
 
 Click **Save** to store the pipeline.
 
@@ -382,16 +383,16 @@ Click **Save** to store the pipeline.
 
 Results analysis:
 
-+ Pedestrians, vehicles, and other targets in the image are successfully detected.
-+ Bounding box positions are generally accurate.
-+ Class names display correctly — not as numbers or blank labels.
+- Pedestrians, vehicles, and other targets in the image are successfully detected.
+- Bounding box positions are generally accurate.
+- Class names display correctly — not as numbers or blank labels.
 
 > If image validation doesn't pass, don't rush into pipeline integration.
 > Go back and check:
 >
-> + Was the model file uploaded correctly?
-> + Do the input dimensions match?
-> + Are all class labels configured properly?
+> - Was the model file uploaded correctly?
+> - Do the input dimensions match?
+> - Are all class labels configured properly?
 
 ## Chapter 6: Integrate the Third-Party Model into a Scenario Task
 
@@ -401,9 +402,9 @@ Now let's integrate this model into an actual business workflow.
 
 Create a new **Drone Object Detection** scenario task:
 
-+ Detect pedestrians and vehicles in the frame
-+ Generate events
-+ Display bounding boxes and class labels on the live feed
+- Detect pedestrians and vehicles in the frame
+- Generate events
+- Display bounding boxes and class labels on the live feed
 
 ### 6.1 Create a New Algorithm
 
@@ -415,9 +416,9 @@ Create a new **Drone Object Detection** scenario task:
 
 Fill in the basic information:
 
-+ Task Name: Drone Object Detection
-+ Data Source Type: Video Analysis
-+ Task Type: Detection/Analysis
+- Task Name: Drone Object Detection
+- Data Source Type: Video Analysis
+- Task Type: Detection/Analysis
 
 <!-- Screenshot of saved task -->
 
@@ -486,9 +487,9 @@ Video Decode → Object Detection (third-party model) → Object Tracking → Re
 
 Parameters:
 
-+ Source Type: Offline Video
-+ Channel Name: Drone Camera
-+ Upload Video: drone.mp4
+- Source Type: Offline Video
+- Channel Name: Drone Camera
+- Upload Video: drone.mp4
 
 3. Configure **Service Assignment**.
 
@@ -538,9 +539,9 @@ Alarm popup:
 
 Verify:
 
-+ Bounding boxes appear in the frame.
-+ Class labels display correctly.
-+ Different targets maintain consistent tracking.
+- Bounding boxes appear in the frame.
+- Class labels display correctly.
+- Different targets maintain consistent tracking.
 
 ### 7.3 Check Alarm Records
 
@@ -590,7 +591,7 @@ Port third-party models
 
 This means you can:
 
-+ Rapidly deploy scenarios using built-in capabilities
-+ Fill long-tail gaps with VLM / DINO
-+ Organize capabilities into business workflows through orchestration
-+ Bring your own models into the system
+- Rapidly deploy scenarios using built-in capabilities
+- Fill long-tail gaps with VLM / DINO
+- Organize capabilities into business workflows through orchestration
+- Bring your own models into the system

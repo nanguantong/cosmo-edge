@@ -8,7 +8,6 @@ next:
   text: "卷二：场景配置"
   link: /tutorials/02-scenario-config/scenario-config
 ---
-
 # 卷一：快速上手
 
 > **阅读时长**：10-15 分钟
@@ -146,7 +145,7 @@ CosmoEdge基于算能的AI边缘计算设备，采用算能BM1688性能强劲处
 
 1. **下载人流量统计演示视频素材**
 
-下载视频素材链接
+下载视频素材链接：[github.com/cosmo-wander-ai/cosmo-edge/releases](https://github.com/cosmo-wander-ai/cosmo-edge/releases/)
 
 ---
 

@@ -57,7 +57,7 @@ Build video AI workflows in a browser. Connect video sources, AI models, post-pr
 
 <div align="center">
 
-https://github.com/user-attachments/assets/94b9418b-36c8-47b6-a730-ad8f508a6709
+https://github.com/user-attachments/assets/b4ffe661-cd06-4c79-ac01-310b1028e0be
 
 </div>
 
@@ -217,9 +217,11 @@ After installing the package and rebooting the device:
 This path builds a release package and installs it on a Sophon device. For teams that need production hardware, certified CosmoEdge devices include preconfigured Sophon acceleration, production model packages, and deployment support. See [CosmoEdge-ready devices](#cosmoedge-ready-devices).
 
 Initial Onboarding Guide
+<div align="center">
 
 https://github.com/user-attachments/assets/395e5b89-c6af-4276-a89b-577b3400efc1
 
+</div>
 ## Validation
 
 CosmoEdge comes from a commercial codebase and has completed internal system validation before open-source release.

@@ -1,13 +1,14 @@
 ---
-title: 'Volume 3: VLM / DINO Guide'
+title: "Volume 3: VLM / DINO Guide"
 description: Understand the capabilities and boundaries of VLM and DINO, and learn to define new detection rules by writing a single sentence.
 prev:
-  text: 'Volume 2: Scenario Configuration'
+  text: "Volume 2: Scenario Configuration"
   link: /en/tutorials/02-scenario-config/scenario-config
 next:
-  text: 'Volume 4: Pipeline Orchestration'
+  text: "Volume 4: Pipeline Orchestration"
   link: /en/tutorials/04-pipeline-orchestration/pipeline-orchestration
 ---
+
 # Volume 3: VLM / DINO Guide
 
 > **Estimated time**: 30–40 minutes
@@ -25,20 +26,20 @@ When working through the 18 built-in algorithms in Volume 2, you've probably not
 
 ![](images/img_01.webp)
 
-+ "Is there garbage in the hallway?"
-+ "Is the fire cabinet door closed?"
-+ "Is the garbage bin full?"
-+ "Has the construction barricade fallen over?"
-+ "Has the city wall been vandalized?"
+- "Is there garbage in the hallway?"
+- "Is the fire cabinet door closed?"
+- "Is the garbage bin full?"
+- "Has the construction barricade fallen over?"
+- "Has the city wall been vandalized?"
 
 With a **traditional custom model** approach, each of these requests typically means:
 
-| Step                           | Effort                                             |  Timeline  |
-| ------------------------------ | -------------------------------------------------- | :--------: |
-| Collect on-site images         | 500–2,000 photos                                  | 1–2 weeks |
+| Step                           | Effort                                             | Timeline  |
+| ------------------------------ | -------------------------------------------------- | :-------: |
+| Collect on-site images         | 500–2,000 photos                                   | 1–2 weeks |
 | Data labeling                  | Manual bounding box / class annotation             | 1–2 weeks |
 | Model training + tuning        | Requires GPU servers + ML engineers                | 1–2 weeks |
-| Edge deployment + adaptation   | Model conversion + performance tuning              | 3–5 days |
+| Edge deployment + adaptation   | Model conversion + performance tuning              | 3–5 days  |
 | On-site validation + iteration | Re-collect and retrain if accuracy is insufficient | Uncertain |
 
 **A single custom scenario takes at least a month from requirement to deployment, sometimes longer.** And your customer might have 5 or 10 such requests at the same time.
@@ -47,19 +48,19 @@ With a **traditional custom model** approach, each of these requests typically m
 
 CosmoEdge includes two built-in large model capabilities, each designed for different types of long-tail requirements:
 
-|                              | VLM (Visual State Judgment)                                | DINO (Open-Vocabulary Detection)                                     |
-| ---------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------- |
-| **In a nutshell**      | Judges the**state** of a scene (yes/no, open/closed) | Finds**where targets are** in the frame (draws bounding boxes) |
-| **Input**              | Write a prompt (a question)                                | Write a**target name**                                         |
-| **Output**             | YES / NO                                                   | Bounding boxes + confidence scores (just like CV models)             |
-| **Typical use case**   | "Is there garbage in the hallway?" → YES                  | "garbage" → marks garbage locations on screen                       |
-| **On-screen behavior** | No bounding boxes — results appear in the alarm panel     | Bounding boxes overlaid directly on video                            |
-| **Analysis speed**     | ~2–3 sec per frame                                        | ~1–2 sec per frame                                                  |
+|                        | VLM (Visual State Judgment)                           | DINO (Open-Vocabulary Detection)                               |
+| ---------------------- | ----------------------------------------------------- | -------------------------------------------------------------- |
+| **In a nutshell**      | Judges the**state** of a scene (yes/no, open/closed)  | Finds**where targets are** in the frame (draws bounding boxes) |
+| **Input**              | Write a prompt (a question)                           | Write a**target name**                                         |
+| **Output**             | YES / NO                                              | Bounding boxes + confidence scores (just like CV models)       |
+| **Typical use case**   | "Is there garbage in the hallway?" → YES              | "garbage" → marks garbage locations on screen                  |
+| **On-screen behavior** | No bounding boxes — results appear in the alarm panel | Bounding boxes overlaid directly on video                      |
+| **Analysis speed**     | ~2–3 sec per frame                                    | ~1–2 sec per frame                                             |
 
 **Quick rule of thumb:**
 
-+ Want to know **"is it or isn't it?"** → Use **VLM**
-+ Want to know **"where is it?"** → Use **DINO**
+- Want to know **"is it or isn't it?"** → Use **VLM**
+- Want to know **"where is it?"** → Use **DINO**
 
 Neither requires model training or data labeling. Write a sentence and you're up and running.
 
@@ -69,23 +70,23 @@ Before getting started, understand what these tools **can** and **cannot** do.
 
 #### ✅ Good Fit for Large Models
 
-| Scenario Type                                                             |      Tool      | Example                                                            |
-| ------------------------------------------------------------------------- | :------------: | ------------------------------------------------------------------ |
-| **State judgment** (yes/no, present/absent, open/closed)            |      VLM      | "Is the fire cabinet door closed?" → YES/NO                       |
-| **Simple classification** (pick one of a few states)                |      VLM      | "Is the indicator light red, green, or yellow?"                    |
-| **Open-vocabulary detection** (find a specific object)              |      DINO      | "fire extinguisher" → marks its position on screen                |
-| **Rare / long-tail scenarios** (no training data available)         |   VLM / DINO   | "Wall vandalism marks" — impossible to build a training dataset   |
+| Scenario Type                                                       |      Tool      | Example                                                            |
+| ------------------------------------------------------------------- | :------------: | ------------------------------------------------------------------ |
+| **State judgment** (yes/no, present/absent, open/closed)            |      VLM       | "Is the fire cabinet door closed?" → YES/NO                        |
+| **Simple classification** (pick one of a few states)                |      VLM       | "Is the indicator light red, green, or yellow?"                    |
+| **Open-vocabulary detection** (find a specific object)              |      DINO      | "fire extinguisher" → marks its position on screen                 |
+| **Rare / long-tail scenarios** (no training data available)         |   VLM / DINO   | "Wall vandalism marks" — impossible to build a training dataset    |
 | **Low-frequency inspection** (a few seconds between checks is fine) |   VLM / DINO   | Analyzing one frame every 2.5 seconds is sufficient for patrol use |
 | **Quick feasibility check**                                         | VLM image test | Upload sample event photos, get batch judgment results             |
 
 #### ❌ Poor Fit for Large Models
 
-| Scenario Type                                                             | Reason                                             | Recommended Alternative                  |
-| ------------------------------------------------------------------------- | -------------------------------------------------- | ---------------------------------------- |
-| **Real-time detection** (< 100 ms response)                         | Large models need 1–3 sec/frame                   | Use the CV models from Volume 2          |
+| Scenario Type                                                      | Reason                                             | Recommended Alternative                  |
+| ------------------------------------------------------------------ | -------------------------------------------------- | ---------------------------------------- |
+| **Real-time detection** (< 100 ms response)                        | Large models need 1–3 sec/frame                    | Use the CV models from Volume 2          |
 | **Precise counting** (how many people/vehicles — VLM not suitable) | Large models aren't good at spatial quantification | Use detection + tracking scenario tasks  |
-| **Multi-channel concurrency**                                       | Large models are resource-intensive                | CV models support 16 concurrent channels |
-| **Action recognition** (continuous motion / state transitions)      | Single-frame judgment has limited capability       | Use specialized behavior analysis models |
+| **Multi-channel concurrency**                                      | Large models are resource-intensive                | CV models support 16 concurrent channels |
+| **Action recognition** (continuous motion / state transitions)     | Single-frame judgment has limited capability       | Use specialized behavior analysis models |
 
 > **Bottom line**: Large models are best for **"low-frequency, broad-coverage, long-tail"** scenarios. They don't replace the CV models from Volume 2 — they **fill the gaps** those models can't cover. The three approaches complement each other; they don't compete.
 
@@ -127,10 +128,10 @@ If the answer triggers an alarm condition → Event record + alarm notification
 
 A VLM pipeline typically involves four stages:
 
-+ **Video Decode**: Decode the RTSP stream (**make sure the target event is visually discernible in the frame**).
-+ **Data Preprocessing**: Frame sampling, ROI cropping, and other preprocessing for the large model input.
-+ **Vision Language Model**: Feed the preprocessed image and prompt to the VLM for inference.
-+ **Event Reporting**: When the VLM output triggers the reporting logic, the result is sent to the system.
+- **Video Decode**: Decode the RTSP stream (**make sure the target event is visually discernible in the frame**).
+- **Data Preprocessing**: Frame sampling, ROI cropping, and other preprocessing for the large model input.
+- **Vision Language Model**: Feed the preprocessed image and prompt to the VLM for inference.
+- **Event Reporting**: When the VLM output triggers the reporting logic, the result is sent to the system.
 
 2. Edit the prompt
 
@@ -145,7 +146,7 @@ Parameter reference:
 | Parameter            | Purpose                                                                                                                | Notes                                                                                           |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | Select Base Model    | Choose the multimodal model type                                                                                       |                                                                                                 |
-| Frame Rate           | How many frames per second to sample for analysis (fps; the lower the value, the longer the interval between analyses) | Large models are compute-intensive — use a smaller value to lengthen the interval              |
+| Frame Rate           | How many frames per second to sample for analysis (fps; the lower the value, the longer the interval between analyses) | Large models are compute-intensive — use a smaller value to lengthen the interval               |
 | Advanced Prompt Mode | Enable full prompt configuration                                                                                       | When on, you write a complete prompt sentence; when off, just enter the detection target        |
 | Prompt               | Enter your prompt text                                                                                                 |                                                                                                 |
 | Generation Style     | Controls output randomness                                                                                             | Strict = low randomness; Standard = normal; Creative = high randomness; Custom = manual control |
@@ -221,16 +222,16 @@ Alarm notification (the large model takes about 30 seconds to initialize on firs
 
 Results analysis:
 
-+ The video feed plays normally (VLM does **not** overlay bounding boxes on the video — this is expected behavior).
-+ The **alarm panel** on the right shows detection events:
+- The video feed plays normally (VLM does **not** overlay bounding boxes on the video — this is expected behavior).
+- The **alarm panel** on the right shows detection events:
   - When floating debris is present → alarm triggers, with a captured snapshot
   - When no debris is present → no alarm
 
 > **⚠️ Visual difference from Volume 2**
 > Volume 2's CV models draw **real-time bounding boxes** on the video. VLM **does not draw boxes** — its results appear in the alarm panel and event records. This is not a bug; it's how the two technologies differ in output:
 >
-> + CV models tell you **"what is where"** (bounding boxes)
-> + VLM tells you **"what's the state of the scene"** (YES/NO)
+> - CV models tell you **"what is where"** (bounding boxes)
+> - VLM tells you **"what's the state of the scene"** (YES/NO)
 
 #### 1.4 Event Query
 
@@ -242,9 +243,9 @@ Click **Event Center** → **Detection/Analysis** and filter by your criteria to
 
 Each VLM alarm includes:
 
-+ **Captured snapshot**: The exact frame the VLM analyzed
-+ **Judgment result**: YES (debris present) or NO (no debris)
-+ **Timestamp**: When the judgment was made
+- **Captured snapshot**: The exact frame the VLM analyzed
+- **Judgment result**: YES (debris present) or NO (no debris)
+- **Timestamp**: When the judgment was made
 
 Click an alarm image to view details. The alarm information appears in the upper right.
 
@@ -305,7 +306,7 @@ Click the **Vision Language Model** node, configure the prompt, and click **Save
 
 ![](images/img_20.webp)
 
-Prompt: *Determine whether the person in the image appears to be vandalizing the wall.*
+Prompt: _Determine whether the person in the image appears to be vandalizing the wall._
 
 > The above covers all the steps needed to orchestrate a VLM pipeline.
 
@@ -345,8 +346,8 @@ Click an image marked as **Target Detected** to view confidence scores and logic
 
 Result interpretation:
 
-+ If the result matches expectations → Judgment is correct; the prompt works.
-+ If the result is unexpected or inconsistent → Adjust the prompt (see next section).
+- If the result matches expectations → Judgment is correct; the prompt works.
+- If the result is unexpected or inconsistent → Adjust the prompt (see next section).
 
 > **💡 The Value of Image Testing**
 > No video feed needed. No scenario task to configure. No waiting around for events to happen in a video stream. Just upload real-world event photos and get instant results. **This is the lowest-cost way to validate whether VLM can handle a given scenario.** We recommend image testing before every new scenario goes live. For complex or high-stakes scenarios, prepare a meaningful set of positive and negative sample images and measure precision and recall.
@@ -375,9 +376,9 @@ Narrow the scope or adjust the ROI to exclude interference:
 
 **Case 3: Unstable results**
 
-+ Check if the ROI is too large, capturing excessive irrelevant background.
-+ Simplify the prompt — avoid overly complex descriptions.
-+ Test with multiple images to confirm consistency.
+- Check if the ROI is too large, capturing excessive irrelevant background.
+- Simplify the prompt — avoid overly complex descriptions.
+- Test with multiple images to confirm consistency.
 
 > **General prompt iteration workflow:**
 
@@ -391,10 +392,10 @@ Connect to a video feed and configure as a persistent scenario task
 
 **Keys to Writing a Good VLM Prompt**
 
-| # | Rule                                 | Explanation                                                                                            |
-| :-: | ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| 1 | **Ask closed-ended questions** | Only ask questions that can be answered with "yes/no" or "A/B/C" — not open-ended questions           |
-| 2 | **Ask about visible things**   | VLM can only analyze image content — make sure your question refers to something visible in the frame |
+|  #  | Rule                           | Explanation                                                                                           |
+| :-: | ------------------------------ | ----------------------------------------------------------------------------------------------------- |
+|  1  | **Ask closed-ended questions** | Only ask questions that can be answered with "yes/no" or "A/B/C" — not open-ended questions           |
+|  2  | **Ask about visible things**   | VLM can only analyze image content — make sure your question refers to something visible in the frame |
 
 **VLM — Good Prompts vs. Bad Prompts**
 
@@ -402,7 +403,7 @@ Connect to a video feed and configure as a persistent scenario task
 | ------------------------------------------------------------ | ------------------------------------------------- | ------------------------------------------- |
 | "Is there garbage in the hallway?"                           | "Describe the hallway situation"                  | Open-ended; uncontrollable output           |
 | "Is there standing water on the ground?"                     | "Is the ground wet?"                              | "Wet" isn't a visual feature; hard to judge |
-| "Is the fire cabinet door closed?"                           | "Is there a problem with the fire cabinet?"       | Too vague — what counts as "a problem"?    |
+| "Is the fire cabinet door closed?"                           | "Is there a problem with the fire cabinet?"       | Too vague — what counts as "a problem"?     |
 | "Is the indicator light red or green?"                       | "How many indicator lights does the device have?" | VLM isn't good at counting                  |
 | "Are there visible signs of deliberate carving on the wall?" | "Is the wall broken?"                             | "Broken" is too broad                       |
 
@@ -424,9 +425,9 @@ In the first two scenarios, VLM answered "is it or isn't it" questions — it te
 
 Some scenarios require a different approach:
 
-+ "I want to **find** all fire extinguishers in the frame and see where they are."
-+ "I want to **mark** all cats, dogs, or unusual objects on screen."
-+ "I want the system to **draw boxes** around every tool in the construction zone."
+- "I want to **find** all fire extinguishers in the frame and see where they are."
+- "I want to **mark** all cats, dogs, or unusual objects on screen."
+- "I want the system to **draw boxes** around every tool in the construction zone."
 
 These use cases don't need YES/NO — they need **bounding boxes**, just like the CV models from Volume 2, but without training.
 
@@ -574,16 +575,16 @@ What do you need?
 
 Full comparison:
 
-|                                      | CV Models (Volume 2)                                  | VLM (This Volume)        | DINO (This Volume)                                     |
-| ------------------------------------ | ----------------------------------------------------- | ------------------------ | ------------------------------------------------------ |
-| **Rule source**                | Pre-trained fixed model                               | A question you write     | A target name you write                                |
-| **Output**                     | Bounding boxes                                        | YES / NO                 | Bounding boxes                                         |
-| **Speed**                      | Real-time (25 fps)                                    | ~2–3 sec/frame          | ~1–2 sec/frame                                        |
-| **Concurrency**                | 16 channels                                           | Single-channel serial    | Single-channel serial                                  |
-| **Switching scenarios**        | Swap models                                           | Change one sentence      | Change one word                                        |
-| **Best for**                   | High-frequency mainstream scenarios                   | Long-tail state judgment | Long-tail object detection                             |
-| **On-screen display**          | Real-time bounding boxes                              | Alarm panel only         | Bounding boxes (slower)                                |
-| **Alarm panel**                | Detected target + confidence                          | YES/NO judgment result   | Detected target + confidence                           |
+|                                | CV Models (Volume 2)                                 | VLM (This Volume)        | DINO (This Volume)                                    |
+| ------------------------------ | ---------------------------------------------------- | ------------------------ | ----------------------------------------------------- |
+| **Rule source**                | Pre-trained fixed model                              | A question you write     | A target name you write                               |
+| **Output**                     | Bounding boxes                                       | YES / NO                 | Bounding boxes                                        |
+| **Speed**                      | Real-time (25 fps)                                   | ~2–3 sec/frame           | ~1–2 sec/frame                                        |
+| **Concurrency**                | 16 channels                                          | Single-channel serial    | Single-channel serial                                 |
+| **Switching scenarios**        | Swap models                                          | Change one sentence      | Change one word                                       |
+| **Best for**                   | High-frequency mainstream scenarios                  | Long-tail state judgment | Long-tail object detection                            |
+| **On-screen display**          | Real-time bounding boxes                             | Alarm panel only         | Bounding boxes (slower)                               |
+| **Alarm panel**                | Detected target + confidence                         | YES/NO judgment result   | Detected target + confidence                          |
 | **Pipeline performance stats** | Overlaid on video (Decode/OSD/Encoder — low latency) | Not on video             | Overlaid on video (Decode/OSD/Encoder — high latency) |
 
 > **💡 Think of VLM and DINO as the "universal backup" for CV models.** Your system first covers mainstream scenarios with the 18 mature scenario tasks. For anything those can't handle, VLM and DINO step in on demand — no waiting for model training, ready to go the same day.
@@ -592,11 +593,11 @@ Full comparison:
 
 ### DINO Prompt Rules
 
-| # | Rule                                             | Notes                                                 |
-| :-: | ------------------------------------------------ | ----------------------------------------------------- |
-| 1 | **Use English nouns**                      | The current version is more stable with English       |
-| 2 | **Separate multiple targets with periods** | e.g.,`person.garbage.fire extinguisher`             |
-| 3 | **Be specific**                            | `fire extinguisher` works better than `red thing` |
+|  #  | Rule                                       | Notes                                             |
+| :-: | ------------------------------------------ | ------------------------------------------------- |
+|  1  | **Use English nouns**                      | The current version is more stable with English   |
+|  2  | **Separate multiple targets with periods** | e.g.,`person.garbage.fire extinguisher`           |
+|  3  | **Be specific**                            | `fire extinguisher` works better than `red thing` |
 
 ### VLM Reference Scenario Templates
 
@@ -621,7 +622,7 @@ Whether using VLM or DINO, confirm the following before any new scenario goes li
 
 ### What's Next
 
-| Goal                                                             | Read                                          |
-| ---------------------------------------------------------------- | --------------------------------------------- |
-| Look up parameter details or get troubleshooting help            | → Reference Manual                           |
+| Goal                                                             | Read                                        |
+| ---------------------------------------------------------------- | ------------------------------------------- |
+| Look up parameter details or get troubleshooting help            | → Reference Manual                          |
 | Learn about model porting (deploy your own models to the device) | → Reference Manual — Model Porting Overview |

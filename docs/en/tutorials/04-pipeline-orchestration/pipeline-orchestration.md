@@ -1,11 +1,11 @@
 ---
-title: 'Volume 4: Pipeline Orchestration'
+title: "Volume 4: Pipeline Orchestration"
 description: Understand scenario task structure, learn to modify existing pipelines, and create new scenario tasks from scratch.
 prev:
-  text: 'Volume 3: VLM / DINO Guide'
+  text: "Volume 3: VLM / DINO Guide"
   link: /en/tutorials/03-vlm-guide/vlm-guide
 next:
-  text: 'Volume 5: Model Porting'
+  text: "Volume 5: Model Porting"
   link: /en/tutorials/05-model-porting/model-porting
 ---
 
@@ -27,9 +27,9 @@ This tutorial takes you one level deeper: **understanding how those capabilities
 
 Three progressive chapters:
 
-+ Chapter 1: Read and understand existing scenario task internals
-+ Chapter 2: Modify an existing scenario task
-+ Chapter 3: Build a new scenario task from scratch
+- Chapter 1: Read and understand existing scenario task internals
+- Chapter 2: Modify an existing scenario task
+- Chapter 3: Build a new scenario task from scratch
 
 > **Note**
 >
@@ -48,10 +48,10 @@ Build new scenario tasks by referencing existing structure
 
 After completing this tutorial, you'll be able to:
 
-+ Understand what a scenario task does internally
-+ Judge where a given node belongs in the pipeline
-+ Independently add, remove, and reconfigure nodes
-+ Build new business logic using built-in capabilities
+- Understand what a scenario task does internally
+- Judge where a given node belongs in the pipeline
+- Independently add, remove, and reconfigure nodes
+- Build new business logic using built-in capabilities
 
 ## Chapter 1: Understanding Scenario Task Pipelines
 
@@ -70,55 +70,59 @@ This chapter is read-only — no modifications.
 1. Navigate to **Scenario Tasks**.
 
 <!-- Screenshot of scenario tasks page -->
+
 ![](images/img_01.webp)
 
 2. Find **No Hard Hat**.
 
 <!-- Screenshot of No Hard Hat task -->
+
 ![](images/img_02.webp)
 
 3. Click **Pipeline Orchestration**.
 
 <!-- Screenshot of pipeline orchestration button -->
+
 ![](images/img_03.webp)
 
 You'll see a complete node chain — this is the internal structure of the "No Hard Hat" scenario.
 
 <!-- Screenshot of the full pipeline -->
+
 ![](images/img_04.webp)
 
 ### 1.2 Common Node Types
 
 **Input Nodes**
 
-| Node | Purpose | Notes |
-| --- | --- | --- |
+| Node         | Purpose                                       | Notes                                         |
+| ------------ | --------------------------------------------- | --------------------------------------------- |
 | Video Decode | Decodes a video stream into individual frames | Starting point for nearly every scenario task |
 
 **Inference Nodes**
 
-| Node | Purpose | Notes |
-| --- | --- | --- |
-| Object Detection | Locates targets in the frame | e.g., pedestrian detection, hard hat detection |
-| Object Classification | Re-classifies detected targets | e.g., determining hard hat status |
-| Tracking | Assigns stable IDs to targets | Maintains identity across frames |
-| Vision Language Model | Performs state judgment on images | e.g., "Is the door open or closed?" |
-| Detection Vision Model | Detects targets from text prompts | e.g., "garbage bin," "fire cabinet" |
+| Node                   | Purpose                           | Notes                                          |
+| ---------------------- | --------------------------------- | ---------------------------------------------- |
+| Object Detection       | Locates targets in the frame      | e.g., pedestrian detection, hard hat detection |
+| Object Classification  | Re-classifies detected targets    | e.g., determining hard hat status              |
+| Tracking               | Assigns stable IDs to targets     | Maintains identity across frames               |
+| Vision Language Model  | Performs state judgment on images | e.g., "Is the door open or closed?"            |
+| Detection Vision Model | Detects targets from text prompts | e.g., "garbage bin," "fire cabinet"            |
 
 **Logic Nodes**
 
-| Node | Purpose | Notes |
-| --- | --- | --- |
-| Category Filter | Keeps only specified classes | Drops irrelevant detection results |
-| Size Filter | Filters targets that are too small or large | Eliminates noise from distant small objects |
-| Region Judgment | Checks if a target is inside a defined region | Corresponds to the detection regions drawn in Volume 2 |
-| Line Crossing | Checks if a target crosses a defined line | Used for pedestrian flow counting |
-| Sensitivity Calculation | Requires multiple consecutive hits before triggering | Reduces single-frame false positives |
+| Node                    | Purpose                                              | Notes                                                  |
+| ----------------------- | ---------------------------------------------------- | ------------------------------------------------------ |
+| Category Filter         | Keeps only specified classes                         | Drops irrelevant detection results                     |
+| Size Filter             | Filters targets that are too small or large          | Eliminates noise from distant small objects            |
+| Region Judgment         | Checks if a target is inside a defined region        | Corresponds to the detection regions drawn in Volume 2 |
+| Line Crossing           | Checks if a target crosses a defined line            | Used for pedestrian flow counting                      |
+| Sensitivity Calculation | Requires multiple consecutive hits before triggering | Reduces single-frame false positives                   |
 
 **Output Nodes**
 
-| Node | Purpose | Notes |
-| --- | --- | --- |
+| Node            | Purpose                | Notes                        |
+| --------------- | ---------------------- | ---------------------------- |
 | Event Reporting | Generates alarm events | Visible in the alarm records |
 
 > **Tip**
@@ -151,9 +155,9 @@ Video Visualization Overlay
 
 Once you understand this flow, most scenario tasks become readable:
 
-+ Each node consumes the output of the previous node.
-+ Each node does exactly one thing.
-+ Node order directly affects the final result.
+- Each node consumes the output of the previous node.
+- Each node does exactly one thing.
+- Node order directly affects the final result.
 
 ### 1.4 Principles for Node Ordering
 
@@ -181,29 +185,34 @@ Continuing from Section 1.1, add a size filter between **Object Detection** and 
 1. Click the add button between **Object Detection** and **Object Tracking**.
 
 <!-- Screenshot of add button position -->
+
 ![](images/img_05.webp)
 
 2. Click **Add Component**.
 
 <!-- Screenshot of add component menu -->
+
 ![](images/img_06.webp)
 
 <!-- Screenshot of component panel -->
+
 ![](images/img_07.webp)
 
 Components are organized into two categories:
 
-+ **Algorithm Actions**: Model-related components (object detection, feature extraction, etc.)
-+ **Business Processing**: Workflow components (video decode, event reporting, etc.)
+- **Algorithm Actions**: Model-related components (object detection, feature extraction, etc.)
+- **Business Processing**: Workflow components (video decode, event reporting, etc.)
 
 3. Select the **Category Filter** component.
 
 <!-- Screenshot of category filter selection -->
+
 ![](images/img_08.webp)
 
 The Category Filter node is inserted at the expected position.
 
 <!-- Screenshot of inserted node -->
+
 ![](images/img_09.webp)
 
 > **Why here?**
@@ -216,21 +225,24 @@ The Category Filter node is inserted at the expected position.
    Click the **Category Filter** component to expand its configuration panel.
 
 <!-- Screenshot of category filter config -->
+
 ![](images/img_10.webp)
 
 The **Category Filter** component has these settings:
 
-+ **Target Label**: Select which labels to keep.
-+ **Enable Minimum Size**: Toggle minimum size filtering on/off.
+- **Target Label**: Select which labels to keep.
+- **Enable Minimum Size**: Toggle minimum size filtering on/off.
 
 Set the target label to **Pedestrian** — only pedestrian results pass through; all other labels are dropped.
 
 <!-- Screenshot of label selection -->
+
 ![](images/img_11.webp)
 
 Enable **Minimum Size** — detection results below this threshold will be discarded.
 
 <!-- Screenshot of min size toggle -->
+
 ![](images/img_12.webp)
 
 The default minimum size is **60×60** pixels. You can customize this value.
@@ -242,11 +254,13 @@ The default minimum size is **60×60** pixels. You can customize this value.
 Click **Parameter Configuration** to open the parameter settings page.
 
 <!-- Screenshot of parameter page -->
+
 ![](images/img_13.webp)
 
 Set **Minimum Pedestrian Size** to 40, meaning the minimum target area is 40×40 pixels.
 
 <!-- Screenshot of min size setting -->
+
 ![](images/img_14.webp)
 
 > **Tuning advice**
@@ -259,38 +273,44 @@ Set **Minimum Pedestrian Size** to 40, meaning the minimum target area is 40×40
 1. Click **Save**.
 
 <!-- Screenshot of save confirmation -->
+
 ![](images/img_15.webp)
 
 2. Go to **Video Sources** → **Service Assignment** and find the **No Hard Hat** channel.
 
 <!-- Screenshot of service assignment -->
+
 ![](images/img_16.webp)
 
 3. Start the **No Hard Hat** service.
 
 <!-- Screenshot of service started -->
+
 ![](images/img_17.webp)
 
 4. Go to **Live Preview** to observe the changes.
 
 <!-- Screenshot of live preview -->
+
 ![](images/img_18.webp)
 
 Select the **Construction Site North Channel** and enter full screen.
 
 <!-- Screenshot of full screen preview -->
+
 ![](images/img_19.webp)
 
 Algorithm overlay visualization:
 
 <!-- Screenshot of overlay with filter active -->
+
 ![](images/img_20.webp)
 
 Results analysis:
 
-+ Distant, excessively small pedestrians (red box highlighted) are now noticeably fewer.
-+ Nearby, clearly visible targets still detect and classify normally.
-+ False positive count has decreased.
+- Distant, excessively small pedestrians (red box highlighted) are now noticeably fewer.
+- Nearby, clearly visible targets still detect and classify normally.
+- False positive count has decreased.
 
 **You've completed your first scenario task modification.**
 This pattern will come up repeatedly:
@@ -309,45 +329,50 @@ We'll still follow the "reference existing structure" method rather than startin
 
 Create a new **Zone Intrusion Detection** scenario task:
 
-+ Detect people in the frame
-+ Determine whether they've entered a specified zone
-+ Trigger an alarm after consecutive detections
-+ Display bounding boxes and labels in the live preview
+- Detect people in the frame
+- Determine whether they've entered a specified zone
+- Trigger an alarm after consecutive detections
+- Display bounding boxes and labels in the live preview
 
 Two advantages of this example:
 
-+ Uses only built-in capabilities — low barrier to entry
-+ Covers the complete loop: detection + zone rules + alarm + visualization
+- Uses only built-in capabilities — low barrier to entry
+- Covers the complete loop: detection + zone rules + alarm + visualization
 
 ### 3.1 Create a New Algorithm
 
 1. Navigate to **Scenario Tasks**.
 
 <!-- Screenshot of scenario tasks list -->
+
 ![](images/img_21.webp)
 
 2. Click **New Task**.
 
 <!-- Screenshot of new task button -->
+
 ![](images/img_22.webp)
 
 <!-- Screenshot of new task dialog -->
+
 ![](images/img_23.webp)
 
 3. Fill in the basic information:
 
-| Field | Value |
-| --- | --- |
-| Task Name | Zone Intrusion Detection |
-| Data Source Type | Video Analysis |
-| Task Type | Detection/Analysis |
+| Field            | Value                    |
+| ---------------- | ------------------------ |
+| Task Name        | Zone Intrusion Detection |
+| Data Source Type | Video Analysis           |
+| Task Type        | Detection/Analysis       |
 
 <!-- Screenshot of filled form -->
+
 ![](images/img_24.webp)
 
 Click **OK** to save.
 
 <!-- Screenshot of saved task -->
+
 ![](images/img_25.webp)
 
 ### 3.2 Build the Pipeline
@@ -357,26 +382,31 @@ Click **OK** to save.
 Click **Pipeline Orchestration** to enter the blank orchestration page.
 
 <!-- Screenshot of entering orchestration -->
+
 ![](images/img_26.webp)
 
 An empty pipeline contains only the Start and End nodes.
 
 <!-- Screenshot of empty pipeline -->
+
 ![](images/img_27.webp)
 
 The plus button between nodes is used to add components.
 
 <!-- Screenshot of plus button -->
+
 ![](images/img_28.webp)
 
 Click the **plus button** to see the operation options. **Add Component** inserts algorithm components.
 
 <!-- Screenshot of add component option -->
+
 ![](images/img_29.webp)
 
 Click **Add Component** to open the component panel. For detailed component information, see **Appendix A: Node Quick Reference**.
 
 <!-- Screenshot of component panel -->
+
 ![](images/img_30.webp)
 
 Add nodes in the following order:
@@ -390,12 +420,14 @@ Video Decode → Object Detection → Object Tracking → Region Judgment → Se
 The Video Decode node is the starting point for every scenario task. It converts a video stream into individual frames.
 
 <!-- Screenshots of adding video decode -->
+
 ![](images/img_31.webp)
 ![](images/img_32.webp)
 
 **Business logic configuration**: Click **Video Decode** to view configuration options. Video decode has no configurable parameters, so the panel is empty.
 
 <!-- Screenshot of empty config panel -->
+
 ![](images/img_33.webp)
 
 #### Step 2: Add Object Detection
@@ -403,62 +435,70 @@ The Video Decode node is the starting point for every scenario task. It converts
 Decoded frames are fed into the object detection model, which outputs target positions and class information.
 
 <!-- Screenshots of adding object detection -->
+
 ![](images/img_34.webp)
 ![](images/img_35.webp)
 
 **Business logic configuration**:
 
 <!-- Screenshot of detection config -->
+
 ![](images/img_36.webp)
 
-+ Base Model: PedestrianDetection (Pedestrian Detection Model)
-+ Select Label: Pedestrian
-+ Custom Frame Rate: Enabled
+- Base Model: PedestrianDetection (Pedestrian Detection Model)
+- Select Label: Pedestrian
+- Custom Frame Rate: Enabled
 
 #### Step 3: Add Object Tracking
 
 Track detected targets across frames so the same person maintains a consistent identity, providing stable IDs for downstream business logic.
 
 <!-- Screenshots of adding tracking -->
+
 ![](images/img_37.webp)
 ![](images/img_38.webp)
 
 **Business logic configuration**:
 
 <!-- Screenshot of tracking config -->
+
 ![](images/img_39.webp)
 
-+ Label Filter: PedestrianDetection — track this label
-+ State Judgment: Motion state
-+ Deformation Judgment: Not required
+- Label Filter: PedestrianDetection — track this label
+- State Judgment: Motion state
+- Deformation Judgment: Not required
 
 #### Step 4: Add Region Judgment
 
 Draw a zone that defines the intrusion boundary — entering this zone triggers an alarm event.
 
 <!-- Screenshots of adding region judgment -->
+
 ![](images/img_40.webp)
 ![](images/img_41.webp)
 
 **Business logic configuration**:
 
 <!-- Screenshot of region config -->
+
 ![](images/img_42.webp)
 
-+ Region Alarm Statistic Mode: Count limit (for absence/gathering detection)
-+ Input Region Type: Primary region
+- Region Alarm Statistic Mode: Count limit (for absence/gathering detection)
+- Input Region Type: Primary region
 
 #### Step 5: Add Sensitivity Calculation
 
 Single-frame alarms have high false positive rates. Sensitivity calculation requires multiple consecutive frame hits before triggering, significantly reducing noise.
 
 <!-- Screenshots of adding sensitivity -->
+
 ![](images/img_43.webp)
 ![](images/img_44.webp)
 
 **Business logic configuration**:
 
 <!-- Screenshot of sensitivity config -->
+
 ![](images/img_45.webp)
 
 #### Step 6: Add Event Reporting
@@ -466,18 +506,20 @@ Single-frame alarms have high false positive rates. Sensitivity calculation requ
 Generated alarm events are reported to the system for statistical analysis and real-time push notifications.
 
 <!-- Screenshots of adding event reporting -->
+
 ![](images/img_46.webp)
 ![](images/img_47.webp)
 
 **Business logic configuration**:
 
 <!-- Screenshot of event reporting config -->
+
 ![](images/img_48.webp)
 
-+ Target tracking: With target tracking
-+ Video clip for trigger events: Enabled
-+ Video clip for scheduled events: Disabled
-+ Large model review: Disabled
+- Target tracking: With target tracking
+- Video clip for trigger events: Enabled
+- Video clip for scheduled events: Disabled
+- Large model review: Disabled
 
 The complete Zone Intrusion Detection pipeline is now configured. Next, we'll set the detailed control parameters for each node.
 
@@ -488,64 +530,70 @@ In the previous section, the pipeline was built using default parameter values. 
 Click **Parameter Configuration** to switch to the parameters page.
 
 <!-- Screenshot of parameter config page -->
+
 ![](images/img_49.webp)
 
 #### Object Detection Node
 
-| Parameter | Recommended Value | Notes |
-| --- | --- | --- |
-| Confidence Threshold | 0.5 | Adjustable up or down as needed |
-| Confidence Offset | 0 | Adjusts confidence boundary |
-| Detection Mode | Bottom | Defines which point of the bounding box determines zone entry. "Bottom" uses foot position — most appropriate for intrusion detection. Can also be set to center or top |
+| Parameter            | Recommended Value | Notes                                                                                                                                                                   |
+| -------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Confidence Threshold | 0.5               | Adjustable up or down as needed                                                                                                                                         |
+| Confidence Offset    | 0                 | Adjusts confidence boundary                                                                                                                                             |
+| Detection Mode       | Bottom            | Defines which point of the bounding box determines zone entry. "Bottom" uses foot position — most appropriate for intrusion detection. Can also be set to center or top |
 
 <!-- Screenshot of detection parameters -->
+
 ![](images/img_50.webp)
 
 ### Tracking Algorithm
 
-| Parameter | Recommended Value | Notes |
-| --- | --- | --- |
-| Track History Frames | 10 | Track must persist for N frames before it's considered valid |
-| Static Threshold | 80 | If tracking overlap exceeds 80%, the target is considered stationary |
-| Track Radius | 2.3 | Track targets within 2.3m; beyond this, the target is considered lost |
+| Parameter            | Recommended Value | Notes                                                                 |
+| -------------------- | ----------------- | --------------------------------------------------------------------- |
+| Track History Frames | 10                | Track must persist for N frames before it's considered valid          |
+| Static Threshold     | 80                | If tracking overlap exceeds 80%, the target is considered stationary  |
+| Track Radius         | 2.3               | Track targets within 2.3m; beyond this, the target is considered lost |
 
 <!-- Screenshot of tracking parameters -->
+
 ![](images/img_51.webp)
 
 #### Region Alarm Judgment
 
-| Parameter | Recommended Value | Notes |
-| --- | --- | --- |
-| Target Count in Region | 0 | Triggers alarm when target count exceeds (or falls below) this number |
-| Target Count Limit Type | Alarm when above target count | Alarm condition — used for target presence, gathering, etc. |
-| Detection Time |  |  |
-| Detection Time Unit |  |  |
+| Parameter               | Recommended Value             | Notes                                                                 |
+| ----------------------- | ----------------------------- | --------------------------------------------------------------------- |
+| Target Count in Region  | 0                             | Triggers alarm when target count exceeds (or falls below) this number |
+| Target Count Limit Type | Alarm when above target count | Alarm condition — used for target presence, gathering, etc.           |
+| Detection Time          |                               |                                                                       |
+| Detection Time Unit     |                               |                                                                       |
 
 <!-- Screenshot of region parameters -->
+
 ![](images/img_52.webp)
 
 #### Sensitivity Calculation Node
 
-| Parameter | Recommended Value | Notes |
-| --- | --- | --- |
-| Sensitivity Hit Count | 3 | Triggers after 3 consecutive hits |
-| Sensitivity Total Count | 10 | Evaluated within a 10-frame window |
+| Parameter               | Recommended Value | Notes                              |
+| ----------------------- | ----------------- | ---------------------------------- |
+| Sensitivity Hit Count   | 3                 | Triggers after 3 consecutive hits  |
+| Sensitivity Total Count | 10                | Evaluated within a 10-frame window |
 
 <!-- Screenshot of sensitivity parameters -->
+
 ![](images/img_53.webp)
 
 #### Event Reporting Node
 
-| Parameter | Recommended Value | Notes |
-| --- | --- | --- |
-| Alarm Interval | 3 | Minimum seconds between re-alarms for the same target |
-| Alarm Count | 1 | Max repeated alarms per target — prevents excessive records |
-| Static Object Dedup | Enabled | Stationary objects can trigger many repeated alarms — enabling dedup prevents this |
-| Static Overlap Ratio | 0.2 | Overlap threshold for considering a target stationary |
-| Static Dedup Duration | 6 | Maximum dedup window (hours) |
-| Panoramic Trajectory Overlay | Disabled | Optional trajectory visualization |
+| Parameter                    | Recommended Value | Notes                                                                              |
+| ---------------------------- | ----------------- | ---------------------------------------------------------------------------------- |
+| Alarm Interval               | 3                 | Minimum seconds between re-alarms for the same target                              |
+| Alarm Count                  | 1                 | Max repeated alarms per target — prevents excessive records                        |
+| Static Object Dedup          | Enabled           | Stationary objects can trigger many repeated alarms — enabling dedup prevents this |
+| Static Overlap Ratio         | 0.2               | Overlap threshold for considering a target stationary                              |
+| Static Dedup Duration        | 6                 | Maximum dedup window (hours)                                                       |
+| Panoramic Trajectory Overlay | Disabled          | Optional trajectory visualization                                                  |
 
 <!-- Screenshot of event reporting parameters -->
+
 ![](images/img_54.webp)
 
 ### 3.5 Assign to a Video Channel and Test
@@ -555,24 +603,29 @@ Click **Parameter Configuration** to switch to the parameters page.
    Click **Video Sources** to enter the channel page.
 
 <!-- Screenshot of video sources -->
+
 ![](images/img_55.webp)
 
 Create a new channel and upload a video.
 
 <!-- Screenshot of new channel creation -->
+
 ![](images/img_56.webp)
 
 2. Open **Service Assignment**.
 
 <!-- Screenshot of service assignment -->
+
 ![](images/img_57.webp)
 
 <!-- Screenshot of service list -->
+
 ![](images/img_58.webp)
 
 3. Select the **Zone Intrusion Detection** task you just created.
 
 <!-- Screenshot of task selection -->
+
 ![](images/img_59.webp)
 
 4. Draw the detection region.
@@ -580,14 +633,17 @@ Create a new channel and upload a video.
 Click **Add Region**.
 
 <!-- Screenshot of add region -->
+
 ![](images/img_60.webp)
 
 <!-- Screenshot of region name dialog -->
+
 ![](images/img_61.webp)
 
 Adjust the region to the desired position.
 
 <!-- Screenshot of adjusted region -->
+
 ![](images/img_62.webp)
 
 5. Configure the runtime strategy.
@@ -595,11 +651,13 @@ Adjust the region to the desired position.
 Set play count to 0 for looping playback.
 
 <!-- Screenshot of runtime strategy -->
+
 ![](images/img_63.webp)
 
 6. Save and start the service.
 
 <!-- Screenshot of save and start -->
+
 ![](images/img_64.webp)
 
 ### 3.6 Verify Results
@@ -609,32 +667,37 @@ Go to **Live Preview** and **Alarm Records** to check the output.
 1. Click **Live Preview** to enter the display page.
 
 <!-- Screenshot of live preview entry -->
+
 ![](images/img_65.webp)
 
 2. Select the **Street Corner Camera** channel.
 
 <!-- Screenshot of channel selection -->
+
 ![](images/img_66.webp)
 
 3. Enable visualization overlay.
 
 <!-- Screenshot of overlay enabled -->
+
 ![](images/img_67.webp)
 
 4. Alarm notification popup.
 
 <!-- Screenshot of alarm popup -->
+
 ![](images/img_68.webp)
 
 Results analysis:
 
-+ When a person enters the defined zone, bounding boxes and labels appear on the live feed.
-+ Alarms trigger only after consecutive hits — not on a single frame.
-+ Alarm records show the corresponding events.
+- When a person enters the defined zone, bounding boxes and labels appear on the live feed.
+- Alarms trigger only after consecutive hits — not on a single frame.
+- Alarm records show the corresponding events.
 
 4. Alarm records.
 
 <!-- Screenshot of alarm records -->
+
 ![](images/img_69.webp)
 
 **You've now completed your first scenario task built from scratch.**
@@ -649,25 +712,25 @@ Coming soon.
 
 ### B. Node Parameter Quick Reference
 
-| Node Type | Common Parameters | Default / Recommended | Notes |
-| --- | --- | --- | --- |
-| Video Decode | Decode method | Hardware decode | Usually no changes needed |
-| Object Detection | Model / confidence threshold | 0.5 | Results below threshold are dropped |
-| Object Tracking | Max lost frames | 30 | How long before releasing an ID |
-| Size Filter | Min width / min height | 0 | 0 means no filtering |
-| Region Judgment | Judgment method | Bottom center point | Determines if target is in region |
-| Sensitivity | Hit threshold / window size | 3 / 10 | Multi-frame accumulation before trigger |
-| Event Reporting | Alarm type / alarm interval | 60 sec | Re-alarm interval for the same target |
+| Node Type        | Common Parameters            | Default / Recommended | Notes                                   |
+| ---------------- | ---------------------------- | --------------------- | --------------------------------------- |
+| Video Decode     | Decode method                | Hardware decode       | Usually no changes needed               |
+| Object Detection | Model / confidence threshold | 0.5                   | Results below threshold are dropped     |
+| Object Tracking  | Max lost frames              | 30                    | How long before releasing an ID         |
+| Size Filter      | Min width / min height       | 0                     | 0 means no filtering                    |
+| Region Judgment  | Judgment method              | Bottom center point   | Determines if target is in region       |
+| Sensitivity      | Hit threshold / window size  | 3 / 10                | Multi-frame accumulation before trigger |
+| Event Reporting  | Alarm type / alarm interval  | 60 sec                | Re-alarm interval for the same target   |
 
 ### C. Common Pipeline Troubleshooting
 
-| Problem | Possible Cause | Solution |
-| --- | --- | --- |
-| Service won't start after saving | Nodes not properly connected | Check that all nodes are linked end-to-end |
-| No bounding boxes in live preview | Missing visualization overlay node | Add a visualization overlay at the end |
-| Boxes visible but no alarms | Event reporting node missing or sensitivity threshold not met | Check the reporting node and threshold settings |
-| Too many alarms | Missing sensitivity node or threshold too low | Raise the sensitivity threshold |
-| Too many false positives | No size filter or detection region too broad | Tighten the filter and shrink the region |
+| Problem                           | Possible Cause                                                | Solution                                        |
+| --------------------------------- | ------------------------------------------------------------- | ----------------------------------------------- |
+| Service won't start after saving  | Nodes not properly connected                                  | Check that all nodes are linked end-to-end      |
+| No bounding boxes in live preview | Missing visualization overlay node                            | Add a visualization overlay at the end          |
+| Boxes visible but no alarms       | Event reporting node missing or sensitivity threshold not met | Check the reporting node and threshold settings |
+| Too many alarms                   | Missing sensitivity node or threshold too low                 | Raise the sensitivity threshold                 |
+| Too many false positives          | No size filter or detection region too broad                  | Tighten the filter and shrink the region        |
 
 ### D. Common Pipeline Templates
 
@@ -699,7 +762,7 @@ Good for: Hard hat, work uniform, smoking, phone usage detection, etc.
 
 If you've mastered this tutorial's content, the next step is:
 
-+ Volume 5: Model Porting
+- Volume 5: Model Porting
 
 Which addresses another critical question:
 **How to port third-party models to the device and integrate them into your own scenario tasks.**

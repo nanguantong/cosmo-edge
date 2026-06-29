@@ -1,13 +1,14 @@
 ---
-title: 'Volume 1: Quick Start'
+title: "Volume 1: Quick Start"
 description: From unboxing to seeing live AI detection results in your browser — a 10–15 minute first experience.
 prev:
   text: Tutorials
   link: /en/tutorials/
 next:
-  text: 'Volume 2: Scenario Configuration'
+  text: "Volume 2: Scenario Configuration"
   link: /en/tutorials/02-scenario-config/scenario-config
 ---
+
 # Volume 1: Quick Start
 
 > **Estimated time**: 10–15 minutes
@@ -29,14 +30,14 @@ CosmoEdge runs on a Sophon-based AI edge computing device powered by the BM1688 
 
 Key specifications:
 
-| Component  | Specification                                           |
-| ---------- | ------------------------------------------------------- |
-| Processor  | BM1688                                                  |
-| CPU        | Octa-core ARM A53 @ 1.6 GHz                             |
-| Memory     | LPDDR4 8 GB                                             |
-| Storage    | 64 GB                                                   |
-| AI Compute | 16.0 TOPS                                               |
-| Network    | 2 × 10/100/1000 Mbps auto-negotiation Ethernet         |
+| Component  | Specification                                      |
+| ---------- | -------------------------------------------------- |
+| Processor  | BM1688                                             |
+| CPU        | Octa-core ARM A53 @ 1.6 GHz                        |
+| Memory     | LPDDR4 8 GB                                        |
+| Storage    | 64 GB                                              |
+| AI Compute | 16.0 TOPS                                          |
+| Network    | 2 × 10/100/1000 Mbps auto-negotiation Ethernet     |
 | Interfaces | USB 3.0 × 2, Type-C × 1, HDMI × 1, TF × 1, SIM × 1 |
 
 ## Step 1: Hardware Connection
@@ -59,13 +60,13 @@ Connect the device to your local network and power it on.
 
 **Expected status indicators:**
 
-+ Power LED (PWR): Solid on (red)
+- Power LED (PWR): Solid on (red)
 
 <!-- Image showing the power LED -->
 
 ![](images/img_05.webp)
 
-+ Network LED (WAN): Blinking (indicates a healthy network connection)
+- Network LED (WAN): Blinking (indicates a healthy network connection)
 
 <!-- Image showing the network LED -->
 
@@ -114,12 +115,12 @@ Open a browser and navigate to the device's IP address.
 
 After a successful login, you'll see the **System Dashboard**, which displays the following key metrics:
 
-|   Metric   |                 Description                 |
+|   Metric    |                 Description                  |
 | :---------: | :------------------------------------------: |
 |  CPU Usage  |                Processor load                |
-| VRAM Usage |    Video memory consumed by loaded tasks    |
-|  NPU Usage  |         Neural processing unit load         |
-| eMMC Usage |          System storage utilization          |
+| VRAM Usage  |    Video memory consumed by loaded tasks     |
+|  NPU Usage  |         Neural processing unit load          |
+| eMMC Usage  |          System storage utilization          |
 | Packet Loss | If above 10%, system performance may degrade |
 
 Go to **System Management** → **System Settings** → **Time Settings** → **Manual Sync** → **Sync with Computer**. (Since the device is directly connected, it can't automatically obtain the correct time.)
@@ -136,9 +137,9 @@ Go to **System Management** → **Network Configuration** to change the device's
 
 > **⚠️ Can't access the management console?**
 >
-> + Make sure the device and your computer are on the **same subnet**.
-> + Try connecting the device directly to your computer with an Ethernet cable (bypassing the router).
-> + Check whether your browser is using a proxy — disable it and try again.
+> - Make sure the device and your computer are on the **same subnet**.
+> - Try connecting the device directly to your computer with an Ethernet cable (bypassing the router).
+> - Check whether your browser is using a proxy — disable it and try again.
 
 ## Step 3: View Live AI Detection Results
 
@@ -146,7 +147,7 @@ The device comes pre-loaded with several demo scenarios using **built-in demo vi
 
 1. **Download the pedestrian flow demo video**
 
-   Demo video download link
+   Demo video download link: [github.com/cosmo-wander-ai/cosmo-edge/releases](https://github.com/cosmo-wander-ai/cosmo-edge/releases/)
 
 ---
 
@@ -190,9 +191,9 @@ Page layout overview:
 
 The Service Assignment page has three main areas:
 
-+ **Area 1**: All available algorithm types — Detection/Analysis, Face/Body, Counting/Statistics.
-+ **Area 2**: Controls for starting, stopping, and deleting services on the channel.
-+ **Area 3**: Service configuration panel — detection region setup, parameter tuning, runtime strategy, etc.
+- **Area 1**: All available algorithm types — Detection/Analysis, Face/Body, Counting/Statistics.
+- **Area 2**: Controls for starting, stopping, and deleting services on the channel.
+- **Area 3**: Service configuration panel — detection region setup, parameter tuning, runtime strategy, etc.
 
 Under **Counting/Statistics**, find **Pedestrian Flow Counting** and select it.
 
@@ -202,9 +203,9 @@ Under **Counting/Statistics**, find **Pedestrian Flow Counting** and select it.
 
 The configuration parameters for the selected algorithm will appear. The pedestrian flow counting algorithm works by detecting pedestrians crossing a detection line. Key controls include:
 
-+ **Draw**: Draw a detection line.
-+ **Direction Toggle**: Switch the crossing direction for one-sided counting.
-+ **Delete**: Remove the detection line.
+- **Draw**: Draw a detection line.
+- **Direction Toggle**: Switch the crossing direction for one-sided counting.
+- **Delete**: Remove the detection line.
 
 <!-- Screenshot of detection line parameters -->
 
@@ -262,9 +263,9 @@ Click **Live Preview** to enter the visualization page.
 
 The visualization page has three areas:
 
-+ **Left panel**: All service channels in the system.
-+ **Center area**: Visual algorithm display — select a channel to view.
-+ **Right panel**: Real-time scrolling alarm feed from all active algorithm tasks.
+- **Left panel**: All service channels in the system.
+- **Center area**: Visual algorithm display — select a channel to view.
+- **Right panel**: Real-time scrolling alarm feed from all active algorithm tasks.
 
 <!-- Screenshot of visualization page layout -->
 
@@ -328,17 +329,17 @@ Page note: "Departing visitors" = the OUT count from the visualization; "Net inf
 
 You've now successfully:
 
-- [X] Powered on the device and connected it to the network
-- [X] Accessed the management console via browser
-- [X] Viewed live AI detection results from the pre-installed demo
-- [X] Reviewed historical alarm records
+- [x] Powered on the device and connected it to the network
+- [x] Accessed the management console via browser
+- [x] Viewed live AI detection results from the pre-installed demo
+- [x] Reviewed historical alarm records
 
 **What's next:**
 
-| Goal                                                         | Read                                          |
-| ------------------------------------------------------------ | --------------------------------------------- |
-| Configure your own AI detection scenarios                    | → Scenario Configuration Guide (Volume 2)    |
+| Goal                                                        | Read                                         |
+| ----------------------------------------------------------- | -------------------------------------------- |
+| Configure your own AI detection scenarios                   | → Scenario Configuration Guide (Volume 2)    |
 | Try the VLM — switch detection rules without model training | → VLM Visual State Judgment Guide (Volume 3) |
-| Look up a specific parameter or troubleshoot an issue        | → Reference Manual                           |
+| Look up a specific parameter or troubleshoot an issue       | → Reference Manual                           |
 
 ---

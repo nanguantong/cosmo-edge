@@ -1,11 +1,11 @@
 ---
-title: 'Volume 2: Scenario Configuration'
+title: "Volume 2: Scenario Configuration"
 description: Learn to configure detection scenarios using built-in AI algorithms, with complete walkthroughs of hard hat detection and absence detection.
 prev:
-  text: 'Volume 1: Quick Start'
+  text: "Volume 1: Quick Start"
   link: /en/tutorials/01-quickstart/quickstart
 next:
-  text: 'Volume 3: VLM / DINO Guide'
+  text: "Volume 3: VLM / DINO Guide"
   link: /en/tutorials/03-vlm-guide/vlm-guide
 ---
 
@@ -20,9 +20,9 @@ next:
 
 We'll walk you through **one complete hands-on scenario** followed by **one independent practice scenario** to build your general-purpose configuration skills.
 
-+ Chapter 1 → Hard Hat Detection (full walkthrough — learn the basics of multi-model + region rules)
-+ Chapter 2 → Absence Detection (self-guided practice — learn multi-model combination + time-based judgment)
-+ Chapter 3 → Quick Reference for Other Scenarios (all 18 scenario tasks and their key differences)
+- Chapter 1 → Hard Hat Detection (full walkthrough — learn the basics of multi-model + region rules)
+- Chapter 2 → Absence Detection (self-guided practice — learn multi-model combination + time-based judgment)
+- Chapter 3 → Quick Reference for Other Scenarios (all 18 scenario tasks and their key differences)
 
 After completing the first two chapters, you'll be able to independently configure **any built-in algorithm** as a detection scenario.
 
@@ -42,7 +42,7 @@ After completing the first two chapters, you'll be able to independently configu
 
 1. Download the demo video
 
-   The project provides demo videos. Download link available in the system documentation or from your device's help page.
+   The project provides demo videos. Download link: [github.com/cosmo-wander-ai/cosmo-edge/releases](https://github.com/cosmo-wander-ai/cosmo-edge/releases/)
 
 2. **Upload the demo video**
 
@@ -51,7 +51,7 @@ After completing the first two chapters, you'll be able to independently configu
    Click the **Add** button to open the Add Channel dialog.
 
    - Source type: Offline Video
-   - Channel name: Give it a descriptive name, e.g., *Construction Site North Entrance*
+   - Channel name: Give it a descriptive name, e.g., _Construction Site North Entrance_
    - Upload video: Upload the demo MP4 file.
 
    Click **Save** to create a new video channel.
@@ -120,13 +120,13 @@ By default, the algorithm analyzes the **entire frame**. By setting up a Region 
 
 ![](images/img_07.webp)
 
-   Set the region name.
+Set the region name.
 
 <!-- Screenshot of region name input -->
 
 ![](images/img_08.webp)
 
-   A six-sided adjustable detection region will appear over the video feed.
+A six-sided adjustable detection region will appear over the video feed.
 
 <!-- Screenshot of default region shape -->
 
@@ -144,9 +144,9 @@ By default, the algorithm analyzes the **entire frame**. By setting up a Region 
 
 > **💡 Detection Region Tips**
 >
-> + **Up to 4 independent regions** are supported.
-> + **Don't make regions too small** — ensure that target personnel have enough pixel area within the region.
-> + **If there are fixed sources of interference** (like a safety poster featuring a hard hat), use regions to exclude them.
+> - **Up to 4 independent regions** are supported.
+> - **Don't make regions too small** — ensure that target personnel have enough pixel area within the region.
+> - **If there are fixed sources of interference** (like a safety poster featuring a hard hat), use regions to exclude them.
 
 Only people **inside** the region will be checked for hard hat compliance. People outside the region are ignored, which significantly reduces false alarms and saves compute resources.
 
@@ -162,12 +162,12 @@ Open the algorithm's parameter configuration to adjust detection behavior for yo
 
 Here are the most commonly tuned parameters:
 
-| Parameter                  | Description                                             | Purpose                                                      | Default  | Tuning Advice                                                                            |
-| -------------------------- | ------------------------------------------------------- | ------------------------------------------------------------ | :------: | ---------------------------------------------------------------------------------------- |
-| **Alarm Interval**         | Minimum interval between consecutive alarms (seconds)   | Controls re-alarm frequency for the same ongoing violation    | 60 sec   | Set low (e.g., 10 sec) for demos; set high (60–120 sec) in production to avoid overload  |
-| **Alarm Count**            | Maximum number of alarms per alarm type                  | Precisely controls total alarm output                         | 1        |                                                                                          |
-| **Static Object Dedup**    | Whether to filter long-stationary targets                | Prevents repeated alarms on fixed objects                     | Off      | Enable if there are static distractors (e.g., posters showing people)                    |
-| **Pedestrian Detection Mode** | Defines which part of the bounding box triggers zone entry | Allows flexible entry-point selection                       |          |                                                                                          |
+| Parameter                     | Description                                                | Purpose                                                    | Default | Tuning Advice                                                                           |
+| ----------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------- | :-----: | --------------------------------------------------------------------------------------- |
+| **Alarm Interval**            | Minimum interval between consecutive alarms (seconds)      | Controls re-alarm frequency for the same ongoing violation | 60 sec  | Set low (e.g., 10 sec) for demos; set high (60–120 sec) in production to avoid overload |
+| **Alarm Count**               | Maximum number of alarms per alarm type                    | Precisely controls total alarm output                      |    1    |                                                                                         |
+| **Static Object Dedup**       | Whether to filter long-stationary targets                  | Prevents repeated alarms on fixed objects                  |   Off   | Enable if there are static distractors (e.g., posters showing people)                   |
+| **Pedestrian Detection Mode** | Defines which part of the bounding box triggers zone entry | Allows flexible entry-point selection                      |         |                                                                                         |
 
 2. Configure the runtime strategy.
 
@@ -190,9 +190,9 @@ Parameter settings overview:
 
 > **Verification method:**
 >
-> + **Change the alarm interval from 60 seconds to 10 seconds.**
-> + **Go to Live Preview and watch whether the same hatless person triggers an alarm every 10 seconds.**
-> + **Once confirmed, revert to the recommended production value.**
+> - **Change the alarm interval from 60 seconds to 10 seconds.**
+> - **Go to Live Preview and watch whether the same hatless person triggers an alarm every 10 seconds.**
+> - **Once confirmed, revert to the recommended production value.**
 
 Saving also starts the service.
 
@@ -356,18 +356,18 @@ Follow the same path as Chapter 1:
 
 > **💡 Key difference from the hard hat scenario** — the region means something different:
 >
-> + Hard hat scenario: Region = **only check for hard hats here**
-> + Absence scenario: Region = **someone must be here** — alarm if nobody is present
+> - Hard hat scenario: Region = **only check for hard hats here**
+> - Absence scenario: Region = **someone must be here** — alarm if nobody is present
 
 ### 2.2 Key Parameter Differences
 
 Absence detection has different core parameters than hard hat detection. Focus on these:
 
-| Parameter                                                                                | Meaning                                         | Recommended Value | Notes                                                          |
-| ---------------------------------------------------------------------------------------- | ----------------------------------------------- | :----------------: | -------------------------------------------------------------- |
-| **Absence Time Threshold** (how long before an alarm triggers, seconds) | Prevents false alarms from brief absences       | 60–180 sec         | Strict posts = shorter; flexible posts = longer                |
-| **Alarm Interval**                                                       | Same as the hard hat scenario                   | 300 sec            | Absence is a continuous state — no need for frequent re-alarms |
-| **Person Count Threshold**                                               | Minimum number of people required in the region  | 1                  | Set to 2 for dual-staffed positions                            |
+| Parameter                                                               | Meaning                                         | Recommended Value | Notes                                                          |
+| ----------------------------------------------------------------------- | ----------------------------------------------- | :---------------: | -------------------------------------------------------------- |
+| **Absence Time Threshold** (how long before an alarm triggers, seconds) | Prevents false alarms from brief absences       |    60–180 sec     | Strict posts = shorter; flexible posts = longer                |
+| **Alarm Interval**                                                      | Same as the hard hat scenario                   |      300 sec      | Absence is a continuous state — no need for frequent re-alarms |
+| **Person Count Threshold**                                              | Minimum number of people required in the region |         1         | Set to 2 for dual-staffed positions                            |
 
 > **⚠️ If parameter names don't exactly match the table above**
 > Some parameters currently use technical names. Match them by value type and position.
@@ -392,57 +392,57 @@ The 18 algorithms fall into six categories: Construction Safety, Smart Office, F
 
 ### Construction Safety
 
-| Algorithm         | Detection Target | Alarm Condition                  | Key Parameters             |
-| ----------------- | ---------------- | -------------------------------- | -------------------------- |
-| No Helmet         | Person's head    | No hard hat detected             | Alarm interval, alarm count |
-| No Reflective Vest | Person's upper body | No reflective vest detected   | Same as above              |
-| No Work Clothes   | Person's upper body | No work uniform detected       | Same as above              |
-| Area Intrusion    | People           | Person enters a restricted zone  | Region config (required)   |
+| Algorithm          | Detection Target    | Alarm Condition                 | Key Parameters              |
+| ------------------ | ------------------- | ------------------------------- | --------------------------- |
+| No Helmet          | Person's head       | No hard hat detected            | Alarm interval, alarm count |
+| No Reflective Vest | Person's upper body | No reflective vest detected     | Same as above               |
+| No Work Clothes    | Person's upper body | No work uniform detected        | Same as above               |
+| Area Intrusion     | People              | Person enters a restricted zone | Region config (required)    |
 
 ### Smart Office
 
-| Algorithm         | Detection Target   | Alarm Condition                              | Key Parameters                     |
-| ----------------- | ------------------ | -------------------------------------------- | ---------------------------------- |
-| Sleeping on Duty  | Body posture       | Detected sleeping on desk / head down        | Duration threshold                 |
-| Leave Post        | Personnel presence | Designated area unattended past threshold    | Absence time, person count threshold |
-| Phone Use         | Hand activity      | Detected using a phone                       | Alarm interval                     |
-| Making a Call     | Hand activity      | Detected making a phone call                 | Alarm interval                     |
-| Smoking           | Person / smoke & fire | Detected smoking behavior                 | Sensitivity, alarm interval        |
+| Algorithm        | Detection Target      | Alarm Condition                           | Key Parameters                       |
+| ---------------- | --------------------- | ----------------------------------------- | ------------------------------------ |
+| Sleeping on Duty | Body posture          | Detected sleeping on desk / head down     | Duration threshold                   |
+| Leave Post       | Personnel presence    | Designated area unattended past threshold | Absence time, person count threshold |
+| Phone Use        | Hand activity         | Detected using a phone                    | Alarm interval                       |
+| Making a Call    | Hand activity         | Detected making a phone call              | Alarm interval                       |
+| Smoking          | Person / smoke & fire | Detected smoking behavior                 | Sensitivity, alarm interval          |
 
 ### Fire Safety
 
-| Algorithm    | Detection Target | Alarm Condition        | Key Parameters |
-| ------------ | ---------------- | ---------------------- | -------------- |
-| Smoke        | Smoke            | Abnormal smoke detected | Sensitivity   |
-| Flame        | Open flame       | Flame detected         | Sensitivity    |
+| Algorithm | Detection Target | Alarm Condition         | Key Parameters |
+| --------- | ---------------- | ----------------------- | -------------- |
+| Smoke     | Smoke            | Abnormal smoke detected | Sensitivity    |
+| Flame     | Open flame       | Flame detected          | Sensitivity    |
 
 ### Community / Campus Security
 
-| Algorithm         | Detection Target       | Alarm Condition                              | Key Parameters                       |
-| ----------------- | ---------------------- | -------------------------------------------- | ------------------------------------ |
-| Person Fall       | Body posture           | Fall detected                                | Duration (to distinguish squatting)  |
-| Crowd             | Area person density    | Person count in area exceeds threshold       | Person count threshold, duration     |
-| Illegal Parking   | Vehicles               | Vehicle stays in no-parking zone past limit  | Region config, dwell time            |
-| Tripwire          | People / vehicles      | Crosses a configured tripwire                | Tripwire config, direction           |
-| Area Headcount    | Person count in area   | Area headcount / over-threshold alarm        | Region config, person count threshold |
+| Algorithm       | Detection Target     | Alarm Condition                             | Key Parameters                        |
+| --------------- | -------------------- | ------------------------------------------- | ------------------------------------- |
+| Person Fall     | Body posture         | Fall detected                               | Duration (to distinguish squatting)   |
+| Crowd           | Area person density  | Person count in area exceeds threshold      | Person count threshold, duration      |
+| Illegal Parking | Vehicles             | Vehicle stays in no-parking zone past limit | Region config, dwell time             |
+| Tripwire        | People / vehicles    | Crosses a configured tripwire               | Tripwire config, direction            |
+| Area Headcount  | Person count in area | Area headcount / over-threshold alarm       | Region config, person count threshold |
 
 ### Passenger Flow Counting
 
-| Algorithm       | Detection Target | Output                  | Key Parameters          |
-| --------------- | ---------------- | ----------------------- | ----------------------- |
-| Passenger Flow  | People           | Entry/exit count totals | Line position, direction |
+| Algorithm      | Detection Target | Output                  | Key Parameters           |
+| -------------- | ---------------- | ----------------------- | ------------------------ |
+| Passenger Flow | People           | Entry/exit count totals | Line position, direction |
 
 ### Face Recognition
 
-| Algorithm       | Detection Target | Output                    | Key Parameters                     |
-| --------------- | ---------------- | ------------------------- | ---------------------------------- |
+| Algorithm        | Detection Target | Output                    | Key Parameters                       |
+| ---------------- | ---------------- | ------------------------- | ------------------------------------ |
 | Face Recognition | Faces            | Identity matching results | Gallery config, similarity threshold |
 
 > **💡 Choosing the Right Algorithm**
 >
-> + You don't need to configure all algorithms at once. **Start with 1–2 scenarios most relevant to your business** and run through the full workflow.
-> + For detailed parameter documentation, see the Reference Manual — Parameter Guide.
-> + If none of the 18 algorithms cover your use case, check out the VLM Visual State Judgment Guide (Volume 3) — VLM lets you define new detection rules by writing a single sentence, no model training required.
+> - You don't need to configure all algorithms at once. **Start with 1–2 scenarios most relevant to your business** and run through the full workflow.
+> - For detailed parameter documentation, see the Reference Manual — Parameter Guide.
+> - If none of the 18 algorithms cover your use case, check out the VLM Visual State Judgment Guide (Volume 3) — VLM lets you define new detection rules by writing a single sentence, no model training required.
 
 ---
 

@@ -41,7 +41,7 @@ next:
 
 1. 下载视频
 
-项目提供了演示的视频，视频地址：xxx
+项目提供了演示的视频，视频地址：[github.com/cosmo-wander-ai/cosmo-edge/releases](https://github.com/cosmo-wander-ai/cosmo-edge/releases/)
 
 2. **上传演示视频**
 

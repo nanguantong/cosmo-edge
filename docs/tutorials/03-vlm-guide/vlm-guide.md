@@ -1,3 +1,4 @@
+
 ---
 title: "卷三：VLM / DINO 指南"
 description: 理解 VLM 和 DINO 两种大模型工具的能力与边界，学会用"写一句话"定义全新的检测规则。
@@ -172,7 +173,7 @@ OpenAI三方模型接入
 
 1. 下载视频
 
-项目提供了演示的视频，视频地址：xxx 。
+项目提供了演示的视频，视频地址：[github.com/cosmo-wander-ai/cosmo-edge/releases](https://github.com/cosmo-wander-ai/cosmo-edge/releases/)。
 
 2. **上传演示视频**
 

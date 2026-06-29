@@ -47,21 +47,11 @@ ${INSTALLPATH}/scripts/run_start.sh start ${DATADIR}/log/logs/INTE_RUN_container
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `SOPHON_BASE_IMAGE` | `stream_dev:0.2` | Sophon build base image |
-| `SOPHON_APT_MIRROR` | `https://mirrors.aliyun.com/debian` | apt mirror |
+| `SOPHON_APT_MIRROR` | `https://mirrors.aliyun.com/ubuntu` | apt mirror |
 | `SOPHON_NODE_DIST_BASE_URL` | `https://npmmirror.com/mirrors/node` | Node download mirror |
 | `SOPHON_RUSTUP_INIT_URL` | `https://rsproxy.cn/rustup-init.sh` | rustup-init download URL |
 | `SOPHON_RUSTUP_DIST_SERVER` | `https://rsproxy.cn` | Rust dist server |
 | `SOPHON_RUSTUP_UPDATE_ROOT` | `https://rsproxy.cn/rustup` | Rust update root |
-
-The helper scripts also support:
-
-| Variable | Description |
-| --- | --- |
-| `SOPHON_STREAM_DEV_TAR` | Use a pre-downloaded `stream_dev_22.04.tar` |
-| `SOPHON_STREAM_DEV_DFSS_URL` | dfss address of the Sophon stream dev image |
-| `SOPHON_DOCKER_CACHE_DIR` | Sophon image cache directory |
-| `SOPHON_PIP_INDEX_URL` | pip mirror used when installing `dfss` |
 
 ## Resource Directories
 

@@ -47,21 +47,11 @@ ${INSTALLPATH}/scripts/run_start.sh start ${DATADIR}/log/logs/INTE_RUN_container
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `SOPHON_BASE_IMAGE` | `stream_dev:0.2` | Sophon 构建基础镜像 |
-| `SOPHON_APT_MIRROR` | `https://mirrors.aliyun.com/debian` | apt 镜像 |
+| `SOPHON_APT_MIRROR` | `https://mirrors.aliyun.com/ubuntu` | apt 镜像 |
 | `SOPHON_NODE_DIST_BASE_URL` | `https://npmmirror.com/mirrors/node` | Node 下载镜像 |
 | `SOPHON_RUSTUP_INIT_URL` | `https://rsproxy.cn/rustup-init.sh` | rustup-init 下载地址 |
 | `SOPHON_RUSTUP_DIST_SERVER` | `https://rsproxy.cn` | Rust dist server |
 | `SOPHON_RUSTUP_UPDATE_ROOT` | `https://rsproxy.cn/rustup` | Rust update root |
-
-辅助脚本还支持：
-
-| 变量 | 说明 |
-| --- | --- |
-| `SOPHON_STREAM_DEV_TAR` | 使用已下载的 `stream_dev_22.04.tar` |
-| `SOPHON_STREAM_DEV_DFSS_URL` | Sophon stream dev 镜像 dfss 地址 |
-| `SOPHON_DOCKER_CACHE_DIR` | Sophon 镜像缓存目录 |
-| `SOPHON_PIP_INDEX_URL` | 安装 `dfss` 时使用的 pip 镜像 |
 
 ## 资源目录
 

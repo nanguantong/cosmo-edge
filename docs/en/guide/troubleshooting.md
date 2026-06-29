@@ -24,10 +24,13 @@ http://127.0.0.1:8080
 Check container status:
 
 - **Linux**:
+
   ```bash
   docker compose -f docker-compose.x86.yml ps
   ```
+
 - **Windows (PowerShell/CMD)**:
+
   ```powershell
   docker compose -f docker-compose.x86.windows.yml ps
   ```
@@ -35,10 +38,13 @@ Check container status:
 View logs:
 
 - **Linux**:
+
   ```bash
   docker compose -f docker-compose.x86.yml logs -f
   ```
+
 - **Windows (PowerShell/CMD)**:
+
   ```powershell
   docker compose -f docker-compose.x86.windows.yml logs -f
   ```
@@ -60,10 +66,13 @@ If a port is occupied, you can modify the host port in `docker-compose.x86.yml` 
 Use the full run command:
 
 - **Linux**:
+
   ```bash
   docker compose -f docker-compose.x86.yml up -d --build
   ```
+
 - **Windows (PowerShell/CMD)**:
+
   ```powershell
   docker compose -f docker-compose.x86.windows.yml up -d --build
   ```
@@ -76,27 +85,20 @@ docker compose -f docker-compose.sophon.yml up --build
 
 Note: `docker compose build` only builds the image and does not necessarily execute the container command that exports the release package.
 
-## Sophon Base Image Missing
+## Sophon Build Failure
 
-Prefer the helper script:
+The Sophon build uses a self-contained `Dockerfile.sophon` (based on `ubuntu:22.04`) and does not require an external base image.
 
-```bash
-bash scripts/build_sophon_package.sh
-```
-
-If you have already manually downloaded the image tar:
+If the build fails, check the Docker build logs:
 
 ```bash
-SOPHON_STREAM_DEV_TAR=/path/to/stream_dev_22.04.tar bash scripts/build_sophon_package.sh
+docker compose -f docker-compose.sophon.yml up --build 2>&1 | tail -50
 ```
 
-If the `dfss` download fails, check the network, or manually run:
+Common causes:
 
-```bash
-docker load -i /path/to/stream_dev_22.04.tar
-```
-
-Then re-run the build script.
+- Network issues preventing apt/npm/cargo mirror downloads — check `SOPHON_APT_MIRROR` and related environment variables.
+- Insufficient disk space — the build requires approximately 3GB.
 
 ## nginx / SRS / cosmo-engine Not Started
 

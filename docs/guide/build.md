@@ -24,11 +24,13 @@ next:
 ## x86 Docker 开发运行环境
 
 Linux:
+
 ```bash
 docker compose -f docker-compose.x86.yml up -d --build
 ```
 
 Windows (PowerShell/CMD):
+
 ```powershell
 docker compose -f docker-compose.x86.windows.yml up -d --build
 ```
@@ -82,19 +84,10 @@ Windows PowerShell：
 
 已确认行为：
 
-- 默认基础镜像为 `stream_dev:0.2`。
+- 基础镜像为 `ubuntu:22.04`（自包含构建，无需外部镜像依赖）。
 - 使用 `scripts/build.sh -m data/resource/aiboxresource` 构建（生产包不启用 dev mode，故不传 `-t`）。
 - 只导出发布包，不启动服务。
 - 发布包导出到 `build_output/`。
-
-常用覆盖变量：
-
-```bash
-SOPHON_STREAM_DEV_TAR=/path/to/stream_dev_22.04.tar bash scripts/build_sophon_package.sh
-SOPHON_BASE_IMAGE=stream_dev:0.2 bash scripts/build_sophon_package.sh
-```
-
-如果本地没有 `stream_dev:0.2`，辅助脚本会尝试通过 `dfss` 下载并加载 `stream_dev_22.04.tar`。
 
 ## CPU 测试构建
 
@@ -113,4 +106,3 @@ BUILD_TESTS=ON
 ```text
 build_cpu/cosmo-tests
 ```
-

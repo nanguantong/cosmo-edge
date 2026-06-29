@@ -24,10 +24,13 @@ http://127.0.0.1:8080
 检查容器状态：
 
 - **Linux**:
+
   ```bash
   docker compose -f docker-compose.x86.yml ps
   ```
+
 - **Windows (PowerShell/CMD)**:
+
   ```powershell
   docker compose -f docker-compose.x86.windows.yml ps
   ```
@@ -35,10 +38,13 @@ http://127.0.0.1:8080
 查看日志：
 
 - **Linux**:
+
   ```bash
   docker compose -f docker-compose.x86.yml logs -f
   ```
+
 - **Windows (PowerShell/CMD)**:
+
   ```powershell
   docker compose -f docker-compose.x86.windows.yml logs -f
   ```
@@ -60,10 +66,13 @@ x86 Compose 会发布：
 使用完整运行命令：
 
 - **Linux**:
+
   ```bash
   docker compose -f docker-compose.x86.yml up -d --build
   ```
+
 - **Windows (PowerShell/CMD)**:
+
   ```powershell
   docker compose -f docker-compose.x86.windows.yml up -d --build
   ```
@@ -76,27 +85,20 @@ docker compose -f docker-compose.sophon.yml up --build
 
 注意：`docker compose build` 只构建镜像，不一定执行导出发布包的容器命令。
 
-## Sophon 基础镜像不存在
+## Sophon 构建失败
 
-优先使用辅助脚本：
+Sophon 构建使用自包含的 `Dockerfile.sophon`（基于 `ubuntu:22.04`），无需外部基础镜像。
 
-```bash
-bash scripts/build_sophon_package.sh
-```
-
-如果已经手动下载镜像 tar：
+如果构建失败，请检查 Docker 构建日志：
 
 ```bash
-SOPHON_STREAM_DEV_TAR=/path/to/stream_dev_22.04.tar bash scripts/build_sophon_package.sh
+docker compose -f docker-compose.sophon.yml up --build 2>&1 | tail -50
 ```
 
-如果 `dfss` 下载失败，请检查网络，或手动执行：
+常见问题：
 
-```bash
-docker load -i /path/to/stream_dev_22.04.tar
-```
-
-然后重新运行构建脚本。
+- 网络问题导致 apt/npm/cargo 镜像下载失败 — 检查 `SOPHON_APT_MIRROR` 等环境变量。
+- 磁盘空间不足 — 构建过程需要约 3GB 空间。
 
 ## nginx / SRS / cosmo-engine 未启动
 

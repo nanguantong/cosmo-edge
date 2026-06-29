@@ -25,6 +25,7 @@ This page documents build paths that are confirmed and available in the reposito
 ## x86 Docker Development Runtime
 
 These entry points are from:
+
 - `docker-compose.x86.yml` (Linux)
 - `docker-compose.x86.windows.yml` (Windows)
 - `Dockerfile.x86`
@@ -42,18 +43,21 @@ Confirmed CMake parameters:
 | `RESOURCE_DIR` | `data/resource/aiboxresource_x86` |
 
 Linux:
+
 ```bash
 docker compose -f docker-compose.x86.yml up -d --build
 docker compose -f docker-compose.x86.yml ps
 ```
 
 Windows (PowerShell/CMD):
+
 ```powershell
 docker compose -f docker-compose.x86.windows.yml up -d --build
 docker compose -f docker-compose.x86.windows.yml ps
 ```
 
 After build:
+
 - Web console available at `http://127.0.0.1:8080`.
 - Release packages and build artifacts exported to `build_output/`.
 - Runtime data stored in Docker volume `cosmo-x86-data`.
@@ -72,6 +76,7 @@ Windows PowerShell:
 ```
 
 This path is from:
+
 - `docker-compose.sophon.yml`
 - `Dockerfile.sophon`
 - `scripts/build_sophon_package.sh`
@@ -79,19 +84,11 @@ This path is from:
 - `scripts/build.sh`
 
 Confirmed behavior:
-- Default base image: `stream_dev:0.2`.
+
+- Base image: `ubuntu:22.04` (self-contained build, no external image dependency).
 - Builds with `scripts/build.sh -m data/resource/aiboxresource`.
 - Exports the release package only (does not start services).
 - Package output under `build_output/`.
-
-Common override variables:
-
-```bash
-SOPHON_STREAM_DEV_TAR=/path/to/stream_dev_22.04.tar bash scripts/build_sophon_package.sh
-SOPHON_BASE_IMAGE=stream_dev:0.2 bash scripts/build_sophon_package.sh
-```
-
-If `stream_dev:0.2` is not available locally, the helper script attempts to download and load `stream_dev_22.04.tar` via `dfss`.
 
 ## CPU Test Build
 
@@ -101,7 +98,7 @@ bash scripts/build_cpu_test.sh
 
 This script configures CMake with the CPU backend and `BUILD_TESTS=ON`, producing:
 
-```
+```sh
 build_cpu/cosmo-tests
 ```
 

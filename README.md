@@ -34,10 +34,11 @@ The C++17 runtime handles multi-channel video processing, hardware decoding, OSD
 ## What You Can Build
 
 - Multi-camera safety monitoring with real-time OSD and event snapshots.
-- People counting, line crossing, zone intrusion, and traffic statistics.
-- Visual inspection workflows powered by on-device VLM prompts.
-- Long-tail object detection with text-prompted GroundingDINO.
-- Edge AI deployments with model management, scenario tasks, alarms, and data export.
+- Counting, line-crossing, and zone-intrusion analytics for people, vehicles, and objects.
+- On-device visual inspection driven by VLM prompts for quality and compliance checks.
+- Long-tail detection of rare or unlisted objects from a text prompt, with no task-specific training (GroundingDINO).
+
+Each runs as a managed edge deployment with model management, scenario tasks, alarm rules, and MQTT/HTTP data export.
 
 ## Key Features
 
@@ -225,7 +226,7 @@ A scenario task (pipeline) bundles model, scheduling, and rule logic; at deploym
 | Pipeline validation    | 26 pipelines validated against internal scenario baselines (CV, VLM, and GroundingDINO)                      |
 | Concurrent CV workload | 16-channel CV inference verified on a single BM1688 device                                                   |
 | Regression testing     | Multi-round system regression completed with dedicated QA; final release regression pending                  |
-| Pilot deployments      | Validated in de-identified pilot scenarios across education, smart campus, and industrial safety             |
+| Pilot deployments      | Authorized customer pilots covering several hundred video-analysis channels, 2+ months continuous, across a range of industry scenarios |
 
 ### Performance Benchmarks
 

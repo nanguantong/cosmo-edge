@@ -147,7 +147,7 @@ The device comes pre-loaded with several demo scenarios using **built-in demo vi
 
 1. **Download the pedestrian flow demo video**
 
-   Demo video download link: [github.com/cosmo-wander-ai/cosmo-edge/releases](https://github.com/cosmo-wander-ai/cosmo-edge/releases/)
+   Demo video download link: [github.com/cosmo-wander-ai/cosmo-edge/releases/tag/v1.0-videos](https://github.com/cosmo-wander-ai/cosmo-edge/releases/tag/v1.0-videos)
 
 ---
 

@@ -41,7 +41,7 @@ next:
 
 1. 下载视频
 
-项目提供了演示的视频，视频地址：[github.com/cosmo-wander-ai/cosmo-edge/releases](https://github.com/cosmo-wander-ai/cosmo-edge/releases/)
+项目提供了演示的视频，视频地址：[github.com/cosmo-wander-ai/cosmo-edge/releases/tag/v1.0-videos](https://github.com/cosmo-wander-ai/cosmo-edge/releases/tag/v1.0-videos)
 
 2. **上传演示视频**
 

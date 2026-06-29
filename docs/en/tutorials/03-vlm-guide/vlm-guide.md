@@ -171,7 +171,7 @@ Third-party OpenAI Model Integration
 
 #### 1.2 Select the VLM Algorithm and Bind a Channel
 
-1. Download the demo video. Video URL: xxx.
+1. Download the demo video. Video URL: [github.com/cosmo-wander-ai/cosmo-edge/releases/tag/v1.0-videos](https://github.com/cosmo-wander-ai/cosmo-edge/releases/tag/v1.0-videos).
 2. **Upload the demo video**
 
    Click **Video Sources** → **Add** → Upload an offline video → Enter **Scenario Task Assignment**.

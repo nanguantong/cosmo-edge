@@ -42,7 +42,7 @@ After completing the first two chapters, you'll be able to independently configu
 
 1. Download the demo video
 
-   The project provides demo videos. Download link: [github.com/cosmo-wander-ai/cosmo-edge/releases](https://github.com/cosmo-wander-ai/cosmo-edge/releases/)
+   The project provides demo videos. Download link: [github.com/cosmo-wander-ai/cosmo-edge/releases/tag/v1.0-videos](https://github.com/cosmo-wander-ai/cosmo-edge/releases/tag/v1.0-videos)
 
 2. **Upload the demo video**
 

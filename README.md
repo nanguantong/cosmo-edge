@@ -308,7 +308,7 @@ Certified devices help teams avoid hardware bring-up and model packaging work. T
 
 Certified devices improve deployment readiness; they do not lock software features behind a hardware SKU.
 
-[Get a certified device](https://cosmoedge.dev/hardware)
+The open-source engine and all software features are available worldwide today, no purchase required. Certified devices are rolling out region by region and the online store is still in setup. To register interest or ask about availability (including international), contact hello@cosmowander.ai.
 
 ## Documentation
 

@@ -235,9 +235,6 @@ Click an alarm image to view details. The alarm information appears in the upper
 
 **You've now completed your first VLM scenario configuration.**
 
-#### 1.5 Full Video Walkthrough
-> Video demo: Coming soon.
-
 ### Scenario 2: City Wall Vandalism Detection (Validating a Brand-New Requirement)
 
 > **Requirement**: A cultural heritage organization needs to monitor an ancient city wall and detect signs of human vandalism.

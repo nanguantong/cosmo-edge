@@ -115,6 +115,8 @@ https://github.com/user-attachments/assets/212a33a8-e662-4678-9945-02c78d808e4d
 
 Edge VLM nodes support compatible Qwen3 VLM series and Qwen3.5 multimodal models. Certified device packages can provide `CosmoEdge-VL-Judge-0.8B`, optimized for YES/NO visual state judgment.
 
+Newly added: the VLM node runs in two interchangeable backends — an embedded on-device runtime (data stays on the device) or any OpenAI-compatible endpoint (self-hosted or SaaS) for larger models. The async, event-driven VLM path absorbs the extra network latency; the on-device runtime remains the validated default.
+
 ### Model Sources
 
 **Available in CosmoEdge:**
@@ -126,7 +128,7 @@ Edge VLM nodes support compatible Qwen3 VLM series and Qwen3.5 multimodal models
 | Attribute Classification  | Safety helmet, vest, uniform classifiers                            | Full pipeline       |
 | Counting & Statistics     | Line crossing, zone counting, directional flow                      | Full pipeline       |
 | Open-vocabulary Detection | GroundingDINO                                                       | Async pipeline node |
-| Visual State Judgment     | Qwen3 VLM models, Qwen3.5 multimodal models (text prompt -> YES/NO) | Async pipeline node |
+| Visual State Judgment     | Qwen3 VLM models, Qwen3.5 multimodal models (text prompt -> YES/NO) | Async pipeline node (on-device or OpenAI-compatible API) |
 | Image Analysis            | VLM batch analysis                                                  | Standalone task     |
 
 **Model ecosystem compatibility:**

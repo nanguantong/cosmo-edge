@@ -117,6 +117,8 @@ https://github.com/user-attachments/assets/f47b541e-0d01-437d-86e1-4183f6e610fd
 
 端侧 VLM 节点支持兼容的 Qwen3 VLM 系列和 Qwen3.5 多模态模型。认证设备包可提供 `CosmoEdge-VL-Judge-0.8B`，面向 YES/NO 视觉状态判断优化。
 
+新增：VLM 节点支持两种可互换后端——嵌入式本地运行时（数据不出设备），或任意 OpenAI 兼容端点（自建或 SaaS）以调用更大的模型。VLM 走的是异步、事件驱动路径，可吸收额外的网络往返延迟；本地运行时仍是已验证的默认方案。
+
 ### 模型来源
 
 **CosmoEdge 已支持：**
@@ -128,7 +130,7 @@ https://github.com/user-attachments/assets/f47b541e-0d01-437d-86e1-4183f6e610fd
 | 属性分类 | 安全帽、反光背心、工服等分类器 | 完整流水线 |
 | 计数与统计 | 越线统计、区域计数、方向流量 | 完整流水线 |
 | 开放词表检测 | GroundingDINO | 异步流水线节点 |
-| 视觉状态判断 | Qwen3 VLM 系列、Qwen3.5 多模态模型（文本提示词 -> YES/NO） | 异步流水线节点 |
+| 视觉状态判断 | Qwen3 VLM 系列、Qwen3.5 多模态模型（文本提示词 -> YES/NO） | 异步流水线节点（本地或 OpenAI 兼容 API） |
 | 图片分析 | VLM 批量分析 | 独立任务 |
 
 **模型生态兼容性：**

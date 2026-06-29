@@ -328,7 +328,9 @@ The open-source engine and all software features are available worldwide today, 
 
 ## Release Status and Roadmap
 
-CosmoEdge is currently versioned as `v0.1.0` and is in the `v1.0` release-candidate stage. The remaining release gate is the final regression pass.
+CosmoEdge is currently versioned as `v0.1.0`. The open-source engine is available for evaluation, integration, and community model expansion. The project is preparing the `v1.0` stable release, with the final regression pass as the remaining release gate.
+
+### Available in v0.1.0
 
 - [X] C++17 edge inference engine
 - [X] Visual pipeline orchestrator
@@ -337,12 +339,17 @@ CosmoEdge is currently versioned as `v0.1.0` and is in the `v1.0` release-candid
 - [X] Sophon BM1688 release packaging
 - [X] VLM and GroundingDINO integration
 - [X] 26 pipeline scenarios internally validated
+
+### v1.0 Release Gates
+
 - [ ] Final v1.0 regression pass
 - [ ] v1.0 release tag and release notes
-- [ ] Additional public performance summaries
+
+### Post-v1.0 Roadmap
+
 - [ ] Expand the validated pipeline scenario library
 - [ ] Community model and scenario examples
-- [ ] GB28181 protocol support
+- [ ] Additional model adapters and post-processing templates
 
 ## Contributing
 

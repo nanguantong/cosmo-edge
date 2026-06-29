@@ -156,6 +156,8 @@ Parameter reference:
 
 ![](images/img_04.webp)
 
+**Additional Features**
+
 Third-party OpenAI Model Integration
 
 1. Select OpenAI Interface

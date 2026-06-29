@@ -156,6 +156,8 @@ VLM 大模型的编排通常分为4个步骤：
 
 ![](images/img_04.webp)
 
+**补充功能**
+
 OpenAI三方模型接入
 
 1.选择OpenAI接口

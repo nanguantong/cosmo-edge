@@ -9,7 +9,7 @@
 [![Platform](https://img.shields.io/badge/platform-Sophon%20BM1688%20%2F%20x86%20Linux%20%2F%20Windows-purple?style=flat-square)](#supported-platforms)
 [![Release](https://img.shields.io/badge/release-v0.1.0-green?style=flat-square)](https://github.com/cosmo-wander-ai/cosmo-edge/releases)
 [![Stress Test](https://img.shields.io/badge/stress%20test-200%20video%20samples-brightgreen?style=flat-square)](#validation)
-[![Pipelines](https://img.shields.io/badge/pipelines-18%2F18%20validated-brightgreen?style=flat-square)](#validation)
+[![Pipelines](https://img.shields.io/badge/pipelines-26%20validated-brightgreen?style=flat-square)](#validation)
 
 [Quick Start](#quick-start) | [Features](#key-features) | [Validation](#validation) | [Docs](#documentation) | [Hardware](#cosmoedge-ready-devices)
 
@@ -27,19 +27,18 @@ https://github.com/user-attachments/assets/23a014a5-d753-432f-8de5-c750bc82d8e2
 
 *Run multiple AI pipelines with real-time OSD overlays and live event output on a single edge device.*
 
-CosmoEdge is a C++ edge AI engine for production video analytics at the edge. It helps teams move from model files to running applications: import models, compose pipelines, connect video sources, view AI overlays in the browser, and send structured events over MQTT or HTTP.
+CosmoEdge is a C++ edge AI engine for production video analytics. It takes teams from model files to running applications: import models, compose pipelines, connect video sources, view AI overlays in the browser, and send structured events over MQTT or HTTP.
 
-The runtime is designed for multi-channel video processing, hardware decoding, OSD rendering, and low-overhead edge deployment. Python remains useful for research and model tooling; CosmoEdge focuses on the long-running services integrators need in the field.
-
-Rather than exposing only an inference API or demo script, CosmoEdge provides the runtime, web console, and integration path needed to deploy, monitor, debug, and maintain edge AI applications.
+The C++17 runtime handles multi-channel video processing, hardware decoding, OSD rendering, and low-overhead edge deployment — the runtime, web console, and integration path needed to deploy, monitor, debug, and maintain edge AI applications in the field.
 
 ## What You Can Build
 
 - Multi-camera safety monitoring with real-time OSD and event snapshots.
-- People counting, line crossing, zone intrusion, and traffic statistics.
-- Visual inspection workflows powered by on-device VLM prompts.
-- Long-tail object detection with text-prompted GroundingDINO.
-- Edge AI deployments with model management, scenario tasks, alarms, and data export.
+- Counting, line-crossing, and zone-intrusion analytics for people, vehicles, and objects.
+- On-device visual inspection driven by VLM prompts for quality and compliance checks.
+- Long-tail detection of rare or unlisted objects from a text prompt, with no task-specific training (GroundingDINO).
+
+Each runs as a managed edge deployment with model management, scenario tasks, alarm rules, and MQTT/HTTP data export.
 
 ## Key Features
 
@@ -100,7 +99,7 @@ CosmoEdge includes an OSD system for both operators and developers:
 
 ### Prompt-driven AI: GroundingDINO + VLM
 
-CosmoEdge can run prompt-driven vision models on edge devices. GroundingDINO and VLM are part of the same capability family, but they solve different problems:
+Run prompt-driven vision models on edge devices as asynchronous pipeline nodes alongside traditional CV pipelines:
 
 | Capability         | How it works                                    | Typical use                                           |
 | ------------------ | ----------------------------------------------- | ----------------------------------------------------- |
@@ -114,15 +113,13 @@ https://github.com/user-attachments/assets/212a33a8-e662-4678-9945-02c78d808e4d
 
 </div>
 
-GroundingDINO finds what and where. VLM judges whether a visual state is true. Both can be used as asynchronous pipeline nodes alongside traditional CV pipelines.
+Edge VLM nodes support compatible Qwen3 VLM series and Qwen3.5 multimodal models. Certified device packages can provide `CosmoEdge-VL-Judge-0.8B`, optimized for YES/NO visual state judgment.
 
-CosmoEdge supports compatible Qwen3 VLM series models and Qwen3.5 multimodal models as edge VLM nodes. Certified device packages can provide `CosmoEdge-VL-Judge-0.8B`, a 0.8B model package optimized for YES/NO visual state judgment.
+Newly added: the VLM node runs in two interchangeable backends — an embedded on-device runtime (data stays on the device) or any OpenAI-compatible endpoint (self-hosted or SaaS) for larger models. The async, event-driven VLM path absorbs the extra network latency; the on-device runtime remains the validated default.
 
 ### Model Sources
 
 **Available in CosmoEdge:**
-
-The following capabilities are integrated in the runtime; different model types use different execution modes.
 
 | Category                  | Supported Models / Architectures                                    | Pipeline Support    |
 | :------------------------ | :------------------------------------------------------------------ | :------------------ |
@@ -131,7 +128,7 @@ The following capabilities are integrated in the runtime; different model types 
 | Attribute Classification  | Safety helmet, vest, uniform classifiers                            | Full pipeline       |
 | Counting & Statistics     | Line crossing, zone counting, directional flow                      | Full pipeline       |
 | Open-vocabulary Detection | GroundingDINO                                                       | Async pipeline node |
-| Visual State Judgment     | Qwen3 VLM models, Qwen3.5 multimodal models (text prompt -> YES/NO) | Async pipeline node |
+| Visual State Judgment     | Qwen3 VLM models, Qwen3.5 multimodal models (text prompt -> YES/NO) | Async pipeline node (on-device or OpenAI-compatible API) |
 | Image Analysis            | VLM batch analysis                                                  | Standalone task     |
 
 **Model ecosystem compatibility:**
@@ -219,26 +216,32 @@ After installing the package and rebooting the device:
 
 This path builds a release package and installs it on a Sophon device. For teams that need production hardware, certified CosmoEdge devices include preconfigured Sophon acceleration, production model packages, and deployment support. See [CosmoEdge-ready devices](#cosmoedge-ready-devices).
 
+Initial Onboarding Guide
+
+https://github.com/user-attachments/assets/395e5b89-c6af-4276-a89b-577b3400efc1
+
 ## Validation
 
 CosmoEdge comes from a commercial codebase and has completed internal system validation before open-source release.
 
+A scenario task (pipeline) bundles model, scheduling, and rule logic; at deployment it binds to specific inputs, zones, and rules. The 26 figure counts validated pipelines — the same set covers far more real deployments as inputs and rules change, with no new code.
+
 | Area                   | Current validation status                                                                                    |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------ |
 | Video stress test      | Continuous playback test with 200 video samples; no memory leaks or crashes observed                        |
-| CV pipeline validation | 18/18 CV pipelines validated against internal scenario baselines                                             |
+| Pipeline validation    | 26 pipelines validated against internal scenario baselines (CV, VLM, and GroundingDINO)                      |
 | Concurrent CV workload | 16-channel CV inference verified on a single BM1688 device                                                   |
 | Regression testing     | Multi-round system regression completed with dedicated QA; final release regression pending                  |
-| Pilot deployments      | Validated in de-identified pilot scenarios across education, smart campus, and industrial safety             |
+| Pilot deployments      | Authorized customer pilots covering several hundred video-analysis channels, 2+ months continuous, across a range of industry scenarios |
 
 ### Performance Benchmarks
 
-The numbers below are representative system combinations based on internal records. A video channel means one decoded input stream; multiple scenario tasks can share the same decoded stream. E2E latency is frame-to-OSD or frame-to-event latency under the listed workload, not single-model inference time.
+The numbers below are representative system combinations based on internal records. A video channel means one decoded input stream; multiple concurrent scenario tasks can share the same decoded stream. E2E latency is frame-to-OSD or frame-to-event latency under the listed workload, not single-model inference time.
 
-| Workload                               | Video channels | Scenario tasks |  FPS target | E2E&nbsp;latency&nbsp;(ms) | Hardware                                    | Notes                                                                                                   |
+| Workload                               | Video channels | Concurrent scenario tasks |  FPS target | E2E&nbsp;latency&nbsp;(ms) | Hardware                                    | Notes                                                                                                   |
 | -------------------------------------- | -------------: | -------------: | ----------: | -------------------------: | ------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | Full-stream YOLOv8n detection          |             16 |             16 |   3/channel |                 32&#8209;68 | BM1688                                      | Decode + inference + OSD enabled; stable high-load case                                                 |
-| Shared-codec dense CV tasks            |              4 |             20 |   3/channel |                84&#8209;141 | BM1688                                      | Multiple scenario tasks share decoded streams; demonstrates task concurrency                            |
+| Shared-codec dense CV tasks            |              4 |             20 |   3/channel |                84&#8209;141 | BM1688                                      | Multiple concurrent scenario tasks share decoded streams; demonstrates task concurrency                 |
 | Safety compliance pipeline             |             16 |             16 |   3/channel |               182&#8209;314 | BM1688                                      | Detection + tracking + attribute/rule + alarm; representative safety pipeline                           |
 | Prompt-driven AI pipeline              |              8 |              8 | 0.2/channel |             3154&#8209;4128 | BM1688                                      | Validated `CosmoEdge-VL-Judge-0.8B`; VLM async nodes; event-driven path, not frame-synchronous OSD     |
 | One-stream<br />YOLOv8n<br />detection |              1 |              1 |  24/channel |                 25&#8209;30 | BM1688                                      | YOLOv8n development and evaluation workload                                                             |
@@ -298,14 +301,14 @@ Certified devices help teams avoid hardware bring-up and model packaging work. T
 | Web management console       |                      Included                      |            Included            |
 | x86 developer mode           |                      Included                      |            Included            |
 | Sophon NPU runtime support   |         Source support, hardware required         |          Preconfigured          |
-| CV model package             |               Bring your own models               |          Pre-installed          |
+| CV model package             |               Bring your own models               | Pre-installed (~25 production CV models) |
 | `CosmoEdge-VL-Judge-0.8B`  | Bring your own/custom package; validation required | Pre-installed validated package |
 | GroundingDINO package        |          Bring your own or custom package          |          Pre-installed          |
 | Deployment support           |                     Community                     |            Dedicated            |
 
 Certified devices improve deployment readiness; they do not lock software features behind a hardware SKU.
 
-[Get a certified device](https://cosmoedge.dev/hardware)
+The open-source engine and all software features are available worldwide today, no purchase required. Certified devices are rolling out region by region and the online store is still in setup. To register interest or ask about availability (including international), contact hello@cosmowander.ai.
 
 ## Documentation
 
@@ -330,10 +333,11 @@ CosmoEdge is currently versioned as `v0.1.0` and is in the `v1.0` release-candid
 - [X] x86 developer mode for Linux and Windows
 - [X] Sophon BM1688 release packaging
 - [X] VLM and GroundingDINO integration
-- [X] 18 CV pipelines internally validated
+- [X] 26 pipeline scenarios internally validated
 - [ ] Final v1.0 regression pass
 - [ ] v1.0 release tag and release notes
 - [ ] Additional public performance summaries
+- [ ] Expand the validated pipeline scenario library
 - [ ] Community model and scenario examples
 - [ ] GB28181 protocol support
 
@@ -358,9 +362,16 @@ No. Use x86 developer mode on Linux or Windows to try the UI, pipeline workflow,
 </details>
 
 <details>
+<summary><b>How many scenarios or algorithms does CosmoEdge support?</b></summary>
+
+CosmoEdge has two core concepts: models (AI weights) and scenario tasks — also called pipelines — each an orchestrated graph of model, scheduling, and rule logic that binds to specific inputs, zones, and rules at deployment. The 26 validated pipelines each cover many real deployments as their inputs and rules change. Capability scales with composition, not with a fixed algorithm catalog.
+
+</details>
+
+<details>
 <summary><b>Does the open-source repository include model weights?</b></summary>
 
-The open-source repository does not include production model weights by default. You can bring your own models, including compatible Qwen3 VLM series models and Qwen3.5 multimodal models. Certified device packages can provide pre-installed production CV models, `CosmoEdge-VL-Judge-0.8B`, and GroundingDINO. Community or custom models should be validated for the target scenario.
+The open-source repository does not include production model weights by default. You can bring your own models, including compatible Qwen3 VLM series models and Qwen3.5 multimodal models. Certified device packages can provide a library of ~25 pre-installed production CV models, plus `CosmoEdge-VL-Judge-0.8B` and GroundingDINO. Community or custom models should be validated for the target scenario.
 
 </details>
 

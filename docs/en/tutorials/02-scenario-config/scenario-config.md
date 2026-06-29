@@ -38,10 +38,6 @@ After completing the first two chapters, you'll be able to independently configu
 
 ![](images/img_01.webp)
 
-**Final result preview:**
-
-> Video demo: Coming soon.
-
 ### 1.1 Prepare a Video Channel
 
 1. Download the demo video

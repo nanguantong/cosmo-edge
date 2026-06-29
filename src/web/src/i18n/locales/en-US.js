@@ -659,7 +659,7 @@ export default {
     selectTimeTemplate: 'Please select a time template',
     selectPollingStrategy: 'Please select a polling strategy',
     playCountRange: 'Play count must be between 0 and 100',
-    playCountRangeTip: 'Range 0-100, default is 1. Set to 0 for unlimited.',
+    playCountRangeTip: 'Range 0-100, default 0 (unlimited). Set to 0 for unlimited playback.',
     noAvailableScenarioTask: 'No available scenario task',
     completeDrawingFirst: 'Please complete the current drawing first',
     doubleLineRequireTwo: 'Double-line type requires at least 2 detection lines',

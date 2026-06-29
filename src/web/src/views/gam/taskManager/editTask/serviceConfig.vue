@@ -176,7 +176,7 @@ const config = ref({
   Multiple: '',
   regionType: ''
 })
-const videoRepeatCount = ref(1)
+const videoRepeatCount = ref(0)
 const activeName = ref('area')
 const confirmDialogVisible = ref(false)
 const timer = ref(null)

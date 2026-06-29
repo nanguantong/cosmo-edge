@@ -627,7 +627,7 @@ const handleAllocateClick = (row) => {
       resetUrl: proxy.$route.path,
       channelId: row.videoChannelId,
       channelName: row.channelName,
-      joinType: row.channelType == 0 ? 0 : -1
+      joinType: (row.channelType == 0 || row.channelType == 6) ? 0 : -1
     }
   })
 }

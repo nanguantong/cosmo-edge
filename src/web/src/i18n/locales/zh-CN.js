@@ -659,7 +659,7 @@ export default {
     selectTimeTemplate: '请选择时间模板',
     selectPollingStrategy: '请选择轮巡策略',
     playCountRange: '播放次数范围为0-100',
-    playCountRangeTip: '范围0-100，默认为1。设置为0，则表示不限次数',
+    playCountRangeTip: '范围0-100，默认0（不限次数）。设置为0表示不限次数播放',
     noAvailableScenarioTask: '当前无可用场景任务',
     completeDrawingFirst: '请先完成当前绘制',
     doubleLineRequireTwo: '绊线类型为双线，请绘制2条及以上检测线',

@@ -68,7 +68,7 @@ docker compose -f docker-compose.x86.windows.yml up -d --build
 Linux / Bash：
 
 ```bash
-bash scripts/build_sophon_package.sh
+docker compose -f docker-compose.sophon.yml up --build
 ```
 
 Windows PowerShell：
@@ -80,8 +80,7 @@ Windows PowerShell：
 该路径来自：
 
 - `docker-compose.sophon.yml`
-- `scripts/build_sophon_package.sh`
-- `scripts/build_sophon_package.ps1`
+- `scripts/build_sophon_package.ps1`（Windows：构建前自动修复 `.so` 软链接）
 - `scripts/build.sh`
 
 已确认行为：

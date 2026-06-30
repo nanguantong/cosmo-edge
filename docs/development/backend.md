@@ -33,7 +33,6 @@ Layer 3 (接口层)         cosmo_api
 | `scripts/build_cpu.sh`           | x86 CPU 后端构建               |
 | `scripts/build_cpu_test.sh`      | CPU 测试构建（`cosmo-tests`）  |
 | `scripts/build.sh`               | Sophon / aarch64 构建          |
-| `scripts/build_sophon_package.sh`| Sophon 发布包构建              |
 | `CMakeLists.txt`                 | 顶层构建和打包入口             |
 
 ## CMake 选项

@@ -35,7 +35,6 @@ Each object library maps to a source directory under `src/`. The layer order ens
 | `scripts/build_cpu.sh`            | x86 CPU backend build              |
 | `scripts/build_cpu_test.sh`       | CPU test build (`cosmo-tests`)     |
 | `scripts/build.sh`                | Sophon / aarch64 build             |
-| `scripts/build_sophon_package.sh` | Sophon release package             |
 | `CMakeLists.txt`                  | Root build and packaging           |
 
 ### CMake Options

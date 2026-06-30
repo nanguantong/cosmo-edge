@@ -21,7 +21,7 @@ This page collects the quality-check entry points that already exist in the repo
 | C++ static analysis | `scripts/static_analysis.sh --cppcheck`, `scripts/static_analysis.sh --clang-tidy` | Periodic / manual / self-hosted |
 | CPU test build | `scripts/build_cpu_test.sh`, `build_cpu/cosmo-tests` | Pull request / manual |
 | x86 Docker | `docker compose -f docker-compose.x86.yml up -d --build` (use `docker-compose.x86.windows.yml` on Windows) | Manual / before release |
-| Sophon release package | `scripts/build_sophon_package.sh` | Manual / self-hosted |
+| Sophon release package | `docker compose -f docker-compose.sophon.yml up --build` | Manual / self-hosted |
 
 ## Documentation Site Checks
 
@@ -159,7 +159,7 @@ Before a release, confirm at minimum:
 Sophon/aarch64 release package build entry point:
 
 ```bash
-bash scripts/build_sophon_package.sh
+docker compose -f docker-compose.sophon.yml up --build
 ```
 
 Windows PowerShell:

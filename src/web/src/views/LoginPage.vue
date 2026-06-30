@@ -20,6 +20,7 @@
               id="username"
               v-model.trim="username"
               type="text"
+              autocomplete="username"
               :placeholder="t('placeholder.username')"
               required
               class="form-input"
@@ -38,6 +39,7 @@
               id="password"
               v-model.trim="password"
               type="password"
+              autocomplete="current-password"
               :placeholder="t('placeholder.password')"
               required
               class="form-input"
@@ -75,7 +77,7 @@
               <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
-              <input id="oldPwd" v-model.trim="oldPwd" type="password" :placeholder="t('placeholder.password')" required class="form-input" />
+              <input id="oldPwd" v-model.trim="oldPwd" type="password" autocomplete="current-password" :placeholder="t('placeholder.password')" required class="form-input" />
             </div>
           </div>
           <div class="form-group">
@@ -84,7 +86,7 @@
               <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
-              <input id="newPwd" v-model.trim="newPwd" type="password" :placeholder="t('placeholder.enter', { field: t('field.newPassword') })" required class="form-input" />
+              <input id="newPwd" v-model.trim="newPwd" type="password" autocomplete="new-password" :placeholder="t('placeholder.enter', { field: t('field.newPassword') })" required class="form-input" />
             </div>
           </div>
           <div class="form-group">
@@ -93,7 +95,7 @@
               <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
-              <input id="confirmPwd" v-model.trim="confirmPwd" type="password" :placeholder="t('placeholder.enter', { field: t('field.confirmPassword') })" required class="form-input" />
+              <input id="confirmPwd" v-model.trim="confirmPwd" type="password" autocomplete="new-password" :placeholder="t('placeholder.enter', { field: t('field.confirmPassword') })" required class="form-input" />
             </div>
           </div>
           <button type="submit" class="submit-button" :disabled="isChangingPwd">

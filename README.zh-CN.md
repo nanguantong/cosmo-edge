@@ -12,6 +12,8 @@
 [![Release](https://img.shields.io/badge/release-v0.1.0-green?style=flat-square)](https://github.com/cosmo-wander-ai/cosmo-edge/releases)
 [![Stress Test](https://img.shields.io/badge/stress%20test-200%20video%20samples-brightgreen?style=flat-square)](#验证与性能)
 [![Pipelines](https://img.shields.io/badge/pipelines-26%20validated-brightgreen?style=flat-square)](#验证与性能)
+[![GitHub](https://img.shields.io/badge/GitHub-cosmo--edge-181717?style=flat-square&logo=github)](https://github.com/cosmo-wander-ai/cosmo-edge)
+[![Gitee](https://img.shields.io/badge/Gitee-cosmo--edge-C71D23?style=flat-square&logo=gitee)](https://gitee.com/cosmo-wander-ai/cosmo-edge)
 
 [快速开始](#快速开始) | [核心特性](#核心特性) | [验证与性能](#验证与性能) | [文档](#文档) | [硬件](#cosmoedge-ready-设备)
 
@@ -159,6 +161,8 @@ CosmoEdge 运行在 Sophon BM1688 推理栈上。SOPHGO 官方模型仓库中的
 ```bash
 # 1. Clone
 git clone https://github.com/cosmo-wander-ai/cosmo-edge.git
+# 或使用 Gitee 镜像（国内推荐）：
+# git clone https://gitee.com/cosmo-wander-ai/cosmo-edge.git
 cd cosmo-edge
 
 > **💡 Docker Compose 版本提示**
@@ -186,6 +190,8 @@ docker compose -f docker-compose.x86.windows.yml up -d --build
 ```bash
 # 1. Clone
 git clone https://github.com/cosmo-wander-ai/cosmo-edge.git
+# 或使用 Gitee 镜像（国内推荐）：
+# git clone https://gitee.com/cosmo-wander-ai/cosmo-edge.git
 cd cosmo-edge
 
 # 2. 构建 Sophon/aarch64 发布包
@@ -417,6 +423,7 @@ CosmoEdge 是面向完整边缘 AI 工作流的应用运行时，不是单纯的
 ## 联系方式
 
 - Community: [GitHub Discussions](https://github.com/cosmo-wander-ai/cosmo-edge/discussions)
+- 国内社区: [Gitee Issues](https://gitee.com/cosmo-wander-ai/cosmo-edge/issues)
 - Partnership & Enterprise: hello@cosmowander.ai
 - 安全报告：请参见 [SECURITY.md](SECURITY.md)，按私密披露流程上报安全漏洞
 
@@ -437,5 +444,7 @@ Licensed under the Apache License, Version 2.0
 An open-source project by Cosmo Wander AI and the CosmoEdge contributors.
 
 Turn video AI models into deployable edge applications.
+
+📦 本项目在 [Gitee](https://gitee.com/cosmo-wander-ai/cosmo-edge) 维护只读镜像，代码自动从 GitHub 同步。详见 [MIRRORING.md](MIRRORING.md)。
 
 </div>

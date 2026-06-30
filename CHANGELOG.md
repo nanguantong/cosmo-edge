@@ -52,3 +52,8 @@ Initial public open-source baseline.
 
 [Unreleased]: https://github.com/cosmo-wander-ai/cosmo-edge/compare/main...HEAD
 [0.1.0]: https://github.com/cosmo-wander-ai/cosmo-edge/releases
+
+<!-- Gitee mirrors -->
+[Unreleased (Gitee)]: https://gitee.com/cosmo-wander-ai/cosmo-edge/compare/main...master
+[0.1.0 (Gitee)]: https://gitee.com/cosmo-wander-ai/cosmo-edge/releases
+

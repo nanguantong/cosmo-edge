@@ -15,7 +15,7 @@ By participating in this project, you agree to abide by our [Code of Conduct](CO
 ## How Can I Contribute?
 
 ### 1. Reporting Bugs
-Before submitting a bug report, please search the [GitHub Issues](https://github.com/cosmo-wander-ai/cosmo-edge/issues) to ensure the problem hasn't already been reported.
+Before submitting a bug report, please search the [GitHub Issues](https://github.com/cosmo-wander-ai/cosmo-edge/issues) (or [Gitee Issues](https://gitee.com/cosmo-wander-ai/cosmo-edge/issues) for China users) to ensure the problem hasn't already been reported.
 
 When filing an issue, please use our bug report template and include:
 *   **Environment Info**: OS version, CPU/NPU platform (e.g., Sophon BM1688, x86 CPU), SDK version (e.g., Sophon SDK v24.04).

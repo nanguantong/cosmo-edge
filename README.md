@@ -12,6 +12,8 @@
 [![Release](https://img.shields.io/badge/release-v0.1.0-green?style=flat-square)](https://github.com/cosmo-wander-ai/cosmo-edge/releases)
 [![Stress Test](https://img.shields.io/badge/stress%20test-200%20video%20samples-brightgreen?style=flat-square)](#validation)
 [![Pipelines](https://img.shields.io/badge/pipelines-26%20validated-brightgreen?style=flat-square)](#validation)
+[![GitHub](https://img.shields.io/badge/GitHub-cosmo--edge-181717?style=flat-square&logo=github)](https://github.com/cosmo-wander-ai/cosmo-edge)
+[![Gitee](https://img.shields.io/badge/Gitee-cosmo--edge-C71D23?style=flat-square&logo=gitee)](https://gitee.com/cosmo-wander-ai/cosmo-edge)
 
 [Quick Start](#quick-start) | [Features](#key-features) | [Validation](#validation) | [Docs](#documentation) | [Hardware](#cosmoedge-ready-devices)
 
@@ -157,6 +159,8 @@ You can try CosmoEdge without edge hardware. The x86 developer mode uses the sam
 ```bash
 # 1. Clone
 git clone https://github.com/cosmo-wander-ai/cosmo-edge.git
+# Or use Gitee mirror (China):
+# git clone https://gitee.com/cosmo-wander-ai/cosmo-edge.git
 cd cosmo-edge
 
 > **💡 Docker Compose Version Note**
@@ -184,6 +188,8 @@ Use this path for NPU-accelerated deployment.
 ```bash
 # 1. Clone
 git clone https://github.com/cosmo-wander-ai/cosmo-edge.git
+# Or use Gitee mirror (China):
+# git clone https://gitee.com/cosmo-wander-ai/cosmo-edge.git
 cd cosmo-edge
 
 # 2. Build the Sophon/aarch64 package
@@ -416,6 +422,7 @@ The codebase comes from commercial development for production deployments and ha
 ## Contact
 
 - Community: [GitHub Discussions](https://github.com/cosmo-wander-ai/cosmo-edge/discussions)
+- 国内社区: [Gitee Issues](https://gitee.com/cosmo-wander-ai/cosmo-edge/issues)
 - Partnership & Enterprise: <hello@cosmowander.ai>
 - Security: see [SECURITY.md](SECURITY.md) for private vulnerability reporting
 
@@ -436,5 +443,7 @@ Licensed under the Apache License, Version 2.0
 An open-source project by Cosmo Wander AI and the CosmoEdge contributors.
 
 Turn video AI models into deployable edge applications.
+
+📦 This repo is mirrored to [Gitee](https://gitee.com/cosmo-wander-ai/cosmo-edge) for mainland China access. See [MIRRORING.md](MIRRORING.md).
 
 </div>

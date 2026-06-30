@@ -1,0 +1,18 @@
+# Dependencies (also covered by root .gitignore, kept for clarity)
+node_modules/
+
+# Test video samples — too large to track, supply locally per run.
+# See README "场景包" for how to obtain them.
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# Run reports & logs — regenerated every run, not versioned.
+reports/
+*.log
+*.partial.json
+
+# Local scenario experiments: keep only committed reference scenarios under
+# scenarios/. Any local-only scratch dir is ignored via the rules above
+# (they only contain videos/configs already covered).

@@ -1,0 +1,8 @@
+pass:
+  maxCriticalPathLatencyMs: 200
+  maxDetectorLatencyMs: 150
+  maxDiscardRate: 0.02
+  maxPacketDiscardRate: 0.01
+  maxMemoryGrowthMbPerHour: 100     # phase 2 hook (needs long-run + slope calc)
+  maxCrashCount: 0                  # phase 2 hook (needs task lifecycle tracking)
+  minEventCount: 1                  # phase 2 hook (needs event stats)

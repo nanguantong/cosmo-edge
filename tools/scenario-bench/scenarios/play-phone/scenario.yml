@@ -1,0 +1,20 @@
+name: play-phone
+displayName: 玩手机检测
+algorithmId: "22"
+scheduleId: "e89c6c6385e5454b35cde0d1653vg"   # platform default 24/7 schedule
+sampleIntervalSec: 5
+
+loadProfile:
+  - channels: 1
+    holdSec: 60
+  - channels: 4
+    holdSec: 120
+  - channels: 8
+    holdSec: 120
+  - channels: 16
+    holdSec: 600
+
+features:
+  enableEventCheck: false      # phase 2: requires push-test-service /stats endpoint
+  enableMqttCheck: false
+  enableHttpPushCheck: false

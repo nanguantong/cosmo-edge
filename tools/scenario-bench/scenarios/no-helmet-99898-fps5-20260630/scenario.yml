@@ -1,0 +1,26 @@
+name: no-helmet-99898-fps5-20260630
+displayName: 未戴安全帽检测(算法 99898, fps5)- 算力瓶颈压测
+algorithmId: "99898"
+scheduleId: "e89c6c6385e5454b35cde0d1653vg"   # 平台默认 24/7 调度 (kDefaultScheduleId)
+sampleIntervalSec: 3      # 30s 保持期 × 3s 间隔 = 10 个采样点，稳态取后半 5 点，均值判定更稳
+videoRepeatCount: 0       # local 循环播放，持续产生负载
+
+# 算力瓶颈阶梯：1→4→8→16→24 路，每步 30s。
+# 保持期缩短到 30s（原 90s），配合 3s 采样间隔仍有 10 点/步。
+# 首阶梯(1路)作为 fps 基线；丢弃率判定改用均值（非 max），抗瞬态扰动误判。
+loadProfile:
+  - channels: 1
+    holdSec: 30
+  - channels: 4
+    holdSec: 30
+  - channels: 8
+    holdSec: 30
+  - channels: 16
+    holdSec: 30
+  - channels: 24
+    holdSec: 30
+
+features:
+  enableEventCheck: false
+  enableMqttCheck: false
+  enableHttpPushCheck: false

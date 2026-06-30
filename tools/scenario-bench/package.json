@@ -1,0 +1,20 @@
+{
+  "name": "scenario-bench",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reproducible scenario-task load benchmarking tool for CosmoEdge.",
+  "type": "module",
+  "bin": {
+    "scenario-bench": "src/cli.js"
+  },
+  "scripts": {
+    "start": "node src/cli.js",
+    "bench": "node src/cli.js run"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "yaml": "^2.5.0"
+  }
+}

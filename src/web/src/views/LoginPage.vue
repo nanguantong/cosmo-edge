@@ -71,6 +71,8 @@
         </div>
         <p class="dialog-desc">{{ t('login.passwordChangeDesc') }}</p>
         <form @submit.prevent="handleChangePassword" class="login-form">
+          <!-- 隐藏的用户名输入框，用于辅助功能和浏览器密码管理器 -->
+          <input type="text" autocomplete="username" :value="username" style="display:none;" aria-hidden="true" />
           <div class="form-group">
             <label for="oldPwd" class="form-label">{{ t('field.oldPassword') }}</label>
             <div class="input-wrapper">

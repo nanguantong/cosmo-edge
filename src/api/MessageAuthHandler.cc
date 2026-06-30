@@ -21,6 +21,13 @@ Auth::MsgDoLoginSend MessageAuthHandler::Handle(Auth::MsgDoLoginRecv&& data,
     errc                        = ret.second;
     retData.resData.accountName = data.account;
     retData.resData.mtk         = ret.first;
+
+    // Signal the front-end to force a password change when the factory-default
+    // password ("admin") is still in use.
+    if (!ret.first.empty()) {
+        retData.resData.passwordChangeRequired = auth_svc_.IsDefaultPassword();
+    }
+
     return retData;
 }
 

@@ -24,7 +24,7 @@ AuthServiceImpl::AuthServiceImpl() {
 
     if (user_passwd_.empty()) {
         std::lock_guard<std::shared_mutex> lock(mtx_);
-        user_passwd_["admin"] = cosmo::util::ToUpper(cosmo::util::EncMd5("admin"));
+        user_passwd_["admin"] = kDefaultAdminPasswordHash;
         Save();
     }
 }
@@ -160,6 +160,16 @@ bool AuthServiceImpl::IsValidToken(const std::string& token) {
     token_time_.emplace(now, token);
     it->second.createdAt = now;
     return true;
+}
+
+bool AuthServiceImpl::IsDefaultPassword() const {
+    std::shared_lock<std::shared_mutex> lock(mtx_);
+    for (const auto& [user, hash] : user_passwd_) {
+        if (hash == kDefaultAdminPasswordHash) {
+            return true;
+        }
+    }
+    return false;
 }
 
 }  // namespace cosmo::service

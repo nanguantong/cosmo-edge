@@ -25,6 +25,7 @@ public:
     cosmo::util::ErrorEnum ChangePasswd(const std::string& token, const std::string& passwdMd5Old,
                                         const std::string& passwdMd5New) override;
     bool IsValidToken(const std::string& token) override;
+    bool IsDefaultPassword() const override;
 
 private:
     using Clock     = std::chrono::steady_clock;
@@ -63,6 +64,10 @@ private:
 
     static constexpr int kTokenExpireSec   = 3600;
     static constexpr size_t kMaxTokenCount = 1000;
+
+    // MD5("admin") upper-cased — the factory-default password hash.
+    // Used by IsDefaultPassword() to detect unchanged credentials.
+    static constexpr const char* kDefaultAdminPasswordHash = "21232F297A57A5A743894A0E4A801FC3";
 
     mutable std::shared_mutex mtx_;
     std::string config_name_{"auth.json"};

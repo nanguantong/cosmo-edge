@@ -440,7 +440,7 @@ set(PACKAGE_NAME    "${PACKAGE_PREFIX}-${PACKAGE_VERSION}")
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/version.txt" "${PACKAGE_VERSION}\n")
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/version.txt"
     DESTINATION bin
-    PERMISSIONS OWNER_WRITE OWNER_READ GROUP_READ
+    PERMISSIONS OWNER_WRITE OWNER_READ GROUP_READ WORLD_READ
 )
 
 # Install model guard shared library to lib/ (used at runtime via dlopen or direct link)

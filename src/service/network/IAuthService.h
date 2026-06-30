@@ -36,6 +36,12 @@ public:
     /// @param token Session token to validate.
     /// @return true if the token is valid and not expired.
     virtual bool IsValidToken(const std::string& token) = 0;
+
+    /// Check whether any user account still uses the factory-default password.
+    /// The login response includes a `passwordChangeRequired` flag derived from
+    /// this check, prompting the UI to force a password change on first login.
+    /// @return true if at least one account has the default password.
+    virtual bool IsDefaultPassword() const = 0;
 };
 
 }  // namespace cosmo::service

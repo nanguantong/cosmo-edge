@@ -58,6 +58,56 @@
       </form>
     </div>
 
+    <!-- Password Change Dialog (forced on default password) -->
+    <div v-if="showPasswordDialog" class="dialog-overlay" @click.self="() => {}">
+      <div class="dialog-card">
+        <div class="dialog-header">
+          <svg class="dialog-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+          <h2 class="dialog-title">{{ t('login.passwordChangeTitle') }}</h2>
+        </div>
+        <p class="dialog-desc">{{ t('login.passwordChangeDesc') }}</p>
+        <form @submit.prevent="handleChangePassword" class="login-form">
+          <div class="form-group">
+            <label for="oldPwd" class="form-label">{{ t('field.oldPassword') }}</label>
+            <div class="input-wrapper">
+              <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <input id="oldPwd" v-model.trim="oldPwd" type="password" :placeholder="t('placeholder.password')" required class="form-input" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="newPwd" class="form-label">{{ t('field.newPassword') }}</label>
+            <div class="input-wrapper">
+              <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <input id="newPwd" v-model.trim="newPwd" type="password" :placeholder="t('placeholder.enter', { field: t('field.newPassword') })" required class="form-input" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="confirmPwd" class="form-label">{{ t('field.confirmPassword') }}</label>
+            <div class="input-wrapper">
+              <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <input id="confirmPwd" v-model.trim="confirmPwd" type="password" :placeholder="t('placeholder.enter', { field: t('field.confirmPassword') })" required class="form-input" />
+            </div>
+          </div>
+          <button type="submit" class="submit-button" :disabled="isChangingPwd">
+            <span v-if="!isChangingPwd">{{ t('action.confirm') }}</span>
+            <span v-else class="loading-spinner">
+              <svg class="spinner-icon" viewBox="0 0 24 24">
+                <circle class="spinner-circle" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" />
+              </svg>
+            </span>
+          </button>
+        </form>
+      </div>
+    </div>
+
     <div class="copyright">{{ copyRight }}</div>
   </div>
 </template>
@@ -85,6 +135,14 @@ const platformName = computed(() => {
 const copyRight = ref(window.getGlobalConfig?.()?.copyRight || '')
 const defaultLogo = new URL('@/assets/logo.png', import.meta.url).href
 const logoSrc = ref(localStorage.getItem('logoUrl') || defaultLogo)
+
+// ── Password change dialog state ──
+const showPasswordDialog = ref(false)
+const oldPwd = ref('')
+const newPwd = ref('')
+const confirmPwd = ref('')
+const isChangingPwd = ref(false)
+const savedToken = ref('')   // token from the login response, used for ChangePasswd
 
 onMounted(() => {
   localStorage.removeItem('mtk')
@@ -116,12 +174,23 @@ const handleLogin = async () => {
     localStorage.setItem('platformType', '15')
     localStorage.setItem('account', resData?.account || params.account || '')
 
-    // try {
-    //   const modeRes = await proxy.$API.queryRunModeParam({})
-    //   localStorage.setItem('runMode', modeRes.resData.runMode)
-    // } catch {
+    // ── SEC-001: Force password change when factory-default password is active ──
+    if (resData.passwordChangeRequired) {
+      savedToken.value = resData.mtk
+      oldPwd.value = ''
+      newPwd.value = ''
+      confirmPwd.value = ''
+      showPasswordDialog.value = true
+      proxy.$message.warning(t('login.passwordChangeRequired'))
+      return
+    }
+
+    // // try {
+    // //   const modeRes = await proxy.$API.queryRunModeParam({})
+    // //   localStorage.setItem('runMode', modeRes.resData.runMode)
+    // // } catch {
       localStorage.setItem('runMode', '0')
-    // }
+    // // }
 
     // Check onboarding status before navigating to home
     try {
@@ -143,6 +212,38 @@ const handleLogin = async () => {
     console.error('Login failed:', error)
   } finally {
     isLoading.value = false
+  }
+}
+
+const handleChangePassword = async () => {
+  if (!oldPwd.value || !newPwd.value) {
+    proxy.$message.warning(t('validate.oldNewPasswordRequired'))
+    return
+  }
+  if (newPwd.value !== confirmPwd.value) {
+    proxy.$message.warning(t('validate.passwordMismatch'))
+    return
+  }
+
+  isChangingPwd.value = true
+  try {
+    await proxy.$API.boxModifyPassword({
+      mtk: savedToken.value,
+      passwdOld: md5(oldPwd.value),
+      passwdNew: md5(newPwd.value)
+    })
+    proxy.$message.success(t('login.passwordChanged'))
+    showPasswordDialog.value = false
+    // Clear session — user must re-login with new credentials
+    localStorage.removeItem('mtk')
+    localStorage.removeItem('token')
+    username.value = ''
+    password.value = ''
+  } catch (error) {
+    console.error('Password change failed:', error)
+    proxy.$message.error(t('login.passwordChangeFailed'))
+  } finally {
+    isChangingPwd.value = false
   }
 }
 </script>
@@ -420,5 +521,63 @@ const handleLogin = async () => {
   .login-card {
     padding: 1.5rem 1.25rem;
   }
+}
+
+// ── Password change dialog ──
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.dialog-card {
+  width: 100%;
+  max-width: 440px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 2rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  animation: slideUp 0.4s ease-out;
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.dialog-icon {
+  width: 28px;
+  height: 28px;
+  color: #D97706;
+  flex-shrink: 0;
+}
+
+.dialog-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0;
+}
+
+.dialog-desc {
+  font-size: 0.875rem;
+  color: #64748B;
+  margin: 0 0 1.5rem;
+  line-height: 1.5;
 }
 </style>

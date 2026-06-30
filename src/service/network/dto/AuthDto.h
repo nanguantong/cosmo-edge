@@ -21,6 +21,7 @@ namespace Auth {
         struct ResData {
             std::string accountName;
             std::string mtk;
+            bool passwordChangeRequired{false};  // true when factory-default password is still active
             friend void to_json(nlohmann::json& j, const ResData& v);
             friend void from_json(const nlohmann::json& j, ResData& v);
         } resData;

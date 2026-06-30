@@ -798,7 +798,12 @@ export default {
   },
   login: {
     defaultPlatformName: 'System Login',
-    subtitle: 'Log in to continue'
+    subtitle: 'Log in to continue',
+    passwordChangeRequired: 'Please change the default password on first login',
+    passwordChangeTitle: 'Change Default Password',
+    passwordChangeDesc: 'The system detected that the factory-default password is still in use. For device security, please change your password immediately.',
+    passwordChanged: 'Password changed successfully. Please log in with your new password.',
+    passwordChangeFailed: 'Password change failed. Please try again.'
   },
   system: {
     defaultPlatformName: 'Edge AI Hub',

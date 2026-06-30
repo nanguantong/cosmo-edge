@@ -48,11 +48,13 @@ void from_json(const nlohmann::json& j, MsgModifyPasswordRecv& v) {
 void from_json(const nlohmann::json& j, MsgDoLoginSend::ResData& v) {
     JSON_OPT(j, v, accountName);
     JSON_OPT(j, v, mtk);
+    JSON_OPT(j, v, passwordChangeRequired);
 }
 
 void to_json(nlohmann::json& j, const MsgDoLoginSend::ResData& v) {
-    j["accountName"] = v.accountName;
-    j["mtk"]         = v.mtk;
+    j["accountName"]            = v.accountName;
+    j["mtk"]                    = v.mtk;
+    j["passwordChangeRequired"] = v.passwordChangeRequired;
 }
 
 }  // namespace cosmo::Auth

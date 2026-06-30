@@ -798,7 +798,12 @@ export default {
   },
   login: {
     defaultPlatformName: '系统登录',
-    subtitle: '登录您的账户以继续'
+    subtitle: '登录您的账户以继续',
+    passwordChangeRequired: '首次登录请修改默认密码',
+    passwordChangeTitle: '修改默认密码',
+    passwordChangeDesc: '系统检测到当前使用的是出厂默认密码，为保障设备安全，请立即修改密码。',
+    passwordChanged: '密码修改成功，请使用新密码重新登录',
+    passwordChangeFailed: '密码修改失败，请重试'
   },
   system: {
     defaultPlatformName: '边缘智能中枢',

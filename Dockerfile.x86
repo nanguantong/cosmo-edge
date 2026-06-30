@@ -1,45 +1,4 @@
-FROM node:20-bookworm AS builder
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Use the Aliyun Debian mirror to improve build speed in China.
-RUN sed -i 's|http://deb.debian.org/debian|https://mirrors.aliyun.com/debian|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
-    sed -i 's|http://deb.debian.org/debian|https://mirrors.aliyun.com/debian|g' /etc/apt/sources.list
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    bash \
-    build-essential \
-    ca-certificates \
-    cmake \
-    curl \
-    file \
-    g++-aarch64-linux-gnu \
-    git \
-    libtool \
-    make \
-    nasm \
-    ninja-build \
-    patch \
-    perl \
-    pkg-config \
-    python3 \
-    unzip \
-    yasm \
-    zlib1g-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-ENV RUSTUP_DIST_SERVER="https://rsproxy.cn"
-ENV RUSTUP_UPDATE_ROOT="https://rsproxy.cn/rustup"
-RUN curl --proto '=https' --tlsv1.2 -sSf https://rsproxy.cn/rustup-init.sh | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
-
-RUN mkdir -p /root/.cargo && \
-    echo '[source.crates-io]' > /root/.cargo/config.toml && \
-    echo 'replace-with = "aliyun"' >> /root/.cargo/config.toml && \
-    echo '[source.aliyun]' >> /root/.cargo/config.toml && \
-    echo 'registry = "sparse+https://mirrors.aliyun.com/crates.io-index/"' >> /root/.cargo/config.toml
-
-RUN npm config set registry https://registry.npmmirror.com
+FROM ghcr.io/cosmo-wander-ai/cosmo_edge-build-env_x86:v1 AS builder
 
 WORKDIR /src
 COPY . .

@@ -25,11 +25,10 @@ concurrency:
 
 jobs:
   build-and-test:
-    # Use the same base image as Dockerfile.x86 builder stage — Debian 12 / GCC 12.
-    # This keeps CI and production builds consistent.
+    # Use the same builder image as Dockerfile.x86 — keeps CI and production builds consistent.
     runs-on: ubuntu-latest
     container:
-      image: node:20-bookworm
+      image: ghcr.io/cosmo-wander-ai/cosmo_edge-build-env_x86:v1
 
     timeout-minutes: 60
 
@@ -40,36 +39,6 @@ jobs:
         run: git config --global --add safe.directory '*'
 
       - uses: actions/checkout@v4
-
-      # ── System dependencies (mirrors Dockerfile.x86 builder stage) ───
-      - name: Install build dependencies
-        run: |
-          apt-get update
-          apt-get install -y --no-install-recommends \
-            bash \
-            build-essential \
-            ca-certificates \
-            cmake \
-            curl \
-            file \
-            g++-aarch64-linux-gnu \
-            git \
-            libtool \
-            make \
-            nasm \
-            ninja-build \
-            patch \
-            perl \
-            pkg-config \
-            python3 \
-            unzip \
-            yasm \
-            zlib1g-dev
-          rm -rf /var/lib/apt/lists/*
-
-      # ── Rust (required by tokenizers-cpp) ────────────────────────────
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
 
       # ── Build ────────────────────────────────────────────────────────
       - name: Configure and build cosmo-tests (x86 CPU backend)

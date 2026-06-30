@@ -13,6 +13,9 @@ next:
 
 This page documents build paths that are confirmed and available in the repository.
 
+> **💡 Docker Compose Version Note**
+> This documentation uses the latest Docker Compose V2 command format (`docker compose`). If you are using an older Docker environment, please replace `docker compose` with the hyphenated `docker-compose` in all commands.
+
 ## Build Path Overview
 
 | Target | Entry Point | Notes |
@@ -78,14 +81,13 @@ Windows PowerShell:
 This path is from:
 
 - `docker-compose.sophon.yml`
-- `Dockerfile.sophon`
 - `scripts/build_sophon_package.sh`
 - `scripts/build_sophon_package.ps1`
 - `scripts/build.sh`
 
 Confirmed behavior:
 
-- Base image: `ubuntu:22.04` (self-contained build, no external image dependency).
+- Base image uses the pre-built GHCR image: `ghcr.io/cosmo-wander-ai/cosmo_edge-build-env_sophon:v1` (unified build environment, speeding up local start time).
 - Builds with `scripts/build.sh -m data/resource/aiboxresource`.
 - Exports the release package only (does not start services).
 - Package output under `build_output/`.

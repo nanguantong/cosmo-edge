@@ -20,5 +20,5 @@ jobs:
         env:
           SSH_PRIVATE_KEY: ${{ secrets.GITEE_PRIVATE_KEY }}
         with:
-          source-repo: ""
+          source-repo: "git@github.com:cosmo-wander-ai/cosmo-edge.git"
           destination-repo: "git@gitee.com:cosmo-wander-ai/cosmo-edge.git"

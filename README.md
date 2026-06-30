@@ -221,6 +221,8 @@ Initial Onboarding Guide
 
 https://github.com/user-attachments/assets/b4ffe661-cd06-4c79-ac01-310b1028e0be
 
+Test video path: cosmo-edge\data\test-video
+
 </div>
 
 ## Validation

@@ -222,6 +222,8 @@ sudo reboot
 
 https://github.com/user-attachments/assets/395e5b89-c6af-4276-a89b-577b3400efc1
 
+测试视频路径：cosmo-edge\data\test-video
+
 </div>
 
 ## 验证与性能

@@ -2,42 +2,53 @@
 
 All notable public changes to CosmoEdge will be documented in this file.
 
-This project follows a release-note style inspired by Keep a Changelog. Versioning policy should be finalized before the first public release.
+This project follows a release-note style inspired by Keep a Changelog. CosmoEdge is currently versioned as `v0.1.0` while the project prepares the `v1.0` stable release.
 
 ## [Unreleased]
 
+### Changed
+
+- Clarified the public release roadmap in English and Simplified Chinese README files.
+- Unified the security vulnerability contact email as `hello@cosmowander.ai`.
+
+### Planned
+
+- Complete the final `v1.0` regression pass.
+- Publish the `v1.0` release tag and release notes.
+- Expand the validated pipeline scenario library.
+- Add community model examples, scenario examples, model adapters, and post-processing templates.
+
+## [0.1.0] - 2026-06-29
+
+Initial public open-source baseline.
+
 ### Added
 
+- C++17 edge inference engine.
+- Visual pipeline orchestrator.
+- Web management console.
+- x86 developer mode for Linux and Windows.
+- Sophon BM1688 release packaging.
+- VLM and GroundingDINO integration.
+- 26 internally validated pipeline scenarios.
 - Open-source README in English and Simplified Chinese.
 - VitePress documentation site.
-- Five tutorial sections for quick start, scenario configuration, VLM / DINO, pipeline orchestration, and model porting.
+- Tutorials for quick start, scenario configuration, VLM / DINO, pipeline orchestration, and model porting.
 - Build, deployment, configuration, troubleshooting, architecture, API, model/resource, frontend, and backend documentation.
-- Open-source release checklist.
-- Security notes and top-level `SECURITY.md`.
 - Issue templates and pull request template.
+- Security policy.
 - Apache License 2.0 `LICENSE`.
 - Initial `NOTICE`.
-- Third-party dependency and license-audit draft.
 
 ### Changed
 
-- Public quick-start command is aligned with the current x86 Docker flow:
+- Public quick-start command aligned with the current x86 Docker flow:
   `docker compose -f docker-compose.x86.yml up -d --build`.
-- Sophon package build documentation is aligned with current helper scripts:
+- Sophon package build documentation aligned with current helper scripts:
   `scripts/build_sophon_package.sh` and `scripts/build_sophon_package.ps1`.
+- README video links moved to the public `v1.0-videos` asset tag.
+- Sample camera credentials and device serial values scrubbed from examples.
+- Sophon build environment Dockerfile made self-contained.
 
-### Pending Before First Public Release
-
-- Complete third-party license audit.
-- Confirm model/resource redistribution policy.
-- Confirm public benchmark and validation claims.
-- Confirm Windows support scope.
-- Confirm production authorization and restricted-mode wording.
-- Complete required third-party attribution in `NOTICE`.
-
-## [0.1.0] - Pending
-
-Initial public release candidate.
-
-[Unreleased]: https://github.com/cosmo-wander-ai/cosmo-edge/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/cosmo-wander-ai/cosmo-edge/releases/tag/v0.1.0
+[Unreleased]: https://github.com/cosmo-wander-ai/cosmo-edge/compare/main...HEAD
+[0.1.0]: https://github.com/cosmo-wander-ai/cosmo-edge/releases

@@ -159,6 +159,9 @@ CosmoEdge 运行在 Sophon BM1688 推理栈上。SOPHGO 官方模型仓库中的
 git clone https://github.com/cosmo-wander-ai/cosmo-edge.git
 cd cosmo-edge
 
+> **💡 Docker Compose 版本提示**
+> 本文档统一使用最新的 Docker Compose V2 命令格式 (`docker compose`)。如果你使用的是旧版 Docker 环境，请将文中的 `docker compose` 替换为带横杠的 `docker-compose`。
+
 # 2. 启动 x86 模式
 # Linux：
 sudo docker compose -f docker-compose.x86.yml up -d --build

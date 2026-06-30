@@ -13,6 +13,9 @@ next:
 
 本文只记录当前仓库中已经确认的构建路径。历史文档或旧脚本中出现过、但当前仓库无法验证的路径，不作为公开支持路径。
 
+> **💡 Docker Compose 版本提示**
+> 本文档统一使用最新的 Docker Compose V2 命令格式 (`docker compose`)。如果你使用的是旧版 Docker 环境（如自带独立的 V1 插件），请将文中的 `docker compose` 替换为带横杠的 `docker-compose`。
+
 ## 构建路径总览
 
 | 路径 | 用途 | 是否启动服务 | 输出 |
@@ -77,14 +80,13 @@ Windows PowerShell：
 该路径来自：
 
 - `docker-compose.sophon.yml`
-- `Dockerfile.sophon`
 - `scripts/build_sophon_package.sh`
 - `scripts/build_sophon_package.ps1`
 - `scripts/build.sh`
 
 已确认行为：
 
-- 基础镜像为 `ubuntu:22.04`（自包含构建，无需外部镜像依赖）。
+- 基础镜像使用预先构建的 GHCR 镜像：`ghcr.io/cosmo-wander-ai/cosmo_edge-build-env_sophon:v1`（统一的编译环境，加速了本地启动时间）。
 - 使用 `scripts/build.sh -m data/resource/aiboxresource` 构建（生产包不启用 dev mode，故不传 `-t`）。
 - 只导出发布包，不启动服务。
 - 发布包导出到 `build_output/`。

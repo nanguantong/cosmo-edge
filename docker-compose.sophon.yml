@@ -1,16 +1,18 @@
 services:
   cosmo-sophon-package:
-    build:
-      context: .
-      dockerfile: Dockerfile.sophon
-      args:
-        APT_MIRROR: ${SOPHON_APT_MIRROR:-https://mirrors.aliyun.com/ubuntu}
-        NODE_DIST_BASE_URL: ${SOPHON_NODE_DIST_BASE_URL:-https://npmmirror.com/mirrors/node}
-        RUSTUP_INIT_URL: ${SOPHON_RUSTUP_INIT_URL:-https://rsproxy.cn/rustup-init.sh}
-        RUSTUP_DIST_SERVER: ${SOPHON_RUSTUP_DIST_SERVER:-https://rsproxy.cn}
-        RUSTUP_UPDATE_ROOT: ${SOPHON_RUSTUP_UPDATE_ROOT:-https://rsproxy.cn/rustup}
-        RESOURCE_DIR: data/resource/aiboxresource
-    image: cosmo:sophon-package
+    image: ghcr.io/cosmo-wander-ai/cosmo_edge-build-env_sophon:v1
     container_name: cosmo-sophon-package
     volumes:
+      - .:/workspace
       - ./build_output:/build_output
+    working_dir: /workspace
+    command: >
+      bash -lc "
+      set -e;
+      echo 'Starting cross-compilation...';
+      ./scripts/build.sh -m data/resource/aiboxresource;
+      mkdir -p /build_output;
+      cp -f build/packages/* /build_output/ 2>/dev/null || echo 'Warning: No packages found to copy.';
+      ls -lh /build_output;
+      echo 'Build finished.'
+      "

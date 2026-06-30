@@ -21,7 +21,7 @@
 
 <div align="center">
 
-https://github.com/user-attachments/assets/23a014a5-d753-432f-8de5-c750bc82d8e2
+<https://github.com/user-attachments/assets/23a014a5-d753-432f-8de5-c750bc82d8e2>
 
 </div>
 
@@ -57,7 +57,7 @@ Build video AI workflows in a browser. Connect video sources, AI models, post-pr
 
 <div align="center">
 
-https://github.com/user-attachments/assets/94b9418b-36c8-47b6-a730-ad8f508a6709
+<https://github.com/user-attachments/assets/94b9418b-36c8-47b6-a730-ad8f508a6709>
 
 </div>
 
@@ -109,7 +109,7 @@ Run prompt-driven vision models on edge devices as asynchronous pipeline nodes a
 
 <div align="center">
 
-https://github.com/user-attachments/assets/212a33a8-e662-4678-9945-02c78d808e4d
+<https://github.com/user-attachments/assets/212a33a8-e662-4678-9945-02c78d808e4d>
 
 </div>
 
@@ -156,6 +156,9 @@ You can try CosmoEdge without edge hardware. The x86 developer mode uses the sam
 # 1. Clone
 git clone https://github.com/cosmo-wander-ai/cosmo-edge.git
 cd cosmo-edge
+
+> **💡 Docker Compose Version Note**
+> This documentation uses the latest Docker Compose V2 command format (`docker compose`). If you are using an older Docker environment, please replace `docker compose` with the hyphenated `docker-compose` in all commands.
 
 # 2. Start in x86 mode
 # Linux:
@@ -219,7 +222,7 @@ This path builds a release package and installs it on a Sophon device. For teams
 Initial Onboarding Guide
 <div align="center">
 
-https://github.com/user-attachments/assets/b4ffe661-cd06-4c79-ac01-310b1028e0be
+<https://github.com/user-attachments/assets/b4ffe661-cd06-4c79-ac01-310b1028e0be>
 
 Test video path: cosmo-edge\data\test-video
 
@@ -313,7 +316,7 @@ Certified devices help teams avoid hardware bring-up and model packaging work. T
 
 Certified devices improve deployment readiness; they do not lock software features behind a hardware SKU.
 
-The open-source engine and all software features are available worldwide today, no purchase required. Certified devices are rolling out region by region and the online store is still in setup. To register interest or ask about availability (including international), contact hello@cosmowander.ai.
+The open-source engine and all software features are available worldwide today, no purchase required. Certified devices are rolling out region by region and the online store is still in setup. To register interest or ask about availability (including international), contact <hello@cosmowander.ai>.
 
 ## Documentation
 
@@ -411,7 +414,7 @@ The codebase comes from commercial development for production deployments and ha
 ## Contact
 
 - Community: [GitHub Discussions](https://github.com/cosmo-wander-ai/cosmo-edge/discussions)
-- Partnership & Enterprise: hello@cosmowander.ai
+- Partnership & Enterprise: <hello@cosmowander.ai>
 - Security: see [SECURITY.md](SECURITY.md) for private vulnerability reporting
 
 ## License

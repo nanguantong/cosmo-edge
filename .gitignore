@@ -15,6 +15,7 @@ release
 tags
 node_modules/
 
+build_output/
 build-*
 
 examples/build*

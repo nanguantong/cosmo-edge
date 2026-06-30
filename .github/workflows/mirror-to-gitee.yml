@@ -15,10 +15,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Mirror to Gitee
-        uses: wearerequired/git-mirror-action@v1
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.GITEE_PRIVATE_KEY }}
-        with:
-          source-repo: "git@github.com:cosmo-wander-ai/cosmo-edge.git"
-          destination-repo: "git@gitee.com:cosmo-wander-ai/cosmo-edge.git"
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.GITEE_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -t ed25519 gitee.com >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Push to Gitee
+        run: |
+          git remote add gitee git@gitee.com:cosmo-wander-ai/cosmo-edge.git || true
+          git push gitee main --force --tags

@@ -1,197 +1,117 @@
 # scenario-bench
 
-CosmoEdge 场景任务可复现压测工具。运行在控制 PC，通过设备 HTTP API 驱动边缘设备完成并发阶梯压测，周期采样任务运行详情与硬件资源，自动判定算力瓶颈拐点，输出 JSON / HTML 报告。
+`scenario-bench` 是 CosmoEdge 场景任务压测工具。它在控制 PC 上运行，通过设备 HTTP API 完成算法编排导入、视频通道准备、任务绑定、阶梯式并发加压、运行指标采样和报告生成。
 
-设计依据见 [`docs/guide/scenario-benchmark-design.md`](../../docs/guide/scenario-benchmark-design.md)。
+工具目标是产出可复现、可解释的容量上限结论，例如“某设备、某软件版本、某算法编排、某输入视频下，容量上限为 15 路；16 路因平均丢弃率超过阈值失败”。
 
-> 本文档既是工具说明，也是**操作指南**——包含真实设备上踩过的坑和对应处置方式，照着「快速开始 → 实战流程 → 常见问题」即可跑通一轮压测。
+设计背景见 [docs/guide/scenario-benchmark-design.md](../../docs/guide/scenario-benchmark-design.md)。
 
----
+## 环境要求
 
-## 一、安装
+- Node.js >= 20
+- 控制 PC 可访问被测设备 Web/API 地址
+- 已在 CosmoEdge Web 页面完成目标场景任务编排，并导出算法编排模板
+- 场景包中包含导出的算法编排模板和输入视频
+
+安装依赖：
 
 ```bash
 cd tools/scenario-bench
-npm install        # 仅依赖 yaml
+npm install
 ```
 
-要求 **Node >= 20**（使用原生 `fetch` / `node:crypto`）。实测 Node 22/24 均可。
+## 快速运行
 
----
-
-## 二、快速开始（一轮完整压测）
-
-> 前置：设备已上电、Web 可访问、账号密码默认 `admin / admin`、场景包里的编排模板可被 `layout/save` 导入（工具已做类型归一化，全量导出包直接用）。
+建议先执行 `doctor`，确认场景包、视频、输出目录和设备登录均正常：
 
 ```bash
-cd tools/scenario-bench
+node src/cli.js doctor \
+  --scenario scenarios/no-helmet-99898-fps5-20260630 \
+  --output reports/no-helmet-99898-fps5-host22 \
+  --device http://192.168.0.22 \
+  --user admin \
+  --password admin
+```
 
+检查通过后运行压测：
+
+```bash
 node src/cli.js run \
   --device http://192.168.0.22 \
   --user admin \
   --password admin \
   --scenario scenarios/no-helmet-99898-fps5-20260630 \
-  --output reports/no-helmet-20260630 \
-  --cleanup --verbose
+  --output reports/no-helmet-99898-fps5-host22 \
+  --cleanup \
+  --verbose
 ```
 
-跑完后在 `reports/no-helmet-20260630/` 下：
+输出目录包含：
 
-- `metrics.json` —— 全量采样数据（每个 tick 的 FPS / 丢弃率 / 资源），程序化分析用
-- `report.html` —— 人读报告，含阶梯判定与瓶颈拐点
-- `metrics.partial.json` —— 运行中实时写入，进程崩了也能保住已采数据
+| 文件 | 说明 |
+| --- | --- |
+| `report.html` | 面向人工阅读的报告，包含容量结论、判定口径、路数结果和阈值明细 |
+| `summary.json` | 机器可读摘要，适合后续做批量汇总或版本对比 |
+| `metrics.json` | 完整采样数据，包含每个 tick 的通道指标和硬件资源 |
+| `metrics.partial.json` | 运行过程中持续写入的临时采样文件，用于异常中断兜底 |
 
-### 关于 `layout/save`（编排导入，已修复）
+## 创建场景包
 
-工具会在开跑前自动调用 `algorithm/layout/save` 把场景包里的编排模板导入设备。平台最新导出的全量包（100KB+）携带 `algorithmCategory` / `algorithmUsage` 等**数值型字段**，而后端 DTO（`AlgorithmDto_Layout.cc` 的 `MsgLayoutSaveRecv`）把这些字段全部声明为 `std::string`——nlohmann `get_to<std::string>()` 遇到 JSON 数字会抛 `type_error`，被路由层报成 **code 24「参数异常」**。
+场景包依赖一个预先导出的算法编排模板。该模板不是工具自动生成的，需要先在 CosmoEdge Web 页面上完成一次场景任务编排，然后从平台导出。
 
-工具已在 `layoutSavePayload`（`scenario-package.js`）里做了**类型归一化**：只组装 DTO 认识的字段，并把 category/usage 强制转字符串。所以现在**全量导出包可以直接用，无需 `--skip-import`**，也无需手工裁剪模板。
+推荐流程：
 
-仅当**编排模板已在设备上、且不想再触发导入**时才加 `--skip-import`（例如复测同一个算法）。注意：`--skip-import` 跳过导入后，工具仍用 `scenario.yml` 的 `algorithmId` 去绑定任务——如果设备上没有这套编排，任务会绑不上、采样全是空转（详见 Q1）。
+1. 在被测设备或同软件版本设备上，通过 Web 页面创建目标场景任务。
+2. 完成算法流程、原子能力、阈值、FPS、告警节点、调度等业务参数配置。
+3. 确认该任务可以在单路视频上正常运行。
+4. 从平台导出算法编排模板，保存为 `algorithm-template.json`。
+5. 使用 `init-scenario` 将模板、输入视频和压测阶梯配置组装成场景包。
 
----
+`scenario-bench` 会在压测开始前调用 `algorithm/layout/save`，把这个导出的编排模板导入到本次被测设备上。因此，同一个场景包可以复用于同型号或同软件版本设备的横向对比；但如果算法版本、编排结构或业务参数发生变化，应重新导出模板。
 
-## 三、实战流程（逐步）
-
-### 1. 准备场景包
-
-一个场景 = `scenarios/<name>/` 目录，含 4 个文件：
-
-| 文件 | 说明 | 来源 |
-| --- | --- | --- |
-| `algorithm-template.json` | 算法编排导出包（字段值含 JSON 字符串需二次解析） | 平台「导出」得到 |
-| `scenario.yml` | 名称、algorithmId、scheduleId、采样间隔、并发阶梯 `loadProfile` | 手写 |
-| `thresholds.yml` | PASS/FAIL 判定阈值 | 手写 |
-| `videos.yml` | 视频源模式与来源 | 手写 |
-| `<video>.mp4` | local 模式的视频样本 | 自备，**固定不变**才可复现 |
-
-可直接复制 `scenarios/no-helmet-99898-fps5-20260630/` 作为模板改。改名时同步改 `scenario.yml` 的 `name` 字段（它决定通道前缀 `bench-<name>`）。
-
-### 2. 校验场景包能正确解析（跑之前先验，省得跑到一半失败）
+可以用 `init-scenario` 从导出的算法模板和视频快速生成场景包：
 
 ```bash
-node -e "import('./src/scenario-package.js').then(({ScenarioPackage})=>{
-  const p=new ScenarioPackage('scenarios/no-helmet-99898-fps5-20260630').load();
-  console.log({algo:p.algorithmId, fps:p.targetFps, mode:p.videoMode, confVer:!!p.template.confVersionId, profile:p.loadProfile});
-})"
+node src/cli.js init-scenario \
+  --name my-scenario \
+  --template C:/path/to/algorithm-template.json \
+  --video C:/path/to/input.mp4 \
+  --output scenarios/my-scenario \
+  --display-name "未戴安全帽检测 - fps5" \
+  --algorithm-id 99898 \
+  --schedule-id e89c6c6385e5454b35cde0d1653vg
 ```
 
-期望输出类似：`{ algo:'99898', fps:5, mode:'local', confVer:true, profile:[...] }`。`fps` 为 `null` 说明模板里没找到 `AA_00001` 节点的 fps，吞吐比值判定会被跳过（不影响瓶颈判定）。
-
-### 3. 确认设备状态再开跑
+生成后建议立即执行：
 
 ```bash
-# Web 可达 + 登录端点活着
-curl -s -m 8 -X POST http://192.168.0.22/gtw/cwai/login/dologin \
-  -H "Content-Type: application/json" -d "{}" | head -c 200
+node src/cli.js doctor --scenario scenarios/my-scenario --output reports/my-scenario
 ```
 
-返回含 `"msgText"` 的登录失败提示是正常的（没带账号），说明端点活着。详见「常见问题」关于 **eMMC 临界** 和 **设备业务接口超时** 的处置。
+## 场景包结构
 
-### 4. 启动压测（后台跑，约 8–15 分钟）
+一个场景包是一个目录，至少包含以下文件：
 
-见「快速开始」命令。一轮 5 阶梯 × 30s + 24 路视频上传，总时长约 3–5 分钟（取决于上传速度）。建议加 `--verbose` 并 `tee` 到日志：
+| 文件 | 说明 |
+| --- | --- |
+| `algorithm-template.json` | 从平台导出的算法编排模板；需先在 Web 页面完成场景任务编排并导出 |
+| `scenario.yml` | 场景名称、算法 ID、调度 ID、采样间隔和容量扫描范围 |
+| `thresholds.yml` | 报告 PASS/FAIL 使用的阈值 |
+| `videos.yml` | 视频输入模式和视频文件配置 |
+| `*.mp4` | local 模式下的本地输入视频 |
 
-```bash
-node src/cli.js run --device ... --skip-import --cleanup --verbose 2>&1 \
-  | tee reports/run-<scenario>-<date>.log
-```
-
-### 5. 看结果
-
-关键日志行（grep 出来即可判断）：
-
-```
-[INFO] [baseline] step 1 steady minFps=... → gate at fps<... or discard>0.05
-[INFO] [step N] steady minFps=... meanDiscard=... npu=... cpu=... → ok, continuing
-[WARN] [step N] ramp fuse tripped: ...        ← 瓶颈触发，自动停在此阶梯
-[INFO] Report written: ...
-```
-
-- **`→ ok, continuing`** = 该阶梯通过，继续加压。
-- **`ramp fuse tripped` / `BOTTLENECK`** = 拐点，工具自动停止后续加压（不会傻跑到 24 路把设备拖死）。
-- `metrics.json` 顶层 `status` / `bottleneck` / `baselineFps` 是结构化结论。
-
----
-
-## 四、判定逻辑（怎么算「瓶颈」）
-
-工具用**两级熔断**，都用稳态采样（每阶梯保持期的后半段，排除刚绑定时 fps/丢弃率的爬坡抖动）：
-
-| 判据 | 阈值 | 含义 |
-| --- | --- | --- |
-| FPS 折半 | 稳态 minFps < baseline × 0.5 | 并发上去后实测处理帧率比第 1 阶梯基线跌掉一半 |
-| 丢弃率 | **均值** discard > 5%，连续 2 次采样 | 队列开始持续丢帧，算力跟不上输入 |
-| 内存熔断 | 内存 ≥ 98% 连续 3 次 / 或 60s 均值 ≥ 95% | 接近 OOM |
-| CPU/NPU | ≥ 98% 连续 3 次 | 资源饱和 |
-
-**首阶梯（1 路）的稳态 minFps 作为基线**，后续阶梯与之对比。命中任一熔断即记录瓶颈拐点并提前停止。
-
-### 为什么丢弃率用「均值」而非「最大值」
-
-丢弃率判定取**一个阶梯稳态期内所有通道 × 所有 tick 的丢弃率均值**，而不是单点最大值。原因：单点 max 对瞬态扰动（GC 停顿、刚绑定通道的稳定期、偶发尖峰）过于敏感，容易**误判中断**——实测中 16 路 NPU 已到 96% 但均值丢弃仅 1.7%，若用 max 某个尖峰大概率 >5% 就会提前误停；改用均值后能正确「继续加压」到真实拐点。均值平滑了瞬态，同时仍能捕捉到「丢弃率持续高位」这种真正的过载。
-
-### 延时指标用「通道内均值 + 通道间最大」
-
-报告里的 **关键链路延时** / **检测节点延时** 同样不能取单点最大值，否则一次 GC 或调度抖动就会被层层 max 放大成整阶梯的判定值直接 FAIL。采用两层聚合：
-
-1. **通道内**：单个通道在稳态期各 tick 的延时取**均值** —— 削掉单 tick 尖峰。
-2. **通道间**：取所有「通道均值」里的**最大值** —— 保留「最慢那一路」这个真实瓶颈信号。
-
-这与丢弃率「tick 间均值」的降噪思路一致。注意不能用全局均值：实测 16 路中有 35ms 的快路和 142ms 的慢路并存，全局均值（78ms）会被快路稀释、**掩盖真实瓶颈**；而「通道均值取 max」（142ms）既能反映最慢通道，又剔除了单 tick 抖动（旧的全局 max 是 158ms）。
-
-阈值判定（`thresholds.yml` 的 `maxDetectorLatencyMs` / `maxCriticalPathLatencyMs`）比对的就是这个「最慢通道的平均延时」。
-
-### 采样参数与保持期
-
-- `sampleIntervalSec`（采样间隔）与每阶梯 `holdSec`（保持期）共同决定每阶梯采样点数：`ticks = floor(holdSec / sampleIntervalSec)`。
-- 推荐配置：`holdSec: 30` + `sampleIntervalSec: 3` = **每阶梯 10 个点**（稳态后半 5 点），均值判定有足够样本抗扰动，单轮 5 阶梯约 3 分钟。
-- 若加大保持期（如长稳测试），保持期越长，稳态点越多，均值越平滑；但单轮耗时也线性增长。
-
-> local 模式下 demux 以**源视频原生帧率全速推帧**（实测 ~42fps，远超编排设定 fps），所以 `minProcessFpsRatio`（实测/设定）通常 ≫ 1 恒 PASS——**判瓶颈看并发上去后实测 fps 是否被压低、均值丢弃率是否上升**，而不是看 fps 比值。
-
----
-
-## 五、命令行参数
-
-```
-必填:
-  --device <url>              设备地址，例如 http://192.168.0.22
-  --user <account>            登录账号
-  --password <plain>          登录密码（内部 MD5 大写后传输）
-  --scenario <dir>            场景包目录
-  --output <dir>              报告输出目录
-
-常用:
-  --cleanup                   结束后删除本次创建的通道（推荐，避免残留）
-  --verbose                   打印每 tick 采样日志（排障必加）
-  --no-reuse                  不复用已存在的 bench 通道，总是新建
-  --skip-import               跳过 algorithm/layout/save（仅复测已导入的算法时用；首次/换算法时不要加）
-
-调优（一般不用改）:
-  --ramp-batch-size <n>       每阶梯新增通道的批次大小，默认 1
-  --ramp-batch-delay-sec <n>  批次间隔秒数，默认 15
-  --lang <code>               Accept-Language，默认 zh-CN
-  -h, --help                  帮助
-```
-
----
-
-## 六、场景包字段速查
-
-### scenario.yml
+`scenario.yml` 示例：
 
 ```yaml
-name: no-helmet-99898-fps5-20260630     # 决定通道前缀 bench-<name>
-displayName: 未戴安全帽检测
-algorithmId: "99898"                     # 字符串，对应设备算法 code
-scheduleId: "e89c6c6385e5454b35cde0d1653vg"  # 平台默认 24/7 调度
-sampleIntervalSec: 3                     # 采样间隔（推荐 3s，配合 30s 保持期 = 10 点/步）
-videoRepeatCount: 0                      # 0=无限循环（local 持续产生负载）
-
-loadProfile:                            # 并发阶梯，首阶梯作为 fps 基线
+name: "no-helmet-99898-fps5"
+displayName: "未戴安全帽检测(算法 99898, fps5)"
+algorithmId: "99898"
+scheduleId: "e89c6c6385e5454b35cde0d1653vg"
+sampleIntervalSec: 3
+videoRepeatCount: 0
+loadProfile:
   - channels: 1
-    holdSec: 30                          # 保持期 30s（推荐）
+    holdSec: 30
   - channels: 4
     holdSec: 30
   - channels: 8
@@ -202,80 +122,153 @@ loadProfile:                            # 并发阶梯，首阶梯作为 fps 基
     holdSec: 30
 ```
 
-### videos.yml
+默认运行模式为 `--profile capacity`，工具会将 `loadProfile` 展开为连续路数扫描。以上配置表示最多扫描到 24 路，实际执行路数为 `1,2,3,...,24`。`holdSec` 使用相邻配置的保持时间；常规场景中保持各项一致即可。
+
+`thresholds.yml` 示例：
 
 ```yaml
-mode: local          # MVP 默认；rtsp-fidelity / rtsp-deterministic 属第二阶段
-
-local:
-  - name: no-helmet-01
-    file: LX0000000007.mp4     # 相对场景目录；工具会分片上传到设备再建渠道
-    # filePath: /data/.../x.mp4 # 也可直接指向设备上已有文件，跳过上传
+pass:
+  maxCriticalPathLatencyMs: 200
+  maxDetectorLatencyMs: 150
+  avgDiscardRate: 0.02
+  maxPacketDiscardRate: 0.01
 ```
 
-| mode | 用途 | 说明 |
-| --- | --- | --- |
-| `local` | 容量基准（默认） | `Camera/AddVideo`，输入完全一致，可跨版本/跨设备对比 |
-| `rtsp-fidelity` | 生产保真 | `Camera/Add`，真实 RTSP，验证丢包/重连（第二阶段） |
-| `rtsp-deterministic` | 可复现 + 走网络 | 本地文件经 ffmpeg/MediaMTX 打 RTSP（第二阶段） |
+`videos.yml` 示例：
 
----
+```yaml
+mode: local
 
-## 七、关键实现细节（改代码前必读）
+local:
+  - name: "no-helmet-01"
+    file: "LX0000000007.mp4"
+```
 
-- **taskId 规则**：`videoChannelId + "_" + algorithmCode`（见 `CameraTaskUnit.cc`），工具本地计算，`RunningDetail` 用 taskId 过滤（非 channelId）。
-- **取帧基准 fps**：从编排图 `AA_00001` 节点 `configObject.params.fps` 提取，作为 `minProcessFpsRatio` 分母。
-- **RunningDetail 静默过滤**：action 数量 ≤ 2 的任务不出现在响应中，工具对缺失路标记 `missing: true`。
-- **增量绑定**：local 视频任务 OFF 后无法再 ON（demux 不重启本地文件），故每阶梯只绑定**新增**通道，已运行的通道全程不打断，仅最终 teardown 全关。
-- **每路独立上传**：`AddVideo` 会 move 掉 temp 文件，同一上传路径不能跨通道复用，所以 N 路 = N 次分片上传。
-- **部分报告兜底**：即使中途设备挂起/超时导致中断，已采集的数据仍会写入 `metrics.partial.json` 并产出 `status=aborted` 的报告，不会静默丢失。
+## 命令说明
 
----
+### `doctor`
 
-## 八、常见问题（真机实测踩坑）
+用于运行前检查。默认检查本地环境和场景包；如果提供设备参数，则同时检查设备登录和设备信息。
 
-### Q1：任务起不来，采样全是 `fps=- / discard=-`，CPU 1%
+```bash
+node src/cli.js doctor --scenario <dir> [--output <dir>] [--device <url> --user <u> --password <p>]
+```
 
-**根因几乎都是「场景模板与设备上的编排不一致」**。工具用 `scenario.yml` 的 `algorithmId` 去 `ApplyParamsBatch` 绑定任务，如果设备上没有这套编排（或编排版本对不上），绑定会 `partially failed`，任务空转，`RunningDetail` 采不到任何数据，所有熔断失效——白白加压到 24 路。
+检查项包括：
 
-排查与处置：
-1. **先正常跑（不加 `--skip-import`）**，让工具自动导入编排。`layout/save` 已做类型归一化，全量导出包可直接用。
-2. 看日志里有没有 `Layout saved.` —— 没有就是导入失败（看是否 code 24）。
-3. 看有没有 `ApplyParamsBatch partially failed on: LXxxxx` —— 有就是模板与设备编排对不上，换正确的场景模板重跑。
-4. 切换算法版本（如 fps 3→5、code 15→99898）时，**必须换对应的 `algorithm-template.json`**，不能只改 `scenario.yml` 的 `algorithmId`。
+- Node.js 版本
+- 场景包四个核心配置文件
+- 算法 ID、目标 FPS、视频模式、并发阶梯
+- `layout/save` payload 可生成
+- local 视频文件存在
+- 输出目录可写
+- 设备登录和设备信息查询
 
-### Q2：`layout/save` 报 code 24「参数异常」（历史问题，工具已修复）
+### `run`
 
-平台导出包把 `algorithmCategory` / `algorithmUsage` 序列化成 JSON 数字，而后端 DTO 要 string。工具的 `layoutSavePayload` 已强制转字符串，**正常情况下不会再遇到**。若仍报 code 24，检查模板里这两个字段的类型，或临时加 `--skip-import`（前提是编排已在设备上）。
+执行完整压测。
 
-### Q3：eMMC 临界满（94–96%）影响压测吗？
+```bash
+node src/cli.js run --device <url> --user <u> --password <p> --scenario <dir> --output <dir> [options]
+```
 
-**不影响吞吐判定，但影响「下一轮能不能上传起来」。** local 模式 eMMC 只在上传阶段写一次，推理热路径走内存不碰磁盘。但每轮 24 路 ≈ 480MB 上传文件，`--cleanup` 只删通道记录**不删设备临时文件**，多轮累积会把 eMMC 撑到真正写不进去。处置：
+常用参数：
 
-- 每轮开跑前清理设备 `/data/cwaiuserdata/tmp/model_upload/` 下历史 `chunk_*` 残留。
-- 跑完检查 `metrics.json` 里 `eMMCUtilization` 是否还在涨；只升不降就该清理了。
+| 参数 | 说明 |
+| --- | --- |
+| `--cleanup` | 运行结束后删除本次创建的通道，推荐开启 |
+| `--verbose` | 打印每次采样日志，便于排查 |
+| `--skip-import` | 跳过 `algorithm/layout/save`，仅在设备上已存在对应编排时使用 |
+| `--no-reuse` | 不复用已有 bench 通道，总是新建 |
+| `--profile <mode>` | `capacity` 默认，连续扫描路数上限；`configured` 按 `scenario.yml` 原始配置执行 |
+| `--ramp-batch-size <n>` | 每次 ramp 新增通道数，默认 1 |
+| `--ramp-batch-delay-sec <n>` | ramp 批次间隔，默认 15 秒 |
 
-### Q4：设备业务接口（Camera/Page、QueryHardwareResource）超时，但登录正常
+### `init-scenario`
 
-常见于**刚结束一轮高负载压测**后，设备业务服务还在回收（删通道、回收内存）。等待 30–60s 后重试即可，不是工具问题。压测工具自身每个请求有 20s 超时。
+生成新的场景包。
 
-### Q5：第一阶梯内存就偏高
+```bash
+node src/cli.js init-scenario --name <name> --template <algorithm-template.json> --video <file> [options]
+```
 
-这是设备常态（系统服务占用），不是工具引入的。**真正的瓶颈信号是「并发加上去后均值丢弃率连续超 5%」或「FPS 折半」**，不是单看内存绝对值。
+常用参数：
 
-### Q6：怎么换一台机器跑
+| 参数 | 说明 |
+| --- | --- |
+| `--output <dir>` | 新场景目录，默认 `scenarios/<name>` |
+| `--display-name <name>` | 报告展示名称 |
+| `--algorithm-id <id>` | 算法 ID；不传时从模板推导 |
+| `--schedule-id <id>` | 调度 ID |
+| `--target-fps <n>` | 仅用于默认展示名；运行时目标 FPS 从模板中提取 |
 
-只改 `--device`，其余参数和场景包完全不变——这正是 local 模式可复现的意义。建议每台机器用不同的 `--output` 目录归档，便于横向对比。
+## 判定口径
 
-### Q7：想要单遍验证（不循环）
+报告面向“路数上限”输出。默认 `capacity` 模式会从 1 路开始逐路增加并保持采样，直到达到配置上限或触发失败/熔断。
 
-`scenario.yml` 里设 `videoRepeatCount: 1`，本地视频只读一轮。默认 `0` 是无限循环（持续负载）。
+| 概念 | 含义 |
+| --- | --- |
+| 容量上限 | 最后一个完整执行、且所有报告阈值均 PASS 的连续路数 |
+| 路数 PASS/FAIL | 按 `thresholds.yml` 中的阈值对某个路数进行判定 |
+| 瓶颈停止 | 运行期保护熔断，用于避免继续加压导致设备不可用 |
+| 基线 FPS | 第 1 阶梯稳定窗口的最低检测 FPS，用于后续 FPS 折半判断 |
 
----
+例如某次运行中：
 
-## 九、当前限制（MVP）
+- 1-15 路均 PASS
+- 16 路平均丢弃率 `0.0418 > 0.02`，因此 16 路 FAIL
+- 工具停止继续加压
 
-- 仅 `local` 视频模式；rtsp 两种模式与推流器属第二阶段。
-- 报告为静态 HTML 表格，无资源曲线图（第二阶段）。
-- 事件统计依赖后续为 `test/push-test-service` 补 `/stats` 端点。
-- `RunningDetail` 当前不返回 task 级实测 FPS，报告中 `measuredFps` 为 `processCountPeriod / periodMs` 推算值。
+此时准确结论是“容量上限 15 路”。失败路数及失败原因仍会保留在报告明细中。
+
+如需复现旧行为，可显式使用 `--profile configured`，按 `scenario.yml` 原始 `1/4/8/16/24` 配置执行；此模式只能给出已验证配置点，不能给出连续容量上限。
+
+## 指标聚合
+
+每个阶梯会持续采样。为了降低通道刚绑定时的瞬态抖动影响，报告汇总只使用该阶梯后半段采样点作为稳定窗口。
+
+主要指标口径：
+
+| 指标 | 聚合方式 |
+| --- | --- |
+| 检测 FPS | 稳定窗口内各通道检测 FPS 的最小相关值，用作参考 |
+| 平均丢弃率 | 先计算每个通道稳定窗口平均丢弃率，再对通道取平均；报告 PASS/FAIL 使用该值 |
+| 最差通道丢弃率 | 先计算每个通道稳定窗口平均丢弃率，再取通道间最大值；用于辅助定位单路异常，不作为默认容量判定 |
+| 检测节点延时 | 单通道稳定窗口内取平均，再取通道间最大值 |
+| 关键链路延时 | 解码、检测、跟踪、分类、判断等关键节点延时求和；单通道稳定窗口内取平均，再取通道间最大值 |
+| NPU/CPU/内存峰值 | 稳定窗口内硬件资源峰值 |
+
+报告 PASS/FAIL 使用 `thresholds.yml`。运行期瓶颈停止使用独立保护规则，典型规则包括：
+
+- 稳定窗口最低 FPS 低于第 1 阶梯基线的 50%
+- 运行期通道平均丢弃率连续采样超过 5%
+- CPU、NPU 或内存连续高位运行
+
+## 输入模式
+
+当前主要支持 `local` 模式：工具将本地视频上传到设备，再创建本地视频通道。该模式适合作为容量基准，因为输入内容固定，跨版本和跨设备对比更稳定。
+
+`rtsp-fidelity` 和 `rtsp-deterministic` 是预留模式，适合后续扩展到生产 RTSP 保真或可控 RTSP 推流。
+
+## 编排导入
+
+默认运行会调用 `algorithm/layout/save` 将 `algorithm-template.json` 导入设备。这个文件应来自 Web 页面中已配置完成的场景任务导出包，包含算法流程、原子能力、节点参数和任务配置等信息。工具不会自动设计或生成算法流程，只负责导入已有编排并对其做并发压测。
+
+工具会对平台导出的模板做必要的 payload 归一化，例如将 `algorithmCategory`、`algorithmUsage` 转为字符串，以适配后端 DTO。
+
+仅当确认设备上已经存在对应算法编排时，才建议使用 `--skip-import`。如果跳过导入但设备上没有对应编排，任务绑定可能失败，采样会缺失有效数据。
+
+## 使用建议
+
+- 每次正式压测前先运行 `doctor`。
+- 正式压测建议使用 `--cleanup`，避免通道残留影响后续测试。
+- 不同设备、软件版本、算法模板或输入视频应使用不同输出目录。
+- 对外引用结果时优先使用 `summary.json` 和 `report.html` 首页结论。
+- 如需做版本趋势对比，使用 `summary.json` 汇总，不直接解析 HTML。
+
+## 当前限制
+
+- 当前主要验证 `local` 视频模式。
+- 报告为静态 HTML，暂不包含资源曲线图。
+- 事件、MQTT、HTTP 推送等业务闭环校验尚未纳入默认判定。
+- `metrics.json` 体积较大，适合程序分析，不建议人工直接阅读。

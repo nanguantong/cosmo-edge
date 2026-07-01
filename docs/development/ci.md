@@ -21,7 +21,7 @@ next: false
 | C++ 静态分析 | `scripts/static_analysis.sh --cppcheck`、`scripts/static_analysis.sh --clang-tidy` | 定期 / 手动 / self-hosted |
 | CPU 测试构建 | `scripts/build_cpu_test.sh`、`build_cpu/cosmo-tests` | Pull request / 手动 |
 | x86 Docker | `docker compose -f docker-compose.x86.yml up -d --build` (Windows 下为 `docker-compose.x86.windows.yml`) | 手动 / release 前 |
-| Sophon 发布包 | `docker compose -f docker-compose.sophon.yml up --build` | 手动 / self-hosted |
+| Sophon 发布包 | `docker compose -f docker-compose.sophon.yml run --rm cosmo-sophon-package` | 手动 / self-hosted |
 
 ## 文档站检查
 
@@ -159,7 +159,7 @@ x86 开发模式可用于集成级验证：
 Sophon/aarch64 发布包构建入口：
 
 ```bash
-docker compose -f docker-compose.sophon.yml up --build
+docker compose -f docker-compose.sophon.yml run --rm cosmo-sophon-package
 ```
 
 Windows PowerShell：

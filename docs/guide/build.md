@@ -68,7 +68,7 @@ docker compose -f docker-compose.x86.windows.yml up -d --build
 Linux / Bash：
 
 ```bash
-docker compose -f docker-compose.sophon.yml up --build
+docker compose -f docker-compose.sophon.yml run --rm cosmo-sophon-package
 ```
 
 Windows PowerShell：

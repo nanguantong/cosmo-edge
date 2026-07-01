@@ -15,6 +15,7 @@ TEST_CASE("MessageAuthHandler: Login success", "[AuthHandler]") {
 
     REQUIRE_CALL(mocks.authSvc, Login("admin", "pass123"))
         .RETURN(std::make_pair(std::string("token_abc"), util::ErrorEnum::Success));
+    ALLOW_CALL(mocks.authSvc, IsDefaultPassword()).RETURN(true);
 
     Auth::MsgDoLoginRecv req{};
     req.account = "admin";
@@ -25,6 +26,7 @@ TEST_CASE("MessageAuthHandler: Login success", "[AuthHandler]") {
     REQUIRE(errc == util::ErrorEnum::Success);
     REQUIRE(rsp.resData.mtk == "token_abc");
     REQUIRE(rsp.resData.accountName == "admin");
+    REQUIRE(rsp.resData.passwordChangeRequired == true);
 }
 
 TEST_CASE("MessageAuthHandler: Login failure", "[AuthHandler]") {

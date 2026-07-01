@@ -80,7 +80,7 @@ Use the full run command:
 For the Sophon path, use:
 
 ```bash
-docker compose -f docker-compose.sophon.yml up --build
+docker compose -f docker-compose.sophon.yml run --rm cosmo-sophon-package
 ```
 
 Note: `docker compose build` only builds the image and does not necessarily execute the container command that exports the release package.
@@ -92,7 +92,7 @@ The Sophon build uses a self-contained `Dockerfile.sophon` (based on `ubuntu:22.
 If the build fails, check the Docker build logs:
 
 ```bash
-docker compose -f docker-compose.sophon.yml up --build 2>&1 | tail -50
+docker compose -f docker-compose.sophon.yml run --rm cosmo-sophon-package 2>&1 | tail -50
 ```
 
 Common causes:

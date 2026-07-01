@@ -1,69 +1,134 @@
 $ErrorActionPreference = "Stop"
 
-# ---------------------------------------------------------------------------
-# Restore Linux .so symlinks that Git on Windows checks out as plain text files.
-# Scans prebuild/ and 3rd/ for small files whose content is a relative path
-# pointing to another file in the same directory, then replaces the placeholder
-# with a copy of the real binary (recursively resolving symlink chains).
-# ---------------------------------------------------------------------------
+# =============================================================================
+# build_sophon_package.ps1
+# Windows entry point for Sophon (aarch64) cross-compilation.
+#
+# Strategy:
+#   Docker Desktop on Windows uses a WSL2 VM; named volumes inside that VM
+#   are native ext4.  By syncing the source tree into a named volume we get:
+#     1. Case-sensitive filesystem (no MqttClient.h / MQTTClient.h collision)
+#     2. Native I/O speed (no 9P overhead for every .o file write)
+#     3. Working Linux symlinks (ext4, not NTFS)
+#
+# The initial copy into the volume goes through 9P once (~1 min).
+# Subsequent builds copy only changed files.
+#
+# Prerequisites: Docker Desktop
+# Output:         build_output/cosmo-*.tar.gz
+# =============================================================================
 
-$targetDirs = @(
-    "$PSScriptRoot/../prebuild",
-    "$PSScriptRoot/../3rd"
-)
+$VolumeName  = "cosmo-sophon-source"
+$ComposeFile = "docker-compose.sophon.yml"
+$OverrideFile = "docker-compose.sophon.override.yml"
 
-foreach ($dir in $targetDirs) {
-    $resolvedDir = [System.IO.Path]::GetFullPath($dir)
-    if (-not (Test-Path $resolvedDir)) {
-        Write-Warning "Directory not found: $resolvedDir"
-        continue
-    }
+# ── Helpers ──────────────────────────────────────────────────────────────────
 
-    Write-Host "Scanning for dummy symbolic link files in $resolvedDir..."
+function Write-Step { Write-Host "`n=== $args ===" -ForegroundColor Cyan }
 
-    Get-ChildItem -Path $resolvedDir -Recurse -File | ForEach-Object {
-        if ($_.Length -lt 200 -and ($_.Name -like "*.so" -or $_.Name -like "*.so.*" -or $_.Extension -eq "")) {
-            try {
-                $content = (Get-Content $_.FullName -Raw -ErrorAction Stop).Trim()
-                if ($content -and -not ($content -match "[\r\n]") -and (Test-Path (Join-Path $_.DirectoryName $content))) {
-                    $targetPath = Join-Path $_.DirectoryName $content
-
-                    # Recursively resolve symlink chain if the target itself is another placeholder
-                    $safetyCounter = 0
-                    while ($safetyCounter -lt 10) {
-                        $targetItem = Get-Item $targetPath
-                        if ($targetItem.Length -lt 200) {
-                            $nextContent = (Get-Content $targetPath -Raw).Trim()
-                            if ($nextContent -and -not ($nextContent -match "[\r\n]") -and (Test-Path (Join-Path $targetItem.DirectoryName $nextContent))) {
-                                $targetPath = Join-Path $targetItem.DirectoryName $nextContent
-                                $safetyCounter++
-                                continue
-                            }
-                        }
-                        break
-                    }
-
-                    Write-Host "Restoring: $($_.FullName) -> $targetPath"
-                    Remove-Item $_.FullName -Force
-                    Copy-Item -Path $targetPath -Destination $_.FullName -Force
-                }
-            } catch {
-                # Not a plain text file or failed to read, skip
-            }
-        }
+# Run a docker command via cmd.exe so PowerShell 5.1 does not see stderr
+# (which it would otherwise treat as a terminating error due to
+# $ErrorActionPreference = "Stop").
+function Invoke-Docker {
+    $args_flat = $args -join ' '
+    cmd /c "docker $args_flat"
+    if ($LASTEXITCODE -ne 0) {
+        throw "docker $args_flat  failed (exit $LASTEXITCODE)"
     }
 }
 
-Write-Host "Symlinks restoration completed successfully!"
+# Convert a Windows path to a Linux path visible inside a Docker container
+# via the shared drive.  D:\project\cosmo-edge  ->  //d/project/cosmo-edge
+function ConvertTo-DockerPath {
+    param([string]$WinPath)
+    $abs = [System.IO.Path]::GetFullPath($WinPath)
+    $drive = $abs.Substring(0, 1).ToLower()
+    return "/$drive" + $abs.Substring(2).Replace('\', '/')
+}
 
-# ---------------------------------------------------------------------------
-# Build the Sophon release package
-# ---------------------------------------------------------------------------
+# ── Main ─────────────────────────────────────────────────────────────────────
 
-$ProjectRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-Push-Location $ProjectRoot
+$scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
+$projectRoot = [System.IO.Path]::GetFullPath((Join-Path $scriptDir ".."))
+$dockerSrc  = ConvertTo-DockerPath $projectRoot
+
+Write-Step "Step 1/5 - Checking Docker"
+try { Invoke-Docker info } catch { Write-Error "Docker is not running. Start Docker Desktop, then re-run."; exit 1 }
+Write-Host "Docker is ready"
+
+Write-Step "Step 2/5 - Syncing source to Docker volume ($VolumeName)"
+
+# Create volume if it doesn't exist.
+cmd /c "docker volume inspect $VolumeName >nul 2>nul"
+if ($LASTEXITCODE -ne 0) {
+    cmd /c "docker volume create $VolumeName >nul 2>nul"
+    Write-Host "Created volume: $VolumeName"
+}
+
+# Copy from Windows source into the volume, excluding directories we never
+# need inside the build container (.git, node_modules, old build outputs).
+# sync-source-volume.sh is mounted from the Windows source directly.
+Write-Host "Copying project from $projectRoot into volume..."
+Invoke-Docker run --rm `
+    -v "${dockerSrc}:/src:ro" `
+    -v "${VolumeName}:/workspace" `
+    alpine `
+    sh /src/scripts/sync-source-volume.sh
+Write-Host "Source sync complete"
+
+Write-Step "Step 3/5 - Restoring Linux .so symlinks"
+
+# Git on Windows cannot represent Linux symlinks.  They checkout as small
+# text files containing the target filename.  We recreate them as real
+# symlinks on the ext4 volume so the linker resolves .so chains correctly.
+# After Step 2 the script is in /workspace/scripts/restore-symlinks.sh.
+Invoke-Docker run --rm `
+    -v "${VolumeName}:/workspace" `
+    alpine `
+    sh /workspace/scripts/restore-symlinks.sh
+
+Write-Step "Step 4/5 - Running Sophon cross-compilation"
+
+# Generate a compose override that swaps the bind mount for our named volume.
+# The override REPLACES the volumes list; we keep ./build_output as a bind
+# mount so packages land directly on Windows.
+@"
+# Auto-generated by build_sophon_package.ps1 - do not commit.
+services:
+  cosmo-sophon-package:
+    volumes:
+      - ${VolumeName}:/workspace
+      - ./build_output:/build_output
+volumes:
+  ${VolumeName}:
+    external: true
+"@ | Out-File -FilePath (Join-Path $projectRoot $OverrideFile) -Encoding utf8
+
+Push-Location $projectRoot
 try {
-    docker compose -f docker-compose.sophon.yml run --rm cosmo-sophon-package
+    cmd /c "docker compose -f $ComposeFile -f $OverrideFile run --rm cosmo-sophon-package"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Docker build failed with exit code $LASTEXITCODE."
+        exit $LASTEXITCODE
+    }
 } finally {
     Pop-Location
+    Remove-Item (Join-Path $projectRoot $OverrideFile) -Force -ErrorAction SilentlyContinue
 }
+
+Write-Step "Step 5/5 - Build output"
+$outputDir = Join-Path $projectRoot "build_output"
+if (Test-Path $outputDir) {
+    $packages = Get-ChildItem $outputDir -Filter "*.tar.gz"
+    if ($packages) {
+        foreach ($pkg in $packages) {
+            Write-Host "  $($pkg.Name)  ($('{0:N0}' -f $pkg.Length) bytes)" -ForegroundColor Green
+        }
+    } else {
+        Write-Warning "No .tar.gz found in build_output/"
+    }
+} else {
+    Write-Warning "build_output/ directory not found"
+}
+
+Write-Host "`n=== Sophon build completed ===" -ForegroundColor Green

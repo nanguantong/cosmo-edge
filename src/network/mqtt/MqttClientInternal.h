@@ -8,7 +8,7 @@
 #include <mutex>
 #include <string>
 
-#include "MQTTClient.h"
+#include <MQTTClient.h>
 #include "network/mqtt/MqttClient.h"
 #include "network/mqtt/MqttTypes.h"
 #include "util/Log.h"

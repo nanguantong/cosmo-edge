@@ -69,6 +69,7 @@ struct MsgHwInfo {
 struct ActionStatus {
     std::string statusCode;
     std::string statusDesc;
+    std::string statusDescKey;
     std::string actionId;
     std::string name;
 

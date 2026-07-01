@@ -13,7 +13,7 @@
         <el-table-column prop="name" :label="t('field.flowName')"></el-table-column>
         <el-table-column :label="t('field.status')">
           <template #default="scope">
-            <span>{{ scope.row.statusDesc }}</span>
+            <span>{{ translateApiMessage(scope.row.statusDescKey, scope.row.statusDesc) }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="fps" :label="t('glossary.frameRate')">
@@ -30,7 +30,7 @@
 
 <script setup>
 import { ref, watch, getCurrentInstance } from 'vue'
-import { t, localeColon } from '@/i18n'
+import { t, localeColon, translateApiMessage } from '@/i18n'
 
 const props = defineProps({
   visible: {

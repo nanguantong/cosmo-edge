@@ -290,6 +290,7 @@ namespace {
             std::error_condition qerr = queue_status.actionStatus;
             action.statusCode         = std::to_string(qerr.value());
             action.statusDesc         = qerr.message();
+            action.statusDescKey      = "api.error." + util::ErrorEnumName(static_cast<util::ErrorEnum>(qerr.value()));
             action.holdCount          = queue_status.queueStatus.holdCount;
             action.alarmCount         = queue_status.alarmCount;
             action.insertCount        = queue_status.queueStatus.insertCount;

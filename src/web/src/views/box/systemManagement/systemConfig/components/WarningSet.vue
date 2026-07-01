@@ -127,7 +127,7 @@ const queryPictureQuality = () => {
 const queryAlarmVideoDuration = () => {
   $API.queryAlarmVideoDuration().then((res) => {
     const { resData } = res
-    formData.value.switch = resData.switch
+    formData.value.switch = resData.enable
     formData.value.videoPreTime = resData.videoPreTime
     formData.value.videoPostTime = resData.videoPostTime
   })

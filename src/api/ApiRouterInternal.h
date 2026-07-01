@@ -30,6 +30,7 @@ namespace detail {
         retData.resCode = kServerRspFailed;
         MsgResBase resMsg;
         resMsg.msgCode = std::to_string(errc.value());
+        resMsg.messageKey = "api.error." + util::ErrorEnumName(static_cast<util::ErrorEnum>(errc.value()));
         resMsg.msgText = e.what();
         retData.resMsg.push_back(resMsg);
         return nlohmann::json(retData).dump();
@@ -41,6 +42,7 @@ namespace detail {
         retData.resCode = kServerRspFailed;
         MsgResBase resMsg;
         resMsg.msgCode = std::to_string(errc.value());
+        resMsg.messageKey = "api.error." + util::ErrorEnumName(static_cast<util::ErrorEnum>(errc.value()));
         resMsg.msgText = errMsg;
         retData.resMsg.push_back(resMsg);
         return nlohmann::json(retData).dump();
@@ -53,6 +55,7 @@ namespace detail {
         retData.resCode = kServerRspFailed;
         MsgResBase resMsg;
         resMsg.msgCode = std::to_string(errc.value());
+        resMsg.messageKey = "api.error." + util::ErrorEnumName(util::ErrorEnum::ParameterException);
         resMsg.msgText = errc.message();
         retData.resMsg.push_back(resMsg);
         return nlohmann::json(retData).dump();
@@ -74,12 +77,14 @@ namespace detail {
                 ret.resCode = kServerRspSuccess;
                 MsgResBase resMsg;
                 resMsg.msgCode = std::to_string(errc.value());
+                resMsg.messageKey = "api.error.Success";
                 resMsg.msgText = "操作成功";
                 ret.resMsg.push_back(resMsg);
             } else {
                 ret.resCode = kServerRspFailed;
                 MsgResBase resMsg;
                 resMsg.msgCode = std::to_string(errc.value());
+                resMsg.messageKey = "api.error." + util::ErrorEnumName(static_cast<util::ErrorEnum>(errc.value()));
                 resMsg.msgText = errc.message();
                 ret.resMsg.push_back(resMsg);
             }

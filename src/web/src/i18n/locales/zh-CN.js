@@ -1421,7 +1421,32 @@ export default {
     networkError: '网络异常，请稍后重试',
     fileFetchFailed: '文件获取失败',
     fileExpired: '文件失效',
-    cameraOffline: '相机不在线'
+    cameraOffline: '相机不在线',
+    error: {
+      Success: '操作成功',
+      AlgorithmInUse: '算法正在被使用，删除失败，请先在任务中删除该算法',
+      NotInit: '目标未初始化',
+      ActionReady: '动作已初始化未启动',
+      ActionStart: '动作已启动',
+      ActionStop: '动作已停止',
+      FlowDataInvalid: '动作流数据异常',
+      VideoResolutionNotSupport: '视频分辨率不支持',
+      VideoFormatNotSupport: '视频格式不支持',
+      DecoderFrameFailed: '解码帧数据失败',
+      DecoderColorConvertFailed: '图像色彩转换失败',
+      DecoderResizePaddingFailed: '图像Padding失败',
+      DemuxOpenInvalidUrl: '流地址无效',
+      DemuxOpenStreamFail: '取流打开流失败',
+      DemuxOpenStreamUnauthorized: '取流校验失败',
+      DemuxFindStreamFail: '取流查找流失败',
+      DemuxFindVideoStreamFail: '取流查找视频流失败',
+      DemuxInitBsfcFail: '取流初始化过滤器失败',
+      DemuxGetStreamFail: '取流失败',
+      DemuxStreamStart: '开始取流',
+      DemuxStreamClosed: '取流结束',
+      DemuxReadStreamFail: '读流失败',
+      DemuxNoData: '取流无数据'
+    }
   },
   onboarding: {
     skip: '跳过引导',

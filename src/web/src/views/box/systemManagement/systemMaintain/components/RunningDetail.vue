@@ -13,7 +13,7 @@
         <el-table-column prop="name" :label="t('systemManage.processName')"></el-table-column>
         <el-table-column :label="t('field.status')">
           <template #default="scope">
-            <span>{{ scope.row.statusDesc }}</span>
+            <span>{{ translateApiMessage(scope.row.statusDescKey, scope.row.statusDesc) }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="fps" :label="t('systemManage.frameRate')">
@@ -35,7 +35,7 @@
 <script setup>
 import { ref, onMounted, getCurrentInstance } from 'vue'
 import { v4 } from 'uuid'
-import { t } from '@/i18n'
+import { t, translateApiMessage } from '@/i18n'
 
 const { proxy } = getCurrentInstance()
 const $API = proxy.$API

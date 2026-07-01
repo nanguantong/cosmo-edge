@@ -39,6 +39,7 @@ void from_json(const nlohmann::json& /*j*/, MsgRecvHead& /*h*/);
 
 struct MsgResBase {
     std::string msgCode;
+    std::string messageKey;
     std::string msgText;
     friend void to_json(nlohmann::json& j, const MsgResBase& v);
     friend void from_json(const nlohmann::json& j, MsgResBase& v);

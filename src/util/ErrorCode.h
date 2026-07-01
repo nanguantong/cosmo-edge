@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <string>
 #include <system_error>
 #include <type_traits>
 
@@ -199,6 +200,7 @@ enum class ErrorEnum : uint32_t {
 };
 
 std::error_condition make_error_condition(ErrorEnum code);
+std::string ErrorEnumName(ErrorEnum code);
 
 }  // namespace cosmo::util
 

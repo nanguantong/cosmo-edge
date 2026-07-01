@@ -80,12 +80,16 @@ void from_json(const nlohmann::json& j, MsgRectReal& r) {
 void from_json(const nlohmann::json& j, MsgResBase& v) {
     if (j.contains("msgCode") && !j["msgCode"].is_null())
         j.at("msgCode").get_to(v.msgCode);
+    if (j.contains("messageKey") && !j["messageKey"].is_null())
+        j.at("messageKey").get_to(v.messageKey);
     if (j.contains("msgText") && !j["msgText"].is_null())
         j.at("msgText").get_to(v.msgText);
 }
 
 void to_json(nlohmann::json& j, const MsgResBase& v) {
     j["msgCode"] = v.msgCode;
+    if (!v.messageKey.empty())
+        j["messageKey"] = v.messageKey;
     j["msgText"] = v.msgText;
 }
 

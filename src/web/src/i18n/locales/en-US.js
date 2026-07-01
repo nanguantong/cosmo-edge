@@ -1421,7 +1421,32 @@ export default {
     networkError: 'Network error. Please try again later.',
     fileFetchFailed: 'Failed to fetch file',
     fileExpired: 'File is no longer available',
-    cameraOffline: 'Camera is offline'
+    cameraOffline: 'Camera is offline',
+    error: {
+      Success: 'Operation succeeded',
+      AlgorithmInUse: 'Algorithm is in use, delete failed. Please remove it from tasks first.',
+      NotInit: 'Not initialized',
+      ActionReady: 'Action initialized, not started',
+      ActionStart: 'Action started',
+      ActionStop: 'Action stopped',
+      FlowDataInvalid: 'Invalid flow data',
+      VideoResolutionNotSupport: 'Video resolution not supported',
+      VideoFormatNotSupport: 'Video format not supported',
+      DecoderFrameFailed: 'Frame decoding failed',
+      DecoderColorConvertFailed: 'Color conversion failed',
+      DecoderResizePaddingFailed: 'Resize / padding failed',
+      DemuxOpenInvalidUrl: 'Invalid stream URL',
+      DemuxOpenStreamFail: 'Failed to open stream',
+      DemuxOpenStreamUnauthorized: 'Stream authentication failed',
+      DemuxFindStreamFail: 'Failed to find stream',
+      DemuxFindVideoStreamFail: 'Failed to find video stream',
+      DemuxInitBsfcFail: 'Failed to initialize stream filter',
+      DemuxGetStreamFail: 'Failed to get stream',
+      DemuxStreamStart: 'Stream started',
+      DemuxStreamClosed: 'Stream ended',
+      DemuxReadStreamFail: 'Failed to read stream',
+      DemuxNoData: 'No stream data'
+    }
   },
   onboarding: {
     skip: 'Skip Tour',

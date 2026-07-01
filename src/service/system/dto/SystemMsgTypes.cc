@@ -104,6 +104,7 @@ void to_json(nlohmann::json& j, const MsgHwInfo& v) {
 void from_json(const nlohmann::json& j, ActionStatus& v) {
     JSON_OPT(j, v, statusCode);
     JSON_OPT(j, v, statusDesc);
+    JSON_OPT(j, v, statusDescKey);
     JSON_OPT(j, v, actionId);
     JSON_OPT(j, v, name);
     JSON_OPT(j, v, holdCount);
@@ -120,6 +121,8 @@ void from_json(const nlohmann::json& j, ActionStatus& v) {
 void to_json(nlohmann::json& j, const ActionStatus& v) {
     j["statusCode"]         = v.statusCode;
     j["statusDesc"]         = v.statusDesc;
+    if (!v.statusDescKey.empty())
+        j["statusDescKey"]  = v.statusDescKey;
     j["actionId"]           = v.actionId;
     j["name"]               = v.name;
     j["holdCount"]          = v.holdCount;

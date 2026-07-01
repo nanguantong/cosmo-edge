@@ -243,6 +243,7 @@ MsgQueryTaskStatusSend MessageHandler::Handle(MsgQueryTaskStatusRecv&& data, std
             std::error_condition ec = queStatus.actionStatus;
             status.statusCode       = std::to_string(ec.value());
             status.statusDesc       = ec.message();
+            status.statusDescKey    = "api.error." + util::ErrorEnumName(static_cast<util::ErrorEnum>(ec.value()));
 
             status.holdCount          = queStatus.queueStatus.holdCount;
             status.alarmCount         = queStatus.alarmCount;

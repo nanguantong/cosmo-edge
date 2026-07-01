@@ -23,6 +23,7 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${WEB_SRC_DIR} ${WEB_BUILD_DIR}/web_unified
     COMMAND ${CMAKE_COMMAND} -E rm -f ${WEB_BUILD_DIR}/web_unified/package-lock.json
     COMMAND ${NPM_EXECUTABLE} install --loglevel=error
+    COMMAND chmod -R +x node_modules/.bin
     COMMAND ${NPM_EXECUTABLE} run build
     COMMAND ${CMAKE_COMMAND} -E touch ${WEB_STAMP}
     WORKING_DIRECTORY ${WEB_BUILD_DIR}/web_unified

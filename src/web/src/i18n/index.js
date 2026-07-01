@@ -118,3 +118,55 @@ export const translateApiMessage = (messageKey, fallback, params = {}) => {
   }
   return fallback || t('api.requestFailed')
 }
+
+// Pre-built list of known action names from i18n keys for efficient lookup.
+// Each entry has a `cn` (Chinese text) and a `key` (i18n key path).
+const _actionNameEntries = (() => {
+  const keys = [
+    '目标检测算法', '目标分类算法', '追踪算法', '关键点算法',
+    '特征提取算法', '视频解码', '类别筛选', '灵敏度计算-计时',
+    '事件上报', '区域告警判断', '灵敏度计算-计数', '目标判断',
+    '检测视觉大模型', '分割视觉大模型', '语言视觉大模型',
+    '算法告警数据', '网络音柱联动'
+  ]
+  return keys.map(cn => ({ cn, key: `flow.actionNames.${cn}` }))
+})()
+
+// Translate a raw process/flow name string that may contain embedded Chinese
+// action names (e.g. "taskId-目标检测算法-flowActionId").
+// Replaces each known Chinese action name with its locale-aware translation.
+export const translateActionName = (rawName) => {
+  if (!rawName) return rawName
+  let result = rawName
+  for (const { cn, key } of _actionNameEntries) {
+    if (result.includes(cn)) {
+      const translated = i18n.global.te(key) ? t(key) : cn
+      result = result.replace(cn, translated)
+    }
+  }
+  return result
+}
+
+// Pre-built list of known algorithm names from i18n keys.
+const _algorithmNameKeys = [
+  '吸烟检测', '火焰检测', '人流量统计', '打电话检测',
+  '视觉分割大模型分析', '离岗检测', '未戴安全帽', '玩手机检测',
+  '人脸比对', '未穿反光衣', '分割大模型', '检测大模型',
+  '视觉语言大模型分析', '检测类算法', '区域入侵', '区域人数统计',
+  '绊线检测', '未穿工服', '车辆违停', '人脸识别算法',
+  '人员跌倒', '人员聚集', '睡岗检测', '烟雾检测',
+  '检测后分割算法', '检测后分类算法', '视觉检测大模型分析',
+  '视觉语言大模型', 'No Safety Helmet'
+]
+
+// Translate a raw algorithm service name.
+// Performs a direct lookup in the flow.algorithmNames i18n namespace
+// and falls back to the original text when no translation exists.
+export const translateAlgorithmName = (rawName) => {
+  if (!rawName) return rawName
+  const key = `flow.algorithmNames.${rawName}`
+  if (i18n.global.te(key)) {
+    return t(key)
+  }
+  return rawName
+}

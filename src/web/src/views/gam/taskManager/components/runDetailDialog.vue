@@ -4,13 +4,17 @@
       <div class="table-header">
         <div class="table-desc">
           <span>{{ t('field.taskId') }}{{ localeColon }}{{ taskObj.taskId }}</span>
-          <span>{{ t('glossary.algorithmService') }}{{ localeColon }}{{ taskObj.algorithmName }}</span>
+          <span>{{ t('glossary.algorithmService') }}{{ localeColon }}{{ translateAlgorithmName(taskObj.algorithmName) }}</span>
         </div>
         <el-button type="primary" size="small" @click="refresh">{{ t('action.refresh') }}</el-button>
       </div>
       <el-table :data="tableData" style="width: 100%" stripe>
         <el-table-column prop="actionId" :label="t('field.flowId')" show-overflow-tooltip></el-table-column>
-        <el-table-column prop="name" :label="t('field.flowName')"></el-table-column>
+        <el-table-column :label="t('field.flowName')">
+          <template #default="scope">
+            <span>{{ translateActionName(scope.row.name) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column :label="t('field.status')">
           <template #default="scope">
             <span>{{ translateApiMessage(scope.row.statusDescKey, scope.row.statusDesc) }}</span>
@@ -30,7 +34,7 @@
 
 <script setup>
 import { ref, watch, getCurrentInstance } from 'vue'
-import { t, localeColon, translateApiMessage } from '@/i18n'
+import { t, localeColon, translateApiMessage, translateActionName, translateAlgorithmName } from '@/i18n'
 
 const props = defineProps({
   visible: {

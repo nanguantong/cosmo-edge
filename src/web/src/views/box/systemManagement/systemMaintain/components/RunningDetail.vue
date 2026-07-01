@@ -8,9 +8,17 @@
         :tree-props="{ children: 'actionStatus', hasChildren: 'hasChildren' }" row-key="id">
         <el-table-column prop="channelId" :label="t('systemManage.channelId')"></el-table-column>
         <el-table-column prop="taskId" :label="t('systemManage.taskId')"></el-table-column>
-        <el-table-column prop="algorithmName" :label="t('systemManage.algorithmService')"></el-table-column>
+        <el-table-column :label="t('systemManage.algorithmService')">
+          <template #default="scope">
+            <span>{{ translateAlgorithmName(scope.row.algorithmName) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="actionId" :label="t('systemManage.processId')" show-overflow-tooltip></el-table-column>
-        <el-table-column prop="name" :label="t('systemManage.processName')"></el-table-column>
+        <el-table-column :label="t('systemManage.processName')">
+          <template #default="scope">
+            <span>{{ translateActionName(scope.row.name) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column :label="t('field.status')">
           <template #default="scope">
             <span>{{ translateApiMessage(scope.row.statusDescKey, scope.row.statusDesc) }}</span>
@@ -35,7 +43,7 @@
 <script setup>
 import { ref, onMounted, getCurrentInstance } from 'vue'
 import { v4 } from 'uuid'
-import { t, translateApiMessage } from '@/i18n'
+import { t, translateApiMessage, translateActionName, translateAlgorithmName } from '@/i18n'
 
 const { proxy } = getCurrentInstance()
 const $API = proxy.$API

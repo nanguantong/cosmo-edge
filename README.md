@@ -4,7 +4,7 @@
 
 **C++ edge AI engine for production video analytics, visual pipeline orchestration, and on-device VLM workflows**
 
-[![Sophon Build](https://github.com/cosmo-wander-ai/cosmo-edge/actions/workflows/nightly-build-sophon.yml/badge.svg)](https://github.com/cosmo-wander-ai/cosmo-edge/actions/workflows/nightly-build-sophon.yml)
+[![Nightly Sophon Build and Test](https://github.com/cosmo-wander-ai/cosmo-edge/actions/workflows/nightly-build-test-sophon.yml/badge.svg?branch=main)](https://github.com/cosmo-wander-ai/cosmo-edge/actions/workflows/nightly-build-test-sophon.yml)
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE)
 [![Runtime](https://img.shields.io/badge/runtime-C%2B%2B17-orange?style=flat-square)](#c-native-runtime)

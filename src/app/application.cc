@@ -29,8 +29,15 @@ void LogInit(const std::string& name, const std::string& basedir, const std::str
     cosmo::log::SetLogCleanLogMode(0);
     cosmo::log::SetMaxLogFileCount(kMaxLogFileCount);
     cosmo::log::SetMaxLogFileKeepDays(kMaxLogFileKeepDays);
+#ifdef COSMO_DEV_MODE
+    // Development mode: mirror all log messages to stdout for real-time debugging.
+    // In production this is disabled to prevent log output from being captured by
+    // systemd/journald and flooding /var/log/syslog (especially under high-concurrency
+    // benchmark loads like scenario-bench). Application logs are still written to
+    // /data/cwaiuserdata/log/ via glog regardless of this setting.
     cosmo::log::SetLogCallback(
         [](const char*, const char*, int, const char* data, size_t) { printf("%s\r\n", data); });
+#endif
     cosmo::log::SetMaxLogFileSize(kMaxLogFileSizeMb);
     cosmo::log::SetLogLevel(LOG_LEVEL_INFO);
     cosmo::log::SetLogFileFlushInterval(kLogFlushIntervalSec);

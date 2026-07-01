@@ -3,7 +3,7 @@ name: Nightly Sophon Build and Test
 on:
   # Trigger daily at 2:00 AM Beijing Time (18:00 UTC previous day)
   schedule:
-    - cron: '0 18 * * *'
+    - cron: '12 18 * * *'
   # Allow manual trigger for testing purposes
   workflow_dispatch: 
 

@@ -18,7 +18,9 @@ AiDetectInterface::AiDetectInterface(DetectorPoolPtr pool, const std::string& al
 
 AiDetectInterface::~AiDetectInterface() {
     LOG_DEBUG("{}", "AiDetectReuseInterface release");
-    reuse_obj_->DeleteTask();
+    if (reuse_obj_) {
+        reuse_obj_->DeleteTask();
+    }
 }
 
 util::ErrorEnum AiDetectInterface::Detect(const VideoFramePtr& image,

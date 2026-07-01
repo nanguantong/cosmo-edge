@@ -18,7 +18,9 @@ AiLandmarkInterface::AiLandmarkInterface(LandmarkPoolPtr pool, const std::string
 
 AiLandmarkInterface::~AiLandmarkInterface() {
     LOG_DEBUG("{}", "AiLandmarkInterface release");
-    reuse_obj_->DeleteTask();
+    if (reuse_obj_) {
+        reuse_obj_->DeleteTask();
+    }
 }
 
 util::ErrorEnum AiLandmarkInterface::Marker(VideoFramePtr image, std::vector<AiDetectRstEl>& ioPuts) {

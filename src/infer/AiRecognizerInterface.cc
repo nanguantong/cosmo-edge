@@ -18,7 +18,9 @@ AiRecognizerInterface::AiRecognizerInterface(RecognizerPoolPtr pool, const std::
 
 AiRecognizerInterface::~AiRecognizerInterface() {
     LOG_DEBUG("{}", "AiRecognizerInterface release");
-    reuse_obj_->DeleteTask();
+    if (reuse_obj_) {
+        reuse_obj_->DeleteTask();
+    }
 }
 
 util::ErrorEnum AiRecognizerInterface::Recognize(VideoFramePtr image, std::vector<AiDetectRstEl>& io_puts,

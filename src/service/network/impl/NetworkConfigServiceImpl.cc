@@ -366,13 +366,13 @@ INetworkConfig::PingQualityResult NetworkConfigServiceImpl::ProbeNetworkQuality(
     }
 
     constexpr int kPingCount = 4;
-    std::string cmd = "ping " + util::ShellEscape(ip) + " -c " + std::to_string(kPingCount) + " -s " +
-                      std::to_string(packet_size);
-    LOG_INFO("{}", cmd);
+    std::vector<std::string> argv{
+        "ping", ip, "-c", std::to_string(kPingCount), "-s", std::to_string(packet_size)};
+    LOG_INFO("ping {} -c {} -s {}", ip, kPingCount, packet_size);
 
     std::vector<std::string> lines;
-    if (util::Exec(cmd, lines, true) != 0) {
-        LOG_ERRO("Cmd:{} exec failed", cmd);
+    if (util::Exec(argv, lines, true) != 0) {
+        LOG_ERRO("ping {} -c {} -s {} exec failed", ip, kPingCount, packet_size);
         return result;
     }
 

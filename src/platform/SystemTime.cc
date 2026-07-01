@@ -28,7 +28,7 @@ cosmo::util::ErrorEnum SetSystemTime(int64_t timestamp_ms) {
     }
 
     std::string out;
-    int ret = cosmo::util::Exec("hwclock -wu", out);
+    int ret = cosmo::util::Exec({"hwclock", "-wu"}, out);
     if (ret != 0) {
         LOG_WARN("hwclock -wu failed ({}): {}", ret, out);
     }

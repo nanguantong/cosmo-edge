@@ -33,35 +33,35 @@ std::string AlgorithmPacketLoader::UnzipPackageFile(const std::string& filePath)
         upload_path = cosmo::util::RemoveExtension(filePath);
     }
 
-    std::string cmd;
     std::error_code ec;
     std::filesystem::create_directories(upload_path, ec);
     // Choose decompression command based on file extension
+    std::vector<std::string> argv;
+    bool is_gzip = false;
     if (filePath.size() > 7 && filePath.substr(filePath.size() - 7) == ".tar.gz") {
-        cmd =
-            "tar xzf " + cosmo::util::ShellEscape(filePath) + " -C " + cosmo::util::ShellEscape(upload_path);
+        argv    = {"tar", "xzf", filePath, "-C", upload_path};
+        is_gzip = true;
     } else if (filePath.size() > 4 && filePath.substr(filePath.size() - 4) == ".tgz") {
-        cmd =
-            "tar xzf " + cosmo::util::ShellEscape(filePath) + " -C " + cosmo::util::ShellEscape(upload_path);
+        argv    = {"tar", "xzf", filePath, "-C", upload_path};
+        is_gzip = true;
     } else {
         // Default: treat as zip
-        cmd = "unzip -d " + cosmo::util::ShellEscape(upload_path) + " " + cosmo::util::ShellEscape(filePath);
+        argv = {"unzip", "-d", upload_path, filePath};
     }
 
     std::string out_str;
-    auto ret = cosmo::util::Exec(cmd, out_str);
-    if (ret != 0 && ((filePath.size() > 7 && filePath.substr(filePath.size() - 7) == ".tar.gz") ||
-                     (filePath.size() > 4 && filePath.substr(filePath.size() - 4) == ".tgz"))) {
-        LOG_WARN("{} Failed Result:{}, retry without gzip", cmd, out_str);
+    auto ret = cosmo::util::Exec(argv, out_str);
+    if (ret != 0 && is_gzip) {
+        LOG_WARN("tar xzf {} -C {} Failed Result:{}, retry without gzip", filePath, upload_path, out_str);
         out_str.clear();
-        cmd = "tar xf " + cosmo::util::ShellEscape(filePath) + " -C " + cosmo::util::ShellEscape(upload_path);
-        ret = cosmo::util::Exec(cmd, out_str);
+        argv = {"tar", "xf", filePath, "-C", upload_path};
+        ret  = cosmo::util::Exec(argv, out_str);
     }
     if (ret != 0) {
-        LOG_WARN("{} Failed Result:{}", cmd, out_str);
+        LOG_WARN("extract {} Failed Result:{}", filePath, out_str);
         return "";
     }
-    LOG_INFO("{} extract file OK {}", cmd, upload_path);
+    LOG_INFO("extract file OK {} -> {}", filePath, upload_path);
     return upload_path;
 }
 

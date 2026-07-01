@@ -17,7 +17,6 @@
 #include "platform/PlatformConstants.h"
 #include "util/Exec.h"
 #include "util/FileUtil.h"
-#include "util/FormatString.h"
 #include "util/Log.h"
 
 namespace cosmo::platform {
@@ -85,10 +84,9 @@ int DoNetCards(const NetCardInfo& main, const NetCardInfo& sub) {
         cosmo::util::RemoveFile(internal::kNetplanFailSafeFile);
     }
 
-    std::string cmd = "netplan apply";
     std::string cmd_result;
-    auto ret = cosmo::util::Exec(cmd, cmd_result);
-    LOG_INFO("Do [{}] Get [{}] Ret:{}", cmd, cmd_result, ret);
+    auto ret = cosmo::util::Exec(std::vector<std::string>{"netplan", "apply"}, cmd_result);
+    LOG_INFO("Do [netplan apply] Get [{}] Ret:{}", cmd_result, ret);
     if (ret) {
         return -1;
     }
@@ -137,9 +135,8 @@ bool KillDhcp(const std::string& dev_name) {
         return false;
     }
     std::string cmd_result;
-    std::string cmd = "dhclient -r " + dev_name;
-    auto ret        = cosmo::util::Exec(cmd, cmd_result);
-    LOG_INFO("Exec {} Get {} Ret:{}", cmd, cmd_result, ret);
+    auto ret = cosmo::util::Exec({"dhclient", "-r", dev_name}, cmd_result);
+    LOG_INFO("Exec dhclient -r {} Get {} Ret:{}", dev_name, cmd_result, ret);
     return ret == 0;
 }
 
@@ -149,10 +146,8 @@ bool IpDelFromDev(const std::string& dev_name) {
         return false;
     }
     std::string cmd_result;
-    auto cmd_str = COSMO_FORMAT("ip route flush dev {}", dev_name);
-
-    auto ret = cosmo::util::Exec(cmd_str, cmd_result);
-    LOG_INFO("Exec {} Get {} Ret:{}", cmd_str, cmd_result, ret);
+    auto ret = cosmo::util::Exec({"ip", "route", "flush", "dev", dev_name}, cmd_result);
+    LOG_INFO("Exec ip route flush dev {} Get {} Ret:{}", dev_name, cmd_result, ret);
     return ret == 0;
 }
 
@@ -190,36 +185,37 @@ bool IpCfgToDev(const NetCardInfo& info) {
     }
 
     std::string cmd_result;
-    auto cmd_str = COSMO_FORMAT("ifconfig {} {} netmask {} up", info.eth_name, info.ip_addr, info.net_mask);
-    auto cmd_ret = cosmo::util::Exec(cmd_str, cmd_result);
+    auto cmd_ret = cosmo::util::Exec(
+        {"ifconfig", info.eth_name, info.ip_addr, "netmask", info.net_mask, "up"}, cmd_result);
+    LOG_INFO("Exec ifconfig {} {} netmask {} up Get {} Ret:{}", info.eth_name, info.ip_addr, info.net_mask,
+             cmd_result, cmd_ret);
     if (cmd_ret != 0 || !cmd_result.empty()) {
-        LOG_INFO("Exec {} Get {} Ret:{}", cmd_str, cmd_result, cmd_ret);
         return false;
     }
-    LOG_INFO("Exec {} Get {} Ret:{}", cmd_str, cmd_result, cmd_ret);
 
     if (!info.gateway.empty()) {
         if (!internal::IsValidIpAddress(info.gateway)) {
             LOG_WARN("IpCfgToDev: invalid gateway: {}", info.gateway);
             return false;
         }
+        std::vector<std::string> route_argv;
         if (info.is_main) {
-            cmd_str =
-                COSMO_FORMAT("ip route add default via {} dev {} metric 100", info.gateway, info.eth_name);
+            route_argv = {"ip",         "route", "add",         "default", "via",
+                          info.gateway, "dev",   info.eth_name, "metric",  "100"};
             if (!internal::IsSameIpv4Subnet(info.ip_addr, info.gateway, info.net_mask)) {
-                cmd_str += " onlink";
+                route_argv.push_back("onlink");
             }
         } else {
-            cmd_str = COSMO_FORMAT("ip route add {}  dev {}", IpToSubnet(info.gateway, 24), info.eth_name);
+            route_argv = {"ip", "route", "add", IpToSubnet(info.gateway, 24), "dev", info.eth_name};
         }
 
         std::string cmd_result_route;
-        cmd_ret = cosmo::util::Exec(cmd_str, cmd_result_route);
+        cmd_ret = cosmo::util::Exec(route_argv, cmd_result_route);
         if (cmd_ret != 0 || !cmd_result_route.empty()) {
-            LOG_INFO("Exec {} Get {} Ret:{}", cmd_str, cmd_result_route, cmd_ret);
+            LOG_INFO("Exec ip route add Get {} Ret:{}", cmd_result_route, cmd_ret);
             return false;
         }
-        LOG_INFO("Exec {} Get {} Ret:{}", cmd_str, cmd_result_route, cmd_ret);
+        LOG_INFO("Exec ip route add Get {} Ret:{}", cmd_result_route, cmd_ret);
     }
 
     return true;
@@ -231,9 +227,8 @@ bool DhcpCfgToDev(const std::string& dev_name) {
         return false;
     }
     std::string cmd_result;
-    auto cmd_str = COSMO_FORMAT("dhclient -v {}", dev_name);
-    auto ret     = cosmo::util::Exec(cmd_str, cmd_result);
-    LOG_INFO("Exec {} Get {} Ret:{}", cmd_str, cmd_result, ret);
+    auto ret = cosmo::util::Exec({"dhclient", "-v", dev_name}, cmd_result);
+    LOG_INFO("Exec dhclient -v {} Get {} Ret:{}", dev_name, cmd_result, ret);
     return ret == 0;
 }
 

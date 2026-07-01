@@ -66,10 +66,7 @@ cosmo::util::ErrorEnum AlgorithmLayoutMng::LayoutExportSingle(
         cosmo::path::GetTemporaryDirPath() + "/algorithm_" + code + "_" + timestamp + ".tar.gz";
     std::string jsonFileName = code + "_" + cleanAlgorithmName + ".json";
     std::string outStr;
-    if (cosmo::util::Exec("tar -czf " + cosmo::util::ShellEscape(archiveFilePath) + " -C " +
-                              cosmo::util::ShellEscape(tempDir) + " " +
-                              cosmo::util::ShellEscape(jsonFileName) + " 2>&1",
-                          outStr) != 0) {
+    if (cosmo::util::Exec({"tar", "-czf", archiveFilePath, "-C", tempDir, jsonFileName}, outStr) != 0) {
         std::filesystem::remove_all(tempDir, ec);
         return cosmo::util::ErrorEnum::ParameterException;
     }
@@ -195,9 +192,7 @@ cosmo::util::ErrorEnum AlgorithmLayoutMng::LayoutExportAll(const std::string& al
     std::string archiveFilePath =
         cosmo::path::GetTemporaryDirPath() + "/algorithms_export_" + timestamp + ".tar.gz";
     std::string outStr;
-    if (cosmo::util::Exec("tar -czf " + cosmo::util::ShellEscape(archiveFilePath) + " -C " +
-                              cosmo::util::ShellEscape(tempDir) + " . 2>&1",
-                          outStr) != 0) {
+    if (cosmo::util::Exec({"tar", "-czf", archiveFilePath, "-C", tempDir, "."}, outStr) != 0) {
         LOG_ERRO("LayoutExportAll: tar failed: {}", outStr);
         std::filesystem::remove_all(tempDir, ec);
         return cosmo::util::ErrorEnum::ParameterException;

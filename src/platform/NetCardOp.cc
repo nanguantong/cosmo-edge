@@ -78,21 +78,18 @@ bool DoNetplanFailSafeFile() {
         return false;
     }
 
-    std::string cmd = "chmod 600 " + internal::kNetplanFailSafeFile;
     std::string cmd_result;
-    auto ret = cosmo::util::Exec(cmd, cmd_result);
+    auto ret = cosmo::util::Exec({"chmod", "600", internal::kNetplanFailSafeFile}, cmd_result);
+    LOG_INFO("Exec [chmod 600 {}] Get [{}] Ret:{}", internal::kNetplanFailSafeFile, cmd_result, ret);
     if (ret != 0 || !cmd_result.empty()) {
-        LOG_INFO("Exec [{}] Get [{}] Ret:{}", cmd, cmd_result, ret);
         return false;
     }
-    LOG_INFO("Exec [{}] Get [{}] Ret:{}", cmd, cmd_result, ret);
 
     internal::RemoveOldNetcfgYamlFiles();
 
     LOG_INFO("{}", "Executing Netplan Apply With Failsafe Config");
-    cmd = "netplan apply";
-    ret = cosmo::util::Exec(cmd, cmd_result);
-    LOG_INFO("Do [{}] Get [{}] Ret:{}", cmd, cmd_result, ret);
+    ret = cosmo::util::Exec(std::vector<std::string>{"netplan", "apply"}, cmd_result);
+    LOG_INFO("Do [netplan apply] Get [{}] Ret:{}", cmd_result, ret);
     if (ret) {
         return false;
     }
@@ -186,10 +183,9 @@ bool ModifyNetCfg(const NetCardInfo& main, const NetCardInfo& sub) {
         LOG_WARN("Write {} With {} Failed", internal::kNetplanConfigFile, netplan_info);
         return false;
     }
-    std::string cmd = "chmod 600 " + internal::kNetplanConfigFile;
     std::string cmd_result;
-    auto ret = cosmo::util::Exec(cmd, cmd_result);
-    LOG_INFO("Exec [{}] Get [{}] Ret:{}", cmd, cmd_result, ret);
+    auto ret = cosmo::util::Exec({"chmod", "600", internal::kNetplanConfigFile}, cmd_result);
+    LOG_INFO("Exec [chmod 600 {}] Get [{}] Ret:{}", internal::kNetplanConfigFile, cmd_result, ret);
     return true;
 }
 

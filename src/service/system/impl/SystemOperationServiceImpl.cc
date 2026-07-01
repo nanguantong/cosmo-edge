@@ -42,7 +42,7 @@ cosmo::util::ErrorEnum SystemOperationServiceImpl::ExportLogs(std::string& fileN
                           cosmo::path::GetLogPath() + "/*" + " " + (cosmo::path::GetCfgPath() + "/*");
     LOG_INFO("{}", str_cmd);
     std::string cmd_out;
-    int ret = cosmo::util::Exec(str_cmd, cmd_out);
+    int ret = cosmo::util::ExecShell(str_cmd, cmd_out);
     if (ret != 0) {
         LOG_ERRO("tar failed ({}): {}", ret, cmd_out);
         return cosmo::util::ErrorEnum::SysErr;

@@ -21,7 +21,7 @@ This page documents build paths that are confirmed and available in the reposito
 | Target | Entry Point | Notes |
 | --- | --- | --- |
 | x86 Docker runtime | `docker-compose.x86.yml` / `docker-compose.x86.windows.yml` | Starts the containerized development/runtime environment. |
-| Sophon release package | `docker compose -f docker-compose.sophon.yml up --build` | Creates the target-device release package. |
+| Sophon release package | `docker compose -f docker-compose.sophon.yml run --rm cosmo-sophon-package` | Creates the target-device release package. |
 | CPU test build | `scripts/build_cpu_test.sh` | Builds `cosmo-tests` for x86 CPU validation. |
 | Documentation site | `npm ci` and `npm run docs:build` | Builds this VitePress site. |
 
@@ -69,7 +69,7 @@ After build:
 ## Sophon Release Package
 
 ```bash
-docker compose -f docker-compose.sophon.yml up --build
+docker compose -f docker-compose.sophon.yml run --rm cosmo-sophon-package
 ```
 
 Windows PowerShell:

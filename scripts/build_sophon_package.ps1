@@ -63,7 +63,7 @@ Write-Host "Symlinks restoration completed successfully!"
 $ProjectRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Push-Location $ProjectRoot
 try {
-    docker compose -f docker-compose.sophon.yml up --build
+    docker compose -f docker-compose.sophon.yml run --rm cosmo-sophon-package
 } finally {
     Pop-Location
 }

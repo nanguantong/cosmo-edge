@@ -195,7 +195,7 @@ git clone https://github.com/cosmo-wander-ai/cosmo-edge.git
 cd cosmo-edge
 
 # 2. 构建 Sophon/aarch64 发布包
-docker compose -f docker-compose.sophon.yml up --build
+docker compose -f docker-compose.sophon.yml run --rm cosmo-sophon-package
 
 # 3. 查看导出的发布包
 ls -lh build_output/

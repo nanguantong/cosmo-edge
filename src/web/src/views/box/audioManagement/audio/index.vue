@@ -185,22 +185,20 @@ function handleChange(file, fileList) {
     return
   }
 
-  const upload = audioRef.value
-  if (fileList.length > 1) {
-    upload.uploadFiles.shift()
-  }
+  // el-upload does not expose its internal uploadFiles, so track the selected
+  // file ourselves. show-file-list is false, so only the latest pick matters.
+  audioFile.value = file.raw
   fileNameString.value = file.name
 }
 
 function saveAudio() {
-  const upload = audioRef.value
-  if (upload.uploadFiles.length === 0) {
+  if (!audioFile.value) {
     return proxy.$message.warning(t('boxOther.selectAudioFile'))
   }
 
   const formData = new FormData()
   formData.append('importType', '5')
-  formData.append('file', upload.uploadFiles[0].raw)
+  formData.append('file', audioFile.value)
   proxy.$API.boxImportFile(formData).then(() => {
     proxy.$message.success(t('validate.uploadSucceeded'))
     searchList()
@@ -264,8 +262,8 @@ function handleAdd() {
 }
 
 function closeAdd() {
-  const upload = audioRef.value
-  upload.uploadFiles = []
+  audioRef.value?.clearFiles?.()
+  audioFile.value = null
   fileNameString.value = ''
 }
 

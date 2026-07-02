@@ -17,6 +17,14 @@ HungarianAlgorithm::~HungarianAlgorithm() {}
 //********************************************************//
 double HungarianAlgorithm::Solve(std::vector<std::vector<double>> &DistMatrix, std::vector<int> &Assignment) {
     unsigned int nRows = DistMatrix.size();
+    // Guard against empty cost matrices: the tracker second pass builds an empty matrix when
+    // utrkNum==0 or lowDetNum==0, and indexing DistMatrix[0] here would be undefined behavior.
+    // Return all-unassigned (-1) so the callers' nRows-bounded downstream loops stay safe
+    // (both an empty assignment and an all-(-1) assignment are already handled downstream).
+    if (nRows == 0 || DistMatrix[0].empty()) {
+        Assignment.assign(nRows, -1);
+        return 0.0;
+    }
     unsigned int nCols = DistMatrix[0].size();
 
     std::vector<double> distMatrixIn(nRows * nCols);

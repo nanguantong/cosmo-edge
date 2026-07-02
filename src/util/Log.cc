@@ -167,10 +167,8 @@ namespace {
     static void ArchiveLogFile(const fs::path& dir, const fs::path& filePath) {
         auto fileName = filePath.string();
         if (fileName.size() > 3 && fileName.substr(fileName.size() - 3) != ".gz") {
-            auto escaped = cosmo::util::ShellEscape(fileName);
-            auto execStr = "gzip " + escaped;
             std::string execOut;
-            int ret = cosmo::util::Exec(execStr, execOut);
+            int ret = cosmo::util::Exec({"gzip", fileName}, execOut);
             if (ret != 0) {
                 // Ignore or print error
             }
@@ -179,9 +177,7 @@ namespace {
             std::error_code ec;
             fs::create_directories(historyDir, ec);
             if (!ec) {
-                auto execStr2 = "mv " + cosmo::util::ShellEscape(fileName + ".gz") + " " +
-                                cosmo::util::ShellEscape(historyDir.string()) + "/";
-                ret = cosmo::util::Exec(execStr2, execOut);
+                ret = cosmo::util::Exec({"mv", fileName + ".gz", historyDir.string() + "/"}, execOut);
                 if (ret != 0) {
                     fprintf(stderr, "move log archive failed (%d): %s\n", ret, execOut.c_str());
                 }

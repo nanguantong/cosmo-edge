@@ -190,20 +190,19 @@ util::ErrorEnum ModelImportExporter::ImportModel(const std::string& archivePath)
 
     // 2. Extract archive (detect format: tar.gz or zip)
     std::string out_str;
-    std::string extract_cmd;
     std::string lower_path = archivePath;
     std::transform(lower_path.begin(), lower_path.end(), lower_path.begin(), ::tolower);
 
+    std::vector<std::string> extract_argv;
     if (lower_path.find(".zip") != std::string::npos) {
-        extract_cmd =
-            "unzip -o " + util::ShellEscape(archivePath) + " -d " + util::ShellEscape(temp_dir) + " 2>&1";
+        LOG_INFO("[ImportModel] Extracting (unzip): {} -> {}", archivePath, temp_dir);
+        extract_argv = {"unzip", "-o", archivePath, "-d", temp_dir};
     } else {
-        extract_cmd =
-            "tar -xzf " + util::ShellEscape(archivePath) + " -C " + util::ShellEscape(temp_dir) + " 2>&1";
+        LOG_INFO("[ImportModel] Extracting (tar -xzf): {} -> {}", archivePath, temp_dir);
+        extract_argv = {"tar", "-xzf", archivePath, "-C", temp_dir};
     }
 
-    LOG_INFO("[ImportModel] Extracting: {}", extract_cmd);
-    int extract_ret = util::Exec(extract_cmd, out_str);
+    int extract_ret = util::Exec(extract_argv, out_str);
     if (extract_ret != 0) {
         LOG_WARN("[ImportModel] Extract failed (ret={}): {}", extract_ret, out_str);
         fs::remove_all(temp_dir, ec);

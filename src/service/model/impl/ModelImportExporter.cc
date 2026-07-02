@@ -75,14 +75,10 @@ util::ErrorEnum ModelImportExporter::ExportModelConfig(const std::string& modelC
     std::string archive_file_path =
         cosmo::path::GetTemporaryDirPath() + "/model_export_" + modelCode + "_" + timestamp + ".tar.gz";
 
-    std::string tar_command = "cd " + util::ShellEscape(models_dir) + " && tar -czf " +
-                              util::ShellEscape(archive_file_path) + " " + util::ShellEscape(model_dir_name) +
-                              " > /dev/null 2>&1";
-
-    LOG_INFO("Executing tar command: {}", tar_command);
+    LOG_INFO("Creating tar.gz: {} from {}/{}", archive_file_path, models_dir, model_dir_name);
 
     std::string out_str;
-    int ret = util::Exec(tar_command, out_str);
+    int ret = util::Exec({"tar", "-czf", archive_file_path, "-C", models_dir, model_dir_name}, out_str);
     if (ret != 0) {
         LOG_WARN("Failed to create tar.gz file, command return code: {}, error: {}", ret, out_str);
         return util::ErrorEnum::SysErr;

@@ -140,10 +140,9 @@ util::ErrorEnum PacketUpgrade(const fs::path& filePath) {
     }
 
     // Extract tar.gz
-    std::string extract_cmd = fmt::format("tar -xzf {} -C {}", util::ShellEscape(upgrade_file_name.string()),
-                                          util::ShellEscape(upgradeFileDir.string()));
     std::string output;
-    int exit_code = util::Exec(extract_cmd, output);
+    int exit_code =
+        util::Exec({"tar", "-xzf", upgrade_file_name.string(), "-C", upgradeFileDir.string()}, output);
     if (exit_code != 0) {
         LOG_ERRO("extract upgrade package failed: {}", output);
         remove_all(upgradeFileDir, ec);

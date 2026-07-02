@@ -119,7 +119,7 @@ inline bool WriteDefaultFailSafeBak() {
     }
 
     std::string cmdResult;
-    auto ret = cosmo::util::Exec("chmod 600 " + kNetplanFailSafeBak, cmdResult);
+    auto ret = cosmo::util::Exec({"chmod", "600", kNetplanFailSafeBak}, cmdResult);
     LOG_INFO("Write default netplan failsafe backup {} Ret:{} Result:{}", kNetplanFailSafeBak, ret,
              cmdResult);
     return ret == 0;

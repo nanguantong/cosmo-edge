@@ -21,7 +21,7 @@ void ImmReboot() {
 #else
     sync();
     std::string out;
-    cosmo::util::Exec("reboot", out);
+    cosmo::util::Exec(std::vector<std::string>{"reboot"}, out);
 #endif
 }
 

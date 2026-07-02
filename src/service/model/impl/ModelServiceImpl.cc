@@ -122,15 +122,14 @@ void ModelServiceImpl::Init() {
 
 std::string ModelServiceImpl::UpzipModelFile(std::string filePath) {
     std::string upload_path = cosmo::util::RemoveExtension(filePath);
-    std::string cmd =
-        "unzip -q -d " + cosmo::util::ShellEscape(upload_path) + " " + cosmo::util::ShellEscape(filePath);
+    std::vector<std::string> argv{"unzip", "-q", "-d", upload_path, filePath};
     std::string out_str;
-    auto ret = cosmo::util::Exec(cmd, out_str);
+    auto ret = cosmo::util::Exec(argv, out_str);
     if (ret != 0) {
-        LOG_WARN("{} Failed Result:{}", cmd, out_str);
+        LOG_WARN("unzip -q -d {} {} Failed Result:{}", upload_path, filePath, out_str);
         return "";
     }
-    LOG_INFO("{} OK", cmd);
+    LOG_INFO("unzip -q -d {} {} OK", upload_path, filePath);
     return upload_path;
 }
 

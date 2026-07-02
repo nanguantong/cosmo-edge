@@ -104,14 +104,13 @@ void PersonImport::UnzipArchive(const std::string& file_name, const std::string&
     std::filesystem::create_directories(work_dir);
     // Fix occasional decompression garbled text issue on 1800, reference:
     // https://blog.csdn.net/guo_qiangqiang/article/details/107163832
-    std::string cmd_str{"unzip " + util::ShellEscape(file_name) + " -d " + util::ShellEscape(work_dir)};
     std::string unzip_out;
-    int unzip_ret = util::Exec(cmd_str, unzip_out);
+    int unzip_ret = util::Exec({"unzip", file_name, "-d", work_dir}, unzip_out);
     if (unzip_ret != 0) {
         LOG_WARN("{} unzip exit code {}: {}", kTag, unzip_ret, unzip_out);
     }
     remove(fs::path{file_name});
-    LOG_INFO("{} Unzip command {}", kTag, cmd_str);
+    LOG_INFO("{} Unzip {} -d {}", kTag, file_name, work_dir);
 }
 
 void PersonImport::ProcessImages(const std::string& work_dir, FaceLibPtr face_lib, std::ofstream& ofile) {

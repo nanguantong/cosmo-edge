@@ -1,7 +1,12 @@
-// Shell command execution utilities.
+// Process execution utilities.
 
 #include "util/Exec.h"
 
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+#include <cerrno>
 #include <cstring>
 
 #include "fmt/format.h"
@@ -9,11 +14,6 @@
 namespace cosmo::util {
 
 constexpr int kExecFailureCode = 0x7F;
-
-bool IsPathSafe(const std::string& path) {
-    const std::string kBadChars = ";|&$`()\n";
-    return path.find_first_of(kBadChars) == std::string::npos;
-}
 
 std::string ShellEscape(const std::string& path) {
     std::string escaped;
@@ -30,7 +30,115 @@ std::string ShellEscape(const std::string& path) {
     return escaped;
 }
 
-int Exec(const std::string& cmd, std::string& out) {
+namespace {
+
+    // Read all bytes from `fd` until EOF, appending them to `out`. Stops on EOF or a
+    // non-EINTR read error.
+    void ReadAllFromFd(int fd, std::string& out) {
+        char buf[1024];
+        for (;;) {
+            ssize_t n = read(fd, buf, sizeof(buf));
+            if (n > 0) {
+                out.append(buf, static_cast<size_t>(n));
+            } else if (n == 0) {
+                break;  // EOF
+            } else if (errno != EINTR) {
+                break;  // unrecoverable read error
+            }
+        }
+    }
+
+    // Split `text` into lines and append them to `out`, mirroring the original
+    // fgets-per-line behaviour: each entry includes its trailing '\n' unless
+    // `remove_newline` is true. A trailing partial line (no '\n') is included as-is.
+    void AppendLines(const std::string& text, std::vector<std::string>& out, bool remove_newline) {
+        size_t start = 0;
+        while (start < text.size()) {
+            size_t nl = text.find('\n', start);
+            if (nl == std::string::npos) {
+                out.emplace_back(text, start);
+                break;
+            }
+            std::string line(text, start, nl - start + 1);  // keep the '\n'
+            if (remove_newline) {
+                line.pop_back();
+            }
+            out.push_back(std::move(line));
+            start = nl + 1;
+        }
+    }
+
+    // Spawn argv[0] with execvp() (no shell), redirecting the child's stdout+stderr
+    // into a pipe read by the parent. Appends captured output to `out`. The char*
+    // argv array is built up front so the child only performs async-signal-safe
+    // calls between fork() and execvp() (this process is multithreaded).
+    int ExecArgv(const std::vector<std::string>& argv, std::string& out) {
+        if (argv.empty()) {
+            return kExecFailureCode;
+        }
+
+        std::vector<char*> c_argv;
+        c_argv.reserve(argv.size() + 1);
+        for (const auto& arg : argv) {
+            c_argv.push_back(const_cast<char*>(arg.c_str()));
+        }
+        c_argv.push_back(nullptr);
+
+        int pipefd[2];
+        if (pipe(pipefd) != 0) {
+            return kExecFailureCode;
+        }
+
+        pid_t pid = fork();
+        if (pid < 0) {
+            close(pipefd[0]);
+            close(pipefd[1]);
+            return kExecFailureCode;
+        }
+
+        if (pid == 0) {
+            // Child — async-signal-safe calls only until execvp().
+            close(pipefd[0]);
+            if (dup2(pipefd[1], STDOUT_FILENO) < 0 || dup2(pipefd[1], STDERR_FILENO) < 0) {
+                _exit(kExecFailureCode);
+            }
+            close(pipefd[1]);
+            execvp(c_argv[0], c_argv.data());
+            _exit(kExecFailureCode);  // only reached if execvp() failed
+        }
+
+        // Parent — drain the pipe before reaping to avoid deadlock when the child's
+        // output exceeds the pipe buffer.
+        close(pipefd[1]);
+        ReadAllFromFd(pipefd[0], out);
+        close(pipefd[0]);
+
+        int status = 0;
+        while (waitpid(pid, &status, 0) < 0) {
+            if (errno != EINTR) {
+                return kExecFailureCode;
+            }
+        }
+        if (WIFEXITED(status)) {
+            return WEXITSTATUS(status);
+        }
+        return kExecFailureCode;
+    }
+
+}  // namespace
+
+int Exec(const std::vector<std::string>& argv, std::string& out) {
+    return ExecArgv(argv, out);
+}
+
+int Exec(const std::vector<std::string>& argv, std::vector<std::string>& out, bool remove_newline) {
+    std::string text;
+    int rc = ExecArgv(argv, text);
+    AppendLines(text, out, remove_newline);
+    return rc;
+}
+
+int ExecShell(const std::string& cmd, std::string& out) {
     FILE* file = popen(fmt::format("{} 2>&1", cmd).c_str(), "r");
     if (!file) {
         return kExecFailureCode;
@@ -46,7 +154,7 @@ int Exec(const std::string& cmd, std::string& out) {
     return kExecFailureCode;
 }
 
-int Exec(const std::string& cmd, std::vector<std::string>& out, bool remove_newline) {
+int ExecShell(const std::string& cmd, std::vector<std::string>& out, bool remove_newline) {
     FILE* file = popen(fmt::format("{} 2>&1", cmd).c_str(), "r");
     if (!file) {
         return kExecFailureCode;
@@ -97,7 +205,7 @@ std::string PingResolveIp(const std::string& host) {
                             R"(|  head -n 1 | awk '{print $3}' | grep -oE "([0-9]{1,3}[.]){3}[0-9]{1,3}")";
 
     std::vector<std::string> result;
-    int ret = Exec(cmd, result, true);
+    int ret = ExecShell(cmd, result, true);
     if (ret != 0) {
         return "";
     }
@@ -120,7 +228,7 @@ std::string PingLatency(const std::string& host) {
         R"( |  head -n 4 | sed s/[[:space:]]//g | grep -oE "time=[0-9]{1,3}.[0-9]{1,3}" | awk -F= '{print $2}')";
 
     std::string result;
-    int ret = Exec(cmd, result);
+    int ret = ExecShell(cmd, result);
     if (ret != 0) {
         return "";
     }

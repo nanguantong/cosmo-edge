@@ -132,7 +132,7 @@ std::string HardwareQueryUtil::ReadKernelRevision() {
 #else
     LOG_INFO("{}", "bm_version");
     std::string out;
-    cosmo::util::Exec("bm_version", out);
+    cosmo::util::Exec(std::vector<std::string>{"bm_version"}, out);
     std::istringstream stream(out);
     std::string line;
     while (std::getline(stream, line)) {

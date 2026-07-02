@@ -24,65 +24,65 @@
 static constexpr const char* kTag = "DINO-DETECTER ";
 namespace cosmo {
 
-bool DinoDetector::TaskExist(const std::string& channel_id, const std::string& task) {
+bool DinoDetector::TaskExist(const std::string& channel_id, const std::string& task) const {
     std::lock_guard<std::shared_mutex> lock(mtx);
-    return std::any_of(m_channelList.begin(), m_channelList.end(), [&channel_id, &task](const auto& ch) {
+    return std::any_of(channel_list_.begin(), channel_list_.end(), [&channel_id, &task](const auto& ch) {
         if (ch.channel != channel_id)
             return false;
         return std::any_of(ch.tasks.begin(), ch.tasks.end(), [&task](const auto& t) { return t == task; });
     });
 }
 
-bool DinoDetector::TaskIsFull() {
+bool DinoDetector::TaskIsFull() const {
     std::lock_guard<std::shared_mutex> lock(mtx);
-    return m_channelList.size() >= m_maxReuseCount;
+    return channel_list_.size() >= max_reuse_count_;
 }
 
-bool DinoDetector::TaskIsEmpty() {
+bool DinoDetector::TaskIsEmpty() const {
     std::lock_guard<std::shared_mutex> lock(mtx);
-    return m_channelList.empty();
+    return channel_list_.empty();
 }
 
-size_t DinoDetector::ChannelCount() {
+size_t DinoDetector::ChannelCount() const {
     std::lock_guard<std::shared_mutex> lock(mtx);
-    return m_channelList.size();
+    return channel_list_.size();
 }
 
-size_t DinoDetector::TaskCount() {
+size_t DinoDetector::TaskCount() const {
     std::lock_guard<std::shared_mutex> lock(mtx);
     size_t count = 0;
-    for (auto& ch : m_channelList) {
+    for (auto& ch : channel_list_) {
         count += ch.tasks.size();
     }
     return count;
 }
 
-DinoDetectorParamEl DinoDetector::FoundLocalParamByTask(const AlgTaskUnit& task) {
+DinoDetectorParamEl DinoDetector::FoundLocalParamByTask(const AlgTaskUnit& task) const {
     DinoDetectorParamEl param;
-    param.taskId = task.task_id;
+    param.task_id = task.task_id;
     return param;
 }
 
-DinoDetectorParamEl DinoDetector::GetTaskParamsUnlocked(const std::string& taskId) {
-    auto it = std::find_if(m_params.param.begin(), m_params.param.end(),
-                           [&taskId](const auto& param) { return param.taskId == taskId; });
-    if (it != m_params.param.end()) {
+DinoDetectorParamEl DinoDetector::GetTaskParamsUnlocked(const std::string& taskId) const {
+    auto it = std::find_if(params_.param.begin(), params_.param.end(),
+                           [&taskId](const auto& param) { return param.task_id == taskId; });
+    if (it != params_.param.end()) {
         return *it;
     }
     // If no exact taskId match and only one task param exists, use it (avoid default fallback)
-    if (m_params.param.size() == 1)
-        return m_params.param[0];
+    if (params_.param.size() == 1)
+        return params_.param[0];
     DinoDetectorParamEl emptyParam;
     return emptyParam;
 }
 
-DinoDetectorParamEl DinoDetector::GetTaskParams(const std::string& taskId) {
+DinoDetectorParamEl DinoDetector::GetTaskParams(const std::string& taskId) const {
     std::lock_guard<std::shared_mutex> lock(mtx);
     return GetTaskParamsUnlocked(taskId);
 }
 
-void DinoDetector::HandFrames(std::vector<AlgDataPtr> algDatas) {
-    if (!m_detector) {
+void DinoDetector::HandFrames(std::vector<AlgDataPtr> alg_datas) {
+    if (!detector_) {
         action_status = util::ErrorEnum::AI_INST_NOTCREATED;
         if (!DinoSdkInit())
             return;
@@ -93,17 +93,17 @@ void DinoDetector::HandFrames(std::vector<AlgDataPtr> algDatas) {
     std::vector<std::string> prompts;
     std::vector<AlgDataPtr> validDatas;
 
-    for (auto& data : algDatas) {
+    for (auto& data : alg_datas) {
         if (!data || !data->chanDataDec.frame || !data->chanDataDec.frame->Active()) {
             continue;
         }
         std::string taskId = data->taskId;
         if (taskId.empty()) {
             std::shared_lock<std::shared_mutex> lockCh(mtx);
-            auto it = std::find_if(m_channelList.begin(), m_channelList.end(), [&data](const auto& ch) {
+            auto it = std::find_if(channel_list_.begin(), channel_list_.end(), [&data](const auto& ch) {
                 return ch.channel == data->channelId && !ch.tasks.empty();
             });
-            if (it != m_channelList.end()) {
+            if (it != channel_list_.end()) {
                 taskId = it->tasks.front();
             }
         }
@@ -136,9 +136,9 @@ void DinoDetector::HandFrames(std::vector<AlgDataPtr> algDatas) {
         std::transform(indices.begin(), indices.end(), std::back_inserter(groupImages),
                        [&images](size_t idx) { return images[idx]; });
         std::vector<std::vector<AiDetectRstEl>> groupResults;
-        auto ret = m_detector->Detect(groupImages, prompt, groupResults);
+        auto ret = detector_->Detect(groupImages, prompt, groupResults);
         if (util::ErrorEnum::Success != ret) {
-            LOG_WARN("{}[{} {}] Detect Failed. prompt:\", kTag{}\" Ret:{}", m_algCode, uuid, prompt, ret);
+            LOG_WARN("{}[{} {}] Detect Failed. prompt:\", kTag{}\" Ret:{}", alg_code_, uuid, prompt, ret);
             continue;
         }
         for (size_t k = 0; k < indices.size() && k < groupResults.size(); k++) {
@@ -150,7 +150,7 @@ void DinoDetector::HandFrames(std::vector<AlgDataPtr> algDatas) {
     for (size_t i = 0; i < validDatas.size(); i++) {
         auto& data                               = validDatas[i];
         data->dataType                           = AlgDataType::ChannelDataDetect;
-        data->chanDataDetect.atomicCode          = m_algCode;
+        data->chanDataDetect.atomicCode          = alg_code_;
         data->chanDataDetect.detRet              = std::make_shared<DataDetTrackClassify>();
         data->chanDataDetect.detRet->streamIndex = images[i]->GetStreamIndex();
         data->chanDataDetect.detRet->frameIndex  = images[i]->GetFrameIndex();
@@ -178,7 +178,7 @@ void DinoDetector::HandFrames(std::vector<AlgDataPtr> algDatas) {
                     targets.erase(std::remove_if(targets.begin(), targets.end(),
                                                  [&taskParam](const AiDetectRstEl& target) {
                                                      return target.confidence.confidence <
-                                                            taskParam.boxConfidence;
+                                                            taskParam.box_confidence;
                                                  }),
                                   targets.end());
                 }
@@ -188,19 +188,19 @@ void DinoDetector::HandFrames(std::vector<AlgDataPtr> algDatas) {
             });
     }
 
-    LOG_DEBUG("{}[{} {}] Processed {} frames ({} prompts)", kTag, m_algCode, uuid, validDatas.size(),
+    LOG_DEBUG("{}[{} {}] Processed {} frames ({} prompts)", kTag, alg_code_, uuid, validDatas.size(),
               promptToIndices.size());
 }
 
 void DinoDetector::TargetAddArea(AiDetectRstEl& target, TargetPosition pos, TargetAreaType type,
-                                 MsgTaskArea& area, int picWidth, int picHeight, bool bAssociatedArea,
-                                 const std::string& mainAreaId) {
-    if (BoxInArea(target.box, pos, target.point, area.points, picWidth, picHeight)) {
+                                 MsgTaskArea& area, int pic_width, int pic_height, bool associated_area,
+                                 const std::string& main_area_id) {
+    if (BoxInArea(target.box, pos, target.point, area.points, pic_width, pic_height)) {
         TargetAreaUnit targetArea;
         targetArea.area_id            = area.areaId;
         targetArea.area_name          = area.name;
-        targetArea.is_associated_area = bAssociatedArea;
-        targetArea.main_area_id       = mainAreaId;
+        targetArea.is_associated_area = associated_area;
+        targetArea.main_area_id       = main_area_id;
         targetArea.position           = pos;
         targetArea.type               = type;
         target.targetPos              = pos;
@@ -212,31 +212,32 @@ void DinoDetector::TargetAddArea(AiDetectRstEl& target, TargetPosition pos, Targ
     }
 }
 
-void DinoDetector::TargetAddLine(AiDetectRstEl& target, TargetPosition pos, MsgTaskArea& area, int picWidth,
-                                 int picHeight, bool bAssociatedArea, const std::string& mainAreaId) {
+void DinoDetector::TargetAddLine(AiDetectRstEl& target, TargetPosition pos, MsgTaskArea& area, int pic_width,
+                                 int pic_height, bool associated_area, const std::string& main_area_id) {
     TargetLineUnit targetOnLineUnit;
     targetOnLineUnit.area_id            = area.areaId;
     targetOnLineUnit.area_name          = area.name;
-    targetOnLineUnit.is_associated_area = bAssociatedArea;
-    targetOnLineUnit.main_area_id       = mainAreaId;
+    targetOnLineUnit.is_associated_area = associated_area;
+    targetOnLineUnit.main_area_id       = main_area_id;
     targetOnLineUnit.position           = pos;
-    targetOnLineUnit.type = BoxOnLinePos(target.box, pos, target.point, area.linePoints, picWidth, picHeight);
-    target.targetPos      = pos;
+    targetOnLineUnit.type =
+        BoxOnLinePos(target.box, pos, target.point, area.linePoints, pic_width, pic_height);
+    target.targetPos = pos;
     target.areaSign.lines.push_back(targetOnLineUnit);
 }
 
-void DinoDetector::SignTargetAreas(AlgDataPtr dataPtr, const std::string& taskId) {
-    if (!dataPtr || !dataPtr->chanDataDec.frame || !dataPtr->chanDataDetect.detRet) {
+void DinoDetector::SignTargetAreas(AlgDataPtr data_ptr, const std::string& taskId) {
+    if (!data_ptr || !data_ptr->chanDataDec.frame || !data_ptr->chanDataDetect.detRet) {
         return;
     }
 
-    auto detRet = dataPtr->chanDataDetect.detRet;
-    auto width  = dataPtr->chanDataDec.frame->GetWidth();
-    auto height = dataPtr->chanDataDec.frame->GetHeight();
+    auto detRet = data_ptr->chanDataDetect.detRet;
+    auto width  = data_ptr->chanDataDec.frame->GetWidth();
+    auto height = data_ptr->chanDataDec.frame->GetHeight();
 
     std::shared_lock<std::shared_mutex> lock(mtx);
-    auto taskAreaIt = m_taskAreas.find(taskId);
-    if (taskAreaIt != m_taskAreas.end()) {
+    auto taskAreaIt = task_areas_.find(taskId);
+    if (taskAreaIt != task_areas_.end()) {
         auto& taskArea = taskAreaIt->second;
         if (!taskArea.areas.empty()) {
             detRet->bHaveArea = true;
@@ -286,52 +287,52 @@ void DinoDetector::SignTargetAreas(AlgDataPtr dataPtr, const std::string& taskId
 }
 
 void DinoDetector::AddOverviewTask(const std::string& taskId) {
-    auto it = m_overviewRecInsts.find(taskId);
-    if (it == m_overviewRecInsts.end()) {
-        auto recordInst            = std::make_shared<OverviewRecordAiRst>(taskId, "detect_dino");
-        m_overviewRecInsts[taskId] = recordInst;
+    auto it = overview_rec_insts_.find(taskId);
+    if (it == overview_rec_insts_.end()) {
+        auto recordInst             = std::make_shared<OverviewRecordAiRst>(taskId, "detect_dino");
+        overview_rec_insts_[taskId] = recordInst;
     }
 }
 
-void DinoDetector::OverviewRecord(const std::string& taskId, DataDetTrackClassifyPtr detRet) {
-    auto it                                 = m_overviewRecInsts.find(taskId);
+void DinoDetector::OverviewRecord(const std::string& taskId, DataDetTrackClassifyPtr det_ret) {
+    auto it                                 = overview_rec_insts_.find(taskId);
     static int64_t s_lastOverviewWriteLogTs = 0;
     auto now                                = util::GetMilliseconds();
     if ((now - s_lastOverviewWriteLogTs) > 1000) {
         s_lastOverviewWriteLogTs = now;
-        int targetCnt            = (detRet ? static_cast<int>(detRet->targets.size()) : -1);
-        int64_t frameIndex       = detRet ? detRet->frameIndex : -1;
-        int64_t frame_ts         = detRet ? detRet->timestamp : -1;
-        LOG_INFO("[DINO_OV_WRITE][{}:{}] taskId:{} frame:{} ts:{} targets:{} overviewInst:{}", m_algCode,
+        int targetCnt            = (det_ret ? static_cast<int>(det_ret->targets.size()) : -1);
+        int64_t frameIndex       = det_ret ? det_ret->frameIndex : -1;
+        int64_t frame_ts         = det_ret ? det_ret->timestamp : -1;
+        LOG_INFO("[DINO_OV_WRITE][{}:{}] taskId:{} frame:{} ts:{} targets:{} overviewInst:{}", alg_code_,
                  uuid, taskId, frameIndex, frame_ts, targetCnt,
-                 (it != m_overviewRecInsts.end() && it->second) ? 1 : 0);
+                 (it != overview_rec_insts_.end() && it->second) ? 1 : 0);
     }
-    if (it != m_overviewRecInsts.end() && it->second) {
-        it->second->OverviewRecordFrame(detRet);
+    if (it != overview_rec_insts_.end() && it->second) {
+        it->second->OverviewRecordFrame(det_ret);
     }
 }
 
-MsgOverviewMem DinoDetector::GetOverviewInfo(const std::string& /*channelId*/, const std::string& taskId,
+MsgOverviewMem DinoDetector::GetOverviewInfo(const std::string& /*channel_id*/, const std::string& taskId,
                                              int64_t streamIndex, int64_t from, int64_t to) {
     MsgOverviewMem info;
-    auto it = m_overviewRecInsts.find(taskId);
-    if (it != m_overviewRecInsts.end() && it->second) {
+    auto it = overview_rec_insts_.find(taskId);
+    if (it != overview_rec_insts_.end() && it->second) {
         info = it->second->GetOverviewInfo(streamIndex, from, to);
     }
     return info;
 }
 
 void DinoDetector::run() {
-    LOG_INFO("{}[{} {}] Thread Start", kTag, m_algCode, uuid);
+    LOG_INFO("{}[{} {}] Thread Start", kTag, alg_code_, uuid);
     int index = 0;
     while (running) {
-        if ((data_queue->RestSize() >= m_batchCount) || ((index >= 100) && (data_queue->RestSize() > 0))) {
+        if ((data_queue->RestSize() >= batch_count_) || ((index >= 100) && (data_queue->RestSize() > 0))) {
             size_t detnum     = data_queue->RestSize();
             auto inputFpsCalc = input_fps_calc.FpsWithFrame();
             handle_frame_cnt  = inputFpsCalc.first;
             in_fps            = inputFpsCalc.second;
             std::vector<AlgDataPtr> algDatas;
-            for (size_t i = 0; i < detnum && i < m_batchCount; i++) {
+            for (size_t i = 0; i < detnum && i < batch_count_; i++) {
                 auto data = data_queue->Pop();
                 if (data) {
                     algDatas.push_back(data);
@@ -349,13 +350,13 @@ void DinoDetector::run() {
         }
     }
     // Release model on thread exit to free VRAM (HandFrames->DinoSdkInit will reload on next start)
-    if (m_detector) {
-        LOG_INFO("{}[{} {}] Thread exiting, releasing Dino model to free VRAM", kTag, m_algCode, uuid);
-        m_detector.reset();
-        m_detector         = nullptr;
-        m_detectorInstInit = false;
+    if (detector_) {
+        LOG_INFO("{}[{} {}] Thread exiting, releasing Dino model to free VRAM", kTag, alg_code_, uuid);
+        detector_.reset();
+        detector_              = nullptr;
+        is_detector_inst_init_ = false;
     }
-    LOG_INFO("{}[{} {}] Thread Stop", kTag, m_algCode, uuid);
+    LOG_INFO("{}[{} {}] Thread Stop", kTag, alg_code_, uuid);
 }
 
 }  // namespace cosmo

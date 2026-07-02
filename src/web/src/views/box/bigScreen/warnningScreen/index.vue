@@ -29,7 +29,7 @@
 
               <div class="match-info">
                 <span class="match-name">{{ currentSocketData.property.recognition.matchName }}</span>
-                <span class="match-score">{{ currentSocketData.property.recognition.matchDegree != '-1' ? currentSocketData.property.recognition.matchDegree : '' }}</span>
+                <span class="match-score">{{ formatSimilarity(currentSocketData.property.recognition.matchDegree) }}</span>
               </div>
             </div>
             
@@ -179,7 +179,7 @@
 
                   <div class="match-div" v-if="event.property.recognition.matchName && event.property.recognition.matchDegree != '-1'">
                     {{ event.property.recognition.matchName }}
-                    {{ event.property.recognition.matchDegree != '-1' ? event.property.recognition.matchDegree : '' }}
+                    {{ formatSimilarity(event.property.recognition.matchDegree) }}
                   </div>
                 </div>
                 <div v-else class="event-image">
@@ -261,6 +261,7 @@ import EventBus from '@/components/eventBus'
 import _ from 'lodash'
 import { t, localeColon, currentLocale } from '@/i18n'
 import { resolveResourceAlgorithmName } from '@/utils/i18nResource'
+import { formatSimilarity } from '@/utils/format'
 
 const { proxy } = getCurrentInstance()
 const $API = proxy.$API

@@ -71,7 +71,7 @@
               {{ t('event.similarity') }}{{ localeColon }}
             </span>
             <span class="info-item-content">
-              {{ recognitionData.matchDegree ? recognitionData.matchDegree  : '' }}
+              {{ formatSimilarity(recognitionData.matchDegree) }}
             </span>
           </div>
         </template>
@@ -158,6 +158,7 @@ import moment from 'moment'
 import ImageLoader from '@/components/ImageLoader.vue'
 import { t, localeColon } from '@/i18n'
 import { resolveResourceAlgorithmName } from '@/utils/i18nResource'
+import { formatSimilarity } from '@/utils/format'
 
 const props = defineProps({
   visible: {

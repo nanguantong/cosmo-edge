@@ -104,13 +104,11 @@ void EventNotifierImpl::InitWebSocketServer(const std::function<void(std::string
          // pong
          [](auto*) { LOG_INFO("{}", "Websocket message - PONG"); },
          // close
-         [this](auto ws, int code, std::string_view message) {
+         [this](auto* closed_ws, int code, std::string_view message) {
              LOG_INFO("A websocket disconnect, code:{}, message: \"{}\"", code, message);
-             if (!ws)
-                 return;
              std::lock_guard<std::mutex> lock(ws_mtx_);
              for (auto& it_map : ws_connections_) {
-                 auto it_vec = find(it_map.second.begin(), it_map.second.end(), ws);
+                 auto it_vec = find(it_map.second.begin(), it_map.second.end(), closed_ws);
                  if (it_vec != it_map.second.end()) {
                      it_map.second.erase(it_vec);
                      LOG_INFO("Remove a websocket connection, Url: {}", it_map.first);

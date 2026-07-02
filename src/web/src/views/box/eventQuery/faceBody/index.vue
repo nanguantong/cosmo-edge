@@ -69,7 +69,7 @@
           <template #default="scope">
             <span
               v-if="returnBaseInfo(scope.row.property, 'matchDegree') && returnBaseInfo(scope.row.property, 'matchDegree') != '-1'">
-              {{ returnBaseInfo(scope.row.property, 'matchDegree') }}
+              {{ formatSimilarity(returnBaseInfo(scope.row.property, 'matchDegree')) }}
             </span>
           </template>
         </el-table-column>
@@ -134,6 +134,7 @@ import CaptureDialog from '../components/captureDialog.vue'
 import videoFrequency from '../components/videoPlaying265.vue'
 import { t, currentLocale } from '@/i18n'
 import { resolveResourceAlgorithmName } from '@/utils/i18nResource'
+import { formatSimilarity } from '@/utils/format'
 
 const { proxy } = getCurrentInstance()
 

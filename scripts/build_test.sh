@@ -11,7 +11,7 @@ mkdir -p ${BUILD_DIR}
 cd ${BUILD_DIR}
 
 echo "Configuring with tests enabled..."
-cmake   -DCMAKE_BUILD_TYPE=release \
+cmake   -DCMAKE_BUILD_TYPE=Release \
         -DBUILD_TESTS=ON \
         ..
 

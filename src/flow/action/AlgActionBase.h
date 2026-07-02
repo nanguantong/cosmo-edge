@@ -177,7 +177,8 @@ protected:
 
     std::mutex lifecycle_mtx_;
 
-    std::shared_mutex mtx;
+    // Mutable so const query methods can acquire the lock (idiomatic for mutexes).
+    mutable std::shared_mutex mtx;
 
     AlgDataQueueDistributorPtr distributor = nullptr;
 

@@ -7,9 +7,13 @@ on:
   # Allow manual trigger for testing purposes
   workflow_dispatch: 
 
+permissions:
+  contents: read
+
 jobs:
   build-sophon:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     
     # Specify the public container image for the build environment
     container:
@@ -51,6 +55,7 @@ jobs:
   test-sophon:
     needs: build-sophon
     runs-on: [self-hosted, hosted-sophon-device]
+    timeout-minutes: 30   # self-hosted 无默认超时，防挂死占用设备
     
     steps:
       - name: Download Test Binary

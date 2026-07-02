@@ -46,8 +46,11 @@ void LogInit(const std::string& name, const std::string& basedir, const std::str
 
 void Application::run(const char* base_dir) {
     // DeviceContext must outlive all services — created before SwDeviceInit,
-    // destroyed after SwDeviceDestroy.
-    auto device_ctx = std::make_unique<cosmo::mem::DeviceContext>();
+    // destroyed after SwDeviceDestroy. Declared here (not constructed) so the
+    // teardown after the catch still sees it; construction moved inside try so a
+    // constructor exception is caught and logged cleanly instead of escaping to
+    // std::terminate.
+    std::unique_ptr<cosmo::mem::DeviceContext> device_ctx;
 
     try {
         signal(SIGILL, SIG_IGN);
@@ -59,6 +62,9 @@ void Application::run(const char* base_dir) {
         LogInit(app_name_, cosmo::path::GetLogPath(), cosmo::util::GetAbbrVersion());
 
         LOG_INFO("{} Version:{}", cosmo::util::GetProgramDesc(), cosmo::util::GetAbbrVersion());
+
+        // Construct after LogInit so a bm_dev_request failure is logged to a configured glog.
+        device_ctx = std::make_unique<cosmo::mem::DeviceContext>();
 
         // Register DeviceContext via non-owning Set (it outlives ServiceRegistry)
         cosmo::service::ServiceRegistry::Instance().Set<cosmo::mem::IDeviceContext>(device_ctx.get());

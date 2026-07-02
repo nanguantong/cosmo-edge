@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include <cerrno>
+#include <csignal>
 #include <cstring>
 
 #include "fmt/format.h"
@@ -103,6 +104,12 @@ namespace {
                 _exit(kExecFailureCode);
             }
             close(pipefd[1]);
+            // SIGPIPE is set to SIG_IGN by the parent to protect against
+            // broken-pipe writes to dead WebSocket clients.  SIG_IGN
+            // survives execve() per POSIX, so reset it here so child
+            // processes (and their shell pipelines) see the default
+            // disposition where a broken pipe terminates the writer.
+            signal(SIGPIPE, SIG_DFL);
             execvp(c_argv[0], c_argv.data());
             _exit(kExecFailureCode);  // only reached if execvp() failed
         }

@@ -1664,6 +1664,7 @@ export default {
     step1Desc: 'Click the "Add" button to create a new video channel.',
     step2Title: 'Select Access Type',
     step2Desc: 'Click the "Access Type" dropdown and select the highlighted "Offline Video" option.',
+    selectHint: '← Please select this item',
     step3Title: 'Enter Channel Name',
     step3Desc: 'The channel name is being filled in automatically…',
     channelNameDefault: 'Hardhat Detection Demo',

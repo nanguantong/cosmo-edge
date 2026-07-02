@@ -177,7 +177,7 @@
 import { ref, reactive, watch, onMounted, nextTick, computed, getCurrentInstance } from 'vue'
 import moment from 'moment'
 import * as echarts from 'echarts'
-import { t, localeColon } from '@/i18n'
+import { t, localeColon, currentLocale } from '@/i18n'
 import { resolveResourceAlgorithmName } from '@/utils/i18nResource'
 
 const { proxy } = getCurrentInstance()
@@ -402,10 +402,31 @@ const validateParams = () => {
   return true
 }
 
+// Localize the backend-provided timeString for the flow trend chart & table.
+// The backend pre-localizes dates to Chinese ("2026年07月02日" / "2026年07月");
+// reformat to a friendly English representation for en-US (and the dev pseudo
+// locale). Hour values ("HH:MM") are already locale-neutral and pass through.
+const useEnFlowDateFormat = () =>
+  currentLocale.value === 'en-US' || (import.meta.env.DEV && currentLocale.value === 'xx-pseudo')
+
+const formatFlowTime = (timeString) => {
+  if (!timeString || !useEnFlowDateFormat()) return timeString
+  // Day: YYYY年MM月DD日
+  let m = moment(timeString, 'YYYY[年]MM[月]DD[日]', true)
+  if (m.isValid()) return m.format('MMM DD, YYYY')
+  // Month: YYYY年MM月
+  m = moment(timeString, 'YYYY[年]MM[月]', true)
+  if (m.isValid()) return m.format('MMM YYYY')
+  return timeString
+}
+
 const getData = () => {
   if (!validateParams()) return
   proxy.$API.queryPassengerFlowNumber(params.value).then((res) => {
-    chartList.value = res.resData.numberList
+    chartList.value = res.resData.numberList.map((item) => ({
+      ...item,
+      timeString: formatFlowTime(item.timeString)
+    }))
     if (!chartList.value.length) return
     const timeData = []
     const inData = []

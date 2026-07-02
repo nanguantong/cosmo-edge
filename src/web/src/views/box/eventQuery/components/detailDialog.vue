@@ -76,7 +76,7 @@
           <div class="info-item">
             <span class="info-item-title">{{ t('event.similarity') }}{{ localeColon }}</span>
             <span class="info-item-content">
-              {{ workClothesRecognitionData.matchDegree ? workClothesRecognitionData.matchDegree : '' }}
+              {{ formatSimilarity(workClothesRecognitionData.matchDegree) }}
             </span>
           </div>
         </template>
@@ -111,7 +111,7 @@
           <div class="info-item">
             <span class="info-item-title">{{ t('event.similarity') }}{{ localeColon }}</span>
             <span class="info-item-content">
-              {{ machineMaterialData.matchDegree ? machineMaterialData.matchDegree : '' }}
+              {{ formatSimilarity(machineMaterialData.matchDegree) }}
             </span>
           </div>
         </template>
@@ -153,6 +153,7 @@ import moment from 'moment'
 import ImageLoader from '@/components/ImageLoader.vue'
 import { t, localeColon } from '@/i18n'
 import { resolveResourceAlgorithmName } from '@/utils/i18nResource'
+import { formatSimilarity } from '@/utils/format'
 
 const props = defineProps({
   visible: {

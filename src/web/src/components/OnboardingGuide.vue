@@ -50,7 +50,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, onBeforeUnmount, nextTick, getCurrentInstance } from 'vue'
+import { ref, reactive, computed, watch, watchEffect, onMounted, onBeforeUnmount, nextTick, getCurrentInstance } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { t } from '@/i18n'
 
@@ -69,6 +69,19 @@ let pollTimer = null
 const addLog = (msg, type = 'info') => {
   console.log(`[OnboardingGuide][${type}] ${msg}`)
 }
+
+// Drive the dropdown hint annotation (the `::after` content on the highlighted
+// "Offline Video" option) from the current locale. CSS content strings can't
+// call t() directly, so we expose the translated hint as a CSS custom property
+// on :root; the unscoped style block consumes it via var(). The popper is
+// teleported to <body>, and CSS variables inherit down from <html>, so the
+// teleported dropdown still resolves it.
+watchEffect(() => {
+  document.documentElement.style.setProperty(
+    '--onboarding-select-hint',
+    JSON.stringify(t('onboarding.selectHint'))
+  )
+})
 
 const steps = reactive([
   // ━━ Access Video ━━
@@ -262,6 +275,19 @@ const canSkip = computed(() => true)
 const stepTitle = computed(() => currentStep.value?.titleKey ? t(currentStep.value.titleKey) : '')
 const stepDescription = computed(() => currentStep.value?.descKey ? t(currentStep.value.descKey) : '')
 const stepTip = computed(() => currentStep.value?.tipKey ? t(currentStep.value.tipKey) : null)
+
+// The "← 请选择此项" hint + highlight on the Access Type dropdown must only
+// render while the guide is actively on the channel-type step. The el-select
+// popper is teleported to <body>, so we toggle a body class it can match;
+// manual channel adding runs with no guide active, so the class is absent and
+// the dropdown stays un-decorated.
+const highlightChannelType = computed(
+  () => active.value && currentStep.value?.selector === '#onboarding-channel-type'
+)
+watch(highlightChannelType, (on) => {
+  if (typeof document === 'undefined') return
+  document.body.classList.toggle('onboarding-channel-type-step', on)
+}, { immediate: true })
 
 // ── Spotlight mask clip-path ──
 const maskStyle = computed(() => {
@@ -673,6 +699,9 @@ onBeforeUnmount(() => {
   }
   stopPolling()
   cleanupAutoAdvance()
+  if (typeof document !== 'undefined') {
+    document.body.classList.remove('onboarding-channel-type-step')
+  }
 })
 
 // Re-locate on route change
@@ -863,7 +892,10 @@ defineExpose({ startOnboarding })
 
 <!-- Unscoped: raise Element Plus popper/dropdown z-index above the overlay -->
 <style lang="scss">
-.onboarding-type-popper {
+// Decoration only applies while the guide is on the channel-type step
+// (body.onboarding-channel-type-step). Manual channel adding has no guide
+// active, so the popper is never decorated.
+body.onboarding-channel-type-step .onboarding-type-popper {
   z-index: 100010 !important;
 
   .el-select-dropdown__item:nth-child(4) {
@@ -874,7 +906,7 @@ defineExpose({ startOnboarding })
     position: relative;
 
     &::after {
-      content: '\2190 Please select this item';
+      content: var(--onboarding-select-hint);
       position: absolute;
       right: 12px;
       font-size: 11px;

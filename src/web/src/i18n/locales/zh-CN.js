@@ -1664,6 +1664,7 @@ export default {
     step1Desc: '点击"添加"按钮，创建新的视频接入通道。',
     step2Title: '选择接入类型',
     step2Desc: '点击"接入类型"下拉框，选择高亮的"离线视频"选项。',
+    selectHint: '← 请选择此项',
     step3Title: '填写通道名称',
     step3Desc: '正在为您自动填写通道名称…',
     channelNameDefault: '安全帽检测演示',

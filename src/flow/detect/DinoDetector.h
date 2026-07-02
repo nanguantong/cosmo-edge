@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include <list>
 #include <map>
 #include <memory>
 #include <string>
@@ -20,105 +19,107 @@ struct DinoDetectorChannel {
 };
 
 struct DinoDetectorParamEl {
-    std::string taskId;
-    std::string atomicCode;
+    std::string task_id;
+    std::string atomic_code;
     float fps{1.0};
     std::string prompt{"detect objects"};  // Detection prompt for Dino
-    float boxConfidence{0.25f};            // Object detection confidence threshold
-    float textConfidence{0.3f};            // Text matching confidence threshold
+    float box_confidence{0.25f};           // Object detection confidence threshold
+    float text_confidence{0.3f};           // Text matching confidence threshold
 };
 
 struct DinoDetectorParam {
-    int paramModifySign{0};
-    int paramActiveSign{-1};
+    int param_modify_sign{0};
+    int param_active_sign{-1};
     std::vector<DinoDetectorParamEl> param;
 };
 
 class DinoDetector : public AlgActionBase {
 public:
-    explicit DinoDetector(ActionNode &action);
-    ~DinoDetector();
+    explicit DinoDetector(ActionNode& action);
+    ~DinoDetector() override;
 
     bool DinoSdkInit();
 
     // Modify parameters — update on top of existing parameters
-    bool ModifyParam(const std::string &channelId, const std::string &taskId,
-                     std::vector<MsgDynamicKeyValue> &params) override;
+    bool ModifyParam(const std::string& channel_id, const std::string& taskId,
+                     std::vector<MsgDynamicKeyValue>& params) override;
     // Set parameters — clear previous parameters, set all new parameters
-    bool SetParam(const std::string &channelId, const std::string &taskId,
-                  std::vector<MsgDynamicKeyValue> &params) override;
+    bool SetParam(const std::string& channel_id, const std::string& taskId,
+                  std::vector<MsgDynamicKeyValue>& params) override;
 
     // Set areas (for zone-based alerts and visual overlay)
-    bool SetArea(const std::string &channelId, const std::string &taskId, std::vector<MsgTaskArea> &areas,
-                 std::vector<MsgTaskArea> &shieldedAreas) override;
+    bool SetArea(const std::string& channel_id, const std::string& taskId, std::vector<MsgTaskArea>& areas,
+                 std::vector<MsgTaskArea>& shielded_areas) override;
 
     // Get overlay/overview information
-    MsgOverviewMem GetOverviewInfo(const std::string &channelId, const std::string &taskId,
+    MsgOverviewMem GetOverviewInfo(const std::string& channel_id, const std::string& taskId,
                                    int64_t streamIndex = -1, int64_t from = -1, int64_t to = -1) override;
 
-    void QueueStatus(std::vector<AlgActionDataQueueStatus> &queStatus,
-                     unsigned int durationSec = 30) override;
+    void QueueStatus(std::vector<AlgActionDataQueueStatus>& que_status,
+                     unsigned int duration_sec = 30) override;
 
     // Add task when acquiring an instance
-    bool AddTask(const std::string &channel_id, const std::string &task);
+    bool AddTask(const std::string& channel_id, const std::string& task);
     // Remove task when releasing an instance
-    bool RemoveTask(const std::string &channel_id, const std::string &task);
+    bool RemoveTask(const std::string& channel_id, const std::string& task);
 
     // Check if a channel already uses this shared detector
-    bool ChannelExist(const std::string &channel_id);
+    bool ChannelExist(const std::string& channel_id) const;
     // Check if a task already exists within a channel on this detector
-    bool TaskExist(const std::string &channel_id, const std::string &task);
+    bool TaskExist(const std::string& channel_id, const std::string& task) const;
     // Check if max channel reuse count is reached
-    bool TaskIsFull();
-    bool TaskIsEmpty();
+    bool TaskIsFull() const;
+    bool TaskIsEmpty() const;
 
-    size_t ChannelCount();
-    size_t TaskCount();
+    size_t ChannelCount() const;
+    size_t TaskCount() const;
 
-    std::string GetAlgCode() {
-        return m_algCode;
-    };
+    std::string GetAlgCode() const {
+        return alg_code_;
+    }
 
 protected:
     // Worker thread entry point (override from base class)
-    virtual void run() override;
+    void run() override;
 
 private:
-    void HandFrames(std::vector<AlgDataPtr> algDatas);
-    bool ValidKey(MsgDynamicKeyValue &param);
-    bool AnalysisKey(const std::string &channelId, const std::string &taskId, MsgDynamicKeyValue &param);
-    DinoDetectorParamEl FoundLocalParamByTask(const AlgTaskUnit &task);
+    // Note: taskId/streamIndex keep camelCase to avoid shadowing AlgActionBase members task_id/stream_index.
+    void HandFrames(std::vector<AlgDataPtr> alg_datas);
+    bool ValidKey(const MsgDynamicKeyValue& param) const;
+    bool AnalysisKey(const std::string& channel_id, const std::string& taskId,
+                     const MsgDynamicKeyValue& param);
+    DinoDetectorParamEl FoundLocalParamByTask(const AlgTaskUnit& task) const;
 
-    DinoDetectorParamEl GetTaskParams(const std::string &taskId);
+    DinoDetectorParamEl GetTaskParams(const std::string& taskId) const;
     DinoDetectorParamEl GetTaskParamsUnlocked(
-        const std::string &taskId);  // Lock-free version; caller must hold lock
+        const std::string& taskId) const;  // Lock-free; caller holds lock
 
-    void TargetAddArea(AiDetectRstEl &target, TargetPosition pos, TargetAreaType type, MsgTaskArea &area,
-                       int picWidth, int picHeight, bool bAssociatedArea = false,
-                       const std::string &mainAreaId = "");
-    void TargetAddLine(AiDetectRstEl &target, TargetPosition pos, MsgTaskArea &area, int picWidth,
-                       int picHeight, bool bAssociatedArea = false, const std::string &mainAreaId = "");
-    void SignTargetAreas(AlgDataPtr dataPtr, const std::string &taskId);
-    void AddOverviewTask(const std::string &taskId);
-    void OverviewRecord(const std::string &taskId, DataDetTrackClassifyPtr detRet);
+    void TargetAddArea(AiDetectRstEl& target, TargetPosition pos, TargetAreaType type, MsgTaskArea& area,
+                       int pic_width, int pic_height, bool associated_area = false,
+                       const std::string& main_area_id = "");
+    void TargetAddLine(AiDetectRstEl& target, TargetPosition pos, MsgTaskArea& area, int pic_width,
+                       int pic_height, bool associated_area = false, const std::string& main_area_id = "");
+    void SignTargetAreas(AlgDataPtr data_ptr, const std::string& taskId);
+    void AddOverviewTask(const std::string& taskId);
+    void OverviewRecord(const std::string& taskId, DataDetTrackClassifyPtr det_ret);
 
 private:
-    std::string m_algCode;
-    size_t m_maxReuseCount{1};                       // Max channels sharing this detector
-    size_t m_batchCount{1};                          // Batch size for inference
-    std::vector<DinoDetectorChannel> m_channelList;  // Channels/tasks using this detector
-    bool m_detectorInstInit{false};
-    int m_signRegister{0};
-    DinoDetectorParam m_params;
-    std::map<std::string, TaskBaseArea> m_taskAreas;
-    std::map<std::string, OverviewRecordAiRstPtr> m_overviewRecInsts;
+    std::string alg_code_;
+    size_t max_reuse_count_{1};                      // Max channels sharing this detector
+    size_t batch_count_{1};                          // Batch size for inference
+    std::vector<DinoDetectorChannel> channel_list_;  // Channels/tasks using this detector
+    bool is_detector_inst_init_{false};
+    int sign_register_{0};
+    DinoDetectorParam params_;
+    std::map<std::string, TaskBaseArea> task_areas_;
+    std::map<std::string, OverviewRecordAiRstPtr> overview_rec_insts_;
 
     // Detector inference instance
-    DinoDetectorUnifyPtr m_detector;
+    DinoDetectorUnifyPtr detector_;
 
     // Init retry control (prevent infinite retries after OOM)
-    int m_initRetryCount{0};          // Consecutive failure count
-    int64_t m_lastInitFailTimeMs{0};  // Timestamp of last failure (ms)
+    int init_retry_count_{0};            // Consecutive failure count
+    int64_t last_init_fail_time_ms_{0};  // Timestamp of last failure (ms)
 };
 using DinoDetectorPtr = std::shared_ptr<DinoDetector>;
 }  // namespace cosmo

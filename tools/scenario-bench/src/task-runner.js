@@ -137,7 +137,8 @@ export class TaskRunner {
           const batch = toAdd.slice(offset, offset + this.rampBatchSize);
           const failedList = await this._bind(batch);
           if (failedList.length > 0) {
-            const failedIds = failedList.map(f => f.id).join(', ');
+            const failedIds = failedList.map((f) => f.id ?? f.channelId ?? '?').join(', ');
+            active = [...new Set([...active, ...batch])];
             this.log?.warn(`[step ${i + 1}] bottleneck detected - task bind failed on: ${failedIds}`);
             bottleneck = { bottleneckStep: i, bottleneckReason: `任务绑定失败 (可能达到设备并发授权上限): ${failedIds}` };
             return bottleneck;

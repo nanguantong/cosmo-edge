@@ -186,13 +186,7 @@ export class ReportWriter {
 
   _buildSummary(r, stepSummaries) {
     const ran = stepSummaries.filter((s) => !s.skipped);
-    const passed = ran.filter((s) => s.pass);
     const firstFailed = ran.find((s) => s.pass === false) ?? null;
-    const maxVerifiedPassedChannels = passed.length ? Math.max(...passed.map((s) => s.channels)) : null;
-    const continuousProfile = r.profileMode === 'capacity' || isContinuousChannelProfile(stepSummaries);
-    const maxStableChannels = continuousProfile ? maxVerifiedPassedChannels : null;
-    const overallPass = r.status !== 'aborted' && ran.length > 0 && 
-      (r.profileMode === 'capacity' ? maxVerifiedPassedChannels > 0 : ran.every((s) => s.pass));
     const bottleneck = r.bottleneck ?? (firstFailed
       ? {
           stepIndex: firstFailed.step.index,
@@ -201,6 +195,21 @@ export class ReportWriter {
           reason: firstFailed.reasons.join('; '),
         }
       : null);
+    const hasBottleneck = Boolean(bottleneck);
+    const verifiedPassed = ran.filter((s) =>
+      s.pass && (!hasBottleneck || s.step.index < bottleneck.stepIndex),
+    );
+    const maxVerifiedPassedChannels = verifiedPassed.length
+      ? Math.max(...verifiedPassed.map((s) => s.channels))
+      : null;
+    const continuousProfile = r.profileMode === 'capacity' || isContinuousChannelProfile(stepSummaries);
+    const maxStableChannels = continuousProfile ? maxVerifiedPassedChannels : null;
+    const allRanStepsPass = ran.length > 0 && ran.every((s) => s.pass);
+    const capacityMeasured = r.status !== 'aborted'
+      && continuousProfile
+      && maxVerifiedPassedChannels != null
+      && (hasBottleneck || allRanStepsPass);
+    const overallPass = r.status !== 'aborted' && allRanStepsPass && !hasBottleneck;
 
     let conclusion;
     if (r.status === 'aborted') {
@@ -231,6 +240,9 @@ export class ReportWriter {
       profileMode: r.profileMode ?? 'configured',
       status: r.status,
       overallPass,
+      allRanStepsPass,
+      hasBottleneck,
+      capacityMeasured,
       conclusion,
       maxStableChannels,
       maxStableChannelsExact: continuousProfile,
@@ -292,7 +304,18 @@ export class ReportWriter {
       ? `<div class="banner error"><strong>压测中断（部分报告）</strong><br>运行到 ${r.error?.atChannels ?? '?'} 路 / 第 ${r.error?.atStepIndex != null ? r.error.atStepIndex + 1 : '?'} 阶段时中断。原因：${esc(r.error?.message ?? '未知错误')}</div>`
       : '';
 
-    const stepRows = stepSummaries.map((s) => `
+    const runBadge = summary.hasBottleneck
+      ? { className: 'warn', label: 'STOPPED' }
+      : (summary.overallPass ? { className: 'pass', label: 'PASS' } : { className: 'fail', label: 'FAIL' });
+    const stepStatus = (s) => {
+      if (s.skipped) return { className: 'na', label: 'SKIP' };
+      if (summary.bottleneck?.stepIndex === s.step.index) return { className: 'warn', label: 'STOPPED' };
+      return s.pass ? { className: 'pass', label: 'PASS' } : { className: 'fail', label: 'FAIL' };
+    };
+
+    const stepRows = stepSummaries.map((s) => {
+      const status = stepStatus(s);
+      return `
       <tr>
         <td>${s.step.index + 1}</td>
         <td>${s.channels}</td>
@@ -306,9 +329,10 @@ export class ReportWriter {
         <td class="${s.maxNpu >= 90 ? 'fail' : ''}">${s.maxNpu != null ? s.maxNpu + '%' : '-'}</td>
         <td class="${s.maxCpu >= 90 ? 'fail' : ''}">${s.maxCpu != null ? s.maxCpu + '%' : '-'}</td>
         <td class="${s.maxMem >= 90 ? 'fail' : ''}">${s.maxMem != null ? s.maxMem + '%' : '-'}</td>
-        <td class="${s.skipped ? 'na' : (s.pass ? 'pass' : (summary.bottleneck?.stepIndex === s.step.index ? 'warn' : 'fail'))}">${s.skipped ? 'SKIP' : (s.pass ? 'PASS' : (summary.bottleneck?.stepIndex === s.step.index ? 'STOPPED' : 'FAIL'))}</td>
+        <td class="${status.className}">${status.label}</td>
         <td>${esc((s.reasons ?? []).join('; '))}</td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
 
     const verdictRows = stepSummaries.flatMap((s) =>
       s.perThreshold.map((t) => `
@@ -347,13 +371,13 @@ export class ReportWriter {
   th{background:#f5f5f5}.pass{color:#16a34a;font-weight:600}
   .fail{color:#dc2626;font-weight:600}.na{color:#888}
   .badge{display:inline-block;padding:4px 12px;border-radius:4px;color:#fff;font-weight:600}
-  .badge.pass{background:#16a34a}.badge.fail{background:#dc2626}
+  .badge.pass{background:#16a34a}.badge.fail{background:#dc2626}.badge.warn{background:#f59e0b}
   .summary{background:#f8fafc;border:1px solid #cbd5e1;padding:12px 14px;border-radius:4px;margin:12px 0}
   .banner{padding:10px 14px;border-radius:4px;margin:12px 0}.warn{background:#fef3c7;border:1px solid #f59e0b}.error{background:#fee2e2;border:1px solid #dc2626}
   .note-table th{width:140px}
 </style></head><body>
 <h1>压测报告</h1>
-<p>总体结果: <span class="badge ${summary.overallPass ? 'pass' : 'fail'}">${summary.overallPass ? 'PASS' : 'FAIL'}</span>${r.status === 'aborted' ? ' <span class="badge fail">ABORTED</span>' : ''}</p>
+<p>总体结果: <span class="badge ${runBadge.className}">${runBadge.label}</span>${r.status === 'aborted' ? ' <span class="badge fail">ABORTED</span>' : ''}</p>
 <div class="summary"><strong>结论</strong><br>${esc(summary.conclusion)}</div>
 ${abortedBanner}
 ${bottleneckBanner}

@@ -301,6 +301,10 @@ const targetLabelArr = ref([
   }
 ])
 const modelSelectType = ref('')
+// 挂载时快照保存的 labelList，用于回显 used 判定，避免被后续 config-change 异步覆盖成空导致丢勾
+const savedWebLabelList = ref([])
+// 标记 modelSelect 的算法清单是否已加载完成；未完成前不向上 emit config，避免空 labelList 覆盖已保存配置
+const modelListLoaded = ref(false)
 const labelFilterListType = ref(false)
 const labelAdjustType = ref(false)
 const labelListType = ref(false)
@@ -376,11 +380,17 @@ onMounted(() => {
   })
   if (modelSelect) {
     modelSelectType.value = modelSelect.type
+    // 快照保存的 labelList，供 getModelSelectList 回显 used（响应式 props 会被异步 config-change 覆盖）
+    savedWebLabelList.value =
+      _.get(props.actionDetail, 'configObject.webConfig.labelList', []) || []
     if (modelSelect.value) {
       getModelSelectList(modelSelect.value, modelSelect.type)
     } else {
       getModelSelectList('', modelSelect.type)
     }
+  } else {
+    // 非 modelSelect 表单无需等待清单加载，直接放行 emit
+    modelListLoaded.value = true
   }
 
   const labelFilterListItem = _.find(paramConfigs.value, {
@@ -539,6 +549,8 @@ const atomicListRef = toRef(props, 'atomicList')
 
 const emitConfigChange = _.debounce(() => {
   if (!formReady.value) return
+  // modelSelect 表单在算法清单加载完成前不向上同步，否则会用空 labelList 覆盖已保存的配置
+  if (modelSelectType.value && !modelListLoaded.value) return
   const config = submitForm({ persist: false })
   if (config) emit('config-change', config)
 }, 100)
@@ -755,18 +767,19 @@ const getModelSelectList = (code, type) => {
       }
       labelListTemp &&
         labelListTemp.forEach((item) => {
-          const flag = _.find(
-            props.actionDetail?.configObject?.webConfig.labelList,
-            {
-              class_name: item.class_name
-            }
-          )
+          // 用挂载时的快照判定 used，避免被异步 config-change 覆盖成空导致回显丢勾
+          const flag = _.find(savedWebLabelList.value, {
+            class_name: item.class_name
+          })
           labelList.value.push({
             ...item,
             used: flag ? true : false
           })
         })
     }
+  }).finally(() => {
+    // 算法清单加载完成（含未命中 atomic 的提前 return / 请求失败），解除 emit 门控
+    modelListLoaded.value = true
   })
 }
 

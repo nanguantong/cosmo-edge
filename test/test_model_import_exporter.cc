@@ -2,8 +2,8 @@
 #include <fstream>
 #include <functional>
 
+#include "util/NnBackendConstants.h"
 #include "util/PathUtil.h"
-#include "util/PlatformConstants.h"
 
 // clang-format off
 #include "catch_amalgamated.hpp"

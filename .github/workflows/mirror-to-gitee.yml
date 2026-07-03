@@ -28,7 +28,13 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.GITEE_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -t ed25519 gitee.com >> ~/.ssh/known_hosts
+          for i in 1 2 3; do
+            ssh-keyscan -t ed25519 gitee.com >> ~/.ssh/known_hosts && break
+            echo "ssh-keyscan attempt $i failed, retrying in 2s..."
+            sleep 2
+          done
+          # Fail the step if known_hosts is empty (all retries exhausted)
+          test -s ~/.ssh/known_hosts || { echo "ssh-keyscan failed after 3 attempts"; exit 1; }
 
       - name: Push to Gitee
         run: |

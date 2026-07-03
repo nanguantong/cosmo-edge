@@ -8,8 +8,8 @@
 
 #include "service/system/IAppInfoService.h"
 #include "util/Log.h"
+#include "util/NnBackendConstants.h"
 #include "util/PathUtil.h"
-#include "util/PlatformConstants.h"
 
 namespace cosmo::service {
 

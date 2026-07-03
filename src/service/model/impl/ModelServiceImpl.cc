@@ -21,8 +21,8 @@
 #include "util/JsonFileUtil.h"
 #include "util/JsonStructUtil.h"
 #include "util/LimitedTypeJson.h"
+#include "util/NnBackendConstants.h"
 #include "util/PathUtil.h"
-#include "util/PlatformConstants.h"
 #include "util/StringUtil.h"
 #include "util/TimeUtil.h"
 

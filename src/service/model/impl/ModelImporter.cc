@@ -18,8 +18,8 @@
 #include "nlohmann/json.hpp"
 #include "util/ErrorCode.h"
 #include "util/Exec.h"
+#include "util/NnBackendConstants.h"
 #include "util/PathUtil.h"
-#include "util/PlatformConstants.h"
 
 namespace cosmo::service {
 

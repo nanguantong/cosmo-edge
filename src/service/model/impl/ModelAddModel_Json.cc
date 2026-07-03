@@ -11,7 +11,7 @@
 
 #include "nlohmann/json.hpp"
 #include "util/Log.h"
-#include "util/PlatformConstants.h"
+#include "util/NnBackendConstants.h"
 
 namespace cosmo::service {
 

@@ -42,7 +42,7 @@ First stable public release: a security and CI hardening pass plus feature, refa
 
 ### Security
 
-- Pre-release hardening pass: shell-injection guards, null-safety and lifecycle fixes across `infer`/`mem`/`nn`/`service`, default-password enforcement, and child-process signal hygiene.
+- Release hardening pass: shell-injection guards, null-safety and lifecycle fixes across `infer`/`mem`/`nn`/`service`, default-password enforcement, and child-process signal hygiene.
 - Updated `SECURITY.md` with supported versions, response SLA, and hardening notes, and unified the vulnerability contact to `hello@cosmowander.ai`.
 
 ### Docs

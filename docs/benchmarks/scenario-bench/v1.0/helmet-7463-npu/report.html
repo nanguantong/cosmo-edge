@@ -1,54 +1,939 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ScenarioBench Report - No Safety Helmet NPU Benchmark (7463)</title>
-  <style>
-    :root { color-scheme: light; --ink: #172026; --muted: #5f6b75; --line: #d9e0e7; --bg: #f7f9fb; --card: #ffffff; --pass: #0f7a4f; --limited: #a45b00; }
-    body { margin: 0; font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); }
-    main { max-width: 980px; margin: 0 auto; padding: 40px 24px 56px; }
-    h1 { margin: 0 0 8px; font-size: 32px; line-height: 1.18; }
-    h2 { margin-top: 32px; font-size: 20px; }
-    p { color: var(--muted); }
-    .status { display: inline-flex; align-items: center; gap: 8px; margin: 16px 0 8px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); font-weight: 650; }
-    .status.pass { color: var(--pass); }
-    .status.limited { color: var(--limited); }
-    table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); }
-    th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
-    th { width: 240px; color: var(--muted); font-weight: 600; }
-    tr:last-child th, tr:last-child td { border-bottom: 0; }
-    a { color: #075bb5; }
-    .note { padding: 14px 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); }
-    code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.95em; }
-  </style>
-</head>
-<body>
-<main>
-  <h1>No Safety Helmet NPU Benchmark (7463)</h1>
-  <p>No Safety Helmet single-algorithm capacity benchmark on the NPU accelerated node.</p>
-  <div class="status pass">PASS: All tested channel counts passed; verified stable capacity is at least 16 channels.</div>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Benchmark Report - No Safety Helmet NPU Benchmark (7463)</title>
+<style>
+  body{font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:24px;color:#1a1a1a}
+  h1{font-size:20px} h2{font-size:16px;margin-top:28px;border-bottom:1px solid #ddd;padding-bottom:4px}
+  table{border-collapse:collapse;width:100%;margin:8px 0}
+  th,td{border:1px solid #ddd;padding:6px 10px;text-align:left;vertical-align:top}
+  th{background:#f5f5f5}.pass{color:#16a34a;font-weight:600}
+  .fail{color:#dc2626;font-weight:600}.na{color:#888}
+  .badge{display:inline-block;padding:4px 12px;border-radius:4px;color:#fff;font-weight:600}
+  .badge.pass{background:#16a34a}.badge.fail{background:#dc2626}.badge.warn{background:#f59e0b}
+  .summary{background:#f8fafc;border:1px solid #cbd5e1;padding:12px 14px;border-radius:4px;margin:12px 0}
+  .banner{padding:10px 14px;border-radius:4px;margin:12px 0}.warn{background:#fef3c7;border:1px solid #f59e0b}.error{background:#fee2e2;border:1px solid #dc2626}
+  .note-table th{width:140px}
+</style></head><body>
+<h1>Benchmark Report</h1>
+<p><a href="report.zh-CN.html">Original Chinese report</a> · <a href="summary.json">Machine-readable summary</a></p>
+<p>Overall result: <span class="badge pass">PASS</span></p>
+<div class="summary"><strong>Conclusion</strong><br>All tested channel counts passed; verified stable capacity is at least 16 channels</div>
 
-  <h2>Benchmark Summary</h2>
-  <table><tr><th>Scenario</th><td>No Safety Helmet NPU Benchmark (7463)</td></tr>
-<tr><th>Chinese scenario name</th><td>安全帽算法单跑压测 (7463)</td></tr>
-<tr><th>Hardware profile</th><td>npu-yy-16t01-preview</td></tr>
-<tr><th>Device alias</th><td>NPU-Device-A</td></tr>
-<tr><th>Device model</th><td>YY-16T01-Preview</td></tr>
-<tr><th>Software version</th><td>V1.0.0.0</td></tr>
-<tr><th>Algorithms</th><td>No Safety Helmet 7463</td></tr>
-<tr><th>Target FPS</th><td>3</td></tr>
-<tr><th>Baseline FPS</th><td>3.07</td></tr>
-<tr><th>Max stable channels</th><td>16</td></tr>
-<tr><th>Sample count</th><td>176</td></tr>
-<tr><th>Started at</th><td>2026-07-03T09:53:31.519Z</td></tr>
-<tr><th>Ended at</th><td>2026-07-03T10:02:30.951Z</td></tr></table>
 
-  <h2>Threshold Result</h2>
-  <p>No failed step was observed in the published benchmark range.</p>
-
-  <h2>Artifacts</h2>
-  <p class="note">The machine-readable summary is available in <a href="summary.json">summary.json</a>. The original Chinese ScenarioBench report is preserved as <a href="report.zh-CN.html">report.zh-CN.html</a>. Full raw metrics are distributed with the v1.0 release assets instead of being committed under docs.</p>
-</main>
-</body>
-</html>
+<h2>Evaluation Criteria</h2>
+<table class="note-table"><tr><th>Capacity Conclusion</th><td>ScenarioBench scans channel counts sequentially, so the capacity can be reported directly. The capacity limit is the last channel count that completed and passed the report thresholds.</td></tr><tr><th>Channel-count PASS/FAIL</th><td>Each task selects its evaluation strategy by task type. CV uses critical-path latency, detection-node latency, and discard rate by default. VLM uses analysis-FPS compliance and sampling-miss rate by default, with optional end-to-end latency checks. The global average discard-rate threshold is 0.05.</td></tr><tr><th>Bottleneck Stop</th><td>Runtime protection stops the run before excessive load continues. CV uses stable-window FPS falling below half of the baseline as a guard. VLM uses target-FPS compliance so low-FPS tasks are not misclassified by short windows. Discard rate, CPU, memory, and other guards still apply.</td></tr><tr><th>Sampling Window</th><td>Samples are collected about every 3 seconds. Step summaries use the second half of samples in each step as the stable window.</td></tr><tr><th>Failure Reason</th><td>Failure reasons in the tables come from failed threshold checks. If bottleneck protection also stopped the run, the top banner shows the runtime reason that triggered early stop.</td></tr></table>
+<h2>Basic Information</h2>
+<table><tr><th>Scenario</th><td>No Safety Helmet NPU Benchmark (7463)</td></tr><tr><th>Task</th><td>helmet-7463: 7463 (No Safety Helmet 7463)</td></tr><tr><th>Task Strategy</th><td>helmet-7463=cv</td></tr><tr><th>Pipeline FPS Setting (Reference)</th><td>helmet-7463=3</td></tr><tr><th>Video Mode</th><td>local</td></tr><tr><th>Device</th><td>YY-16T01-Preview / NPU-Device-A</td></tr><tr><th>Software Version</th><td>V1.0.0.0</td></tr><tr><th>Started At</th><td>2026-07-03T09:53:31.519Z</td></tr><tr><th>Ended At</th><td>2026-07-03T10:02:30.951Z</td></tr><tr><th>Total Samples</th><td>176</td></tr><tr><th>Baseline FPS (Reference)</th><td>3.07 (step 1, 1ch)</td></tr></table>
+<h2>Channel-count Results</h2>
+<table>
+  <tr><th>Index</th><th>Channels</th><th>Hold</th><th>Target FPS (Reference)</th><th>Processing FPS (Reference)</th><th>Critical/E2E Latency (ms)</th><th>Main Node Latency (ms)</th><th>Avg Discard Rate</th><th>Worst-channel Discard Rate</th><th>NPU Peak</th><th>CPU Peak</th><th>Memory Peak</th><th>Result</th><th>Failure Reason</th></tr>
+  
+      <tr>
+        <td>1</td>
+        <td>1</td>
+        <td>30s</td>
+        <td>3</td>
+        <td>3.07</td>
+        <td>41.7</td>
+        <td>32.1</td>
+        <td>0</td>
+        <td>0</td>
+        <td class="">6%</td>
+        <td class="">4%</td>
+        <td class="">34%</td>
+        <td class="pass">PASS</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>2</td>
+        <td>30s</td>
+        <td>3</td>
+        <td>4.09</td>
+        <td>33.5</td>
+        <td>26.6</td>
+        <td>0</td>
+        <td>0</td>
+        <td class="">6%</td>
+        <td class="">6%</td>
+        <td class="">36%</td>
+        <td class="pass">PASS</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>3</td>
+        <td>30s</td>
+        <td>3</td>
+        <td>6.15</td>
+        <td>33.8</td>
+        <td>26.7</td>
+        <td>0</td>
+        <td>0</td>
+        <td class="">12%</td>
+        <td class="">9%</td>
+        <td class="">38%</td>
+        <td class="pass">PASS</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>4</td>
+        <td>30s</td>
+        <td>3</td>
+        <td>9.17</td>
+        <td>34.7</td>
+        <td>27.2</td>
+        <td>0</td>
+        <td>0</td>
+        <td class="">8%</td>
+        <td class="">15%</td>
+        <td class="">40%</td>
+        <td class="pass">PASS</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>5</td>
+        <td>30s</td>
+        <td>3</td>
+        <td>12.22</td>
+        <td>35.6</td>
+        <td>27.7</td>
+        <td>0</td>
+        <td>0</td>
+        <td class="">20%</td>
+        <td class="">15%</td>
+        <td class="">42%</td>
+        <td class="pass">PASS</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>6</td>
+        <td>30s</td>
+        <td>3</td>
+        <td>15.36</td>
+        <td>36.3</td>
+        <td>28</td>
+        <td>0</td>
+        <td>0</td>
+        <td class="">12%</td>
+        <td class="">16%</td>
+        <td class="">44%</td>
+        <td class="pass">PASS</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td>7</td>
+        <td>30s</td>
+        <td>3</td>
+        <td>3.14</td>
+        <td>37.5</td>
+        <td>29.9</td>
+        <td>0</td>
+        <td>0</td>
+        <td class="">18%</td>
+        <td class="">20%</td>
+        <td class="">47%</td>
+        <td class="pass">PASS</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td>8</td>
+        <td>30s</td>
+        <td>3</td>
+        <td>4.11</td>
+        <td>38.1</td>
+        <td>29.8</td>
+        <td>0</td>
+        <td>0</td>
+        <td class="">16%</td>
+        <td class="">25%</td>
+        <td class="">49%</td>
+        <td class="pass">PASS</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td>9</td>
+        <td>30s</td>
+        <td>3</td>
+        <td>6.08</td>
+        <td>38.8</td>
+        <td>30.3</td>
+        <td>0</td>
+        <td>0</td>
+        <td class="">22%</td>
+        <td class="">30%</td>
+        <td class="">50%</td>
+        <td class="pass">PASS</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>10</td>
+        <td>10</td>
+        <td>30s</td>
+        <td>3</td>
+        <td>9.08</td>
+        <td>41.3</td>
+        <td>30.6</td>
+        <td>0</td>
+        <td>0</td>
+        <td class="">36%</td>
+        <td class="">32%</td>
+        <td class="">52%</td>
+        <td class="pass">PASS</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>11</td>
+        <td>11</td>
+        <td>30s</td>
+        <td>3</td>
+        <td>12.14</td>
+        <td>43.1</td>
+        <td>31.6</td>
+        <td>0</td>
+        <td>0</td>
+        <td class="">34%</td>
+        <td class="">36%</td>
+        <td class="">53%</td>
+        <td class="pass">PASS</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>12</td>
+        <td>12</td>
+        <td>30s</td>
+        <td>3</td>
+        <td>15.36</td>
+        <td>45.7</td>
+        <td>33.5</td>
+        <td>0</td>
+        <td>0</td>
+        <td class="">34%</td>
+        <td class="">32%</td>
+        <td class="">54%</td>
+        <td class="pass">PASS</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>13</td>
+        <td>13</td>
+        <td>30s</td>
+        <td>3</td>
+        <td>3.14</td>
+        <td>46.7</td>
+        <td>36.2</td>
+        <td>0</td>
+        <td>0</td>
+        <td class="">46%</td>
+        <td class="">46%</td>
+        <td class="">56%</td>
+        <td class="pass">PASS</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>14</td>
+        <td>14</td>
+        <td>30s</td>
+        <td>3</td>
+        <td>4.13</td>
+        <td>51</td>
+        <td>35.8</td>
+        <td>0</td>
+        <td>0</td>
+        <td class="">32%</td>
+        <td class="">41%</td>
+        <td class="">58%</td>
+        <td class="pass">PASS</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>15</td>
+        <td>15</td>
+        <td>30s</td>
+        <td>3</td>
+        <td>6.14</td>
+        <td>48.6</td>
+        <td>35.8</td>
+        <td>0</td>
+        <td>0</td>
+        <td class="">34%</td>
+        <td class="">46%</td>
+        <td class="">58%</td>
+        <td class="pass">PASS</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>16</td>
+        <td>16</td>
+        <td>30s</td>
+        <td>3</td>
+        <td>9.14</td>
+        <td>49.9</td>
+        <td>38.3</td>
+        <td>0</td>
+        <td>0</td>
+        <td class="">38%</td>
+        <td class="">46%</td>
+        <td class="">60%</td>
+        <td class="pass">PASS</td>
+        <td></td>
+      </tr>
+</table>
+<h2>Per-task Summary</h2>
+<table>
+  <tr><th>Channels</th><th>Task</th><th>Strategy</th><th>Algorithm ID</th><th>Bindings</th><th>Min Processing FPS</th><th>Min FPS Compliance</th><th>Max Missing Rate</th><th>Avg Discard Rate</th><th>Max Main-node Latency (ms)</th><th>Max Critical/E2E Latency (ms)</th></tr>
+  
+        <tr>
+          <td>1ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>7463</td>
+          <td>1</td>
+          <td>3.07</td>
+          <td>102.3%</td>
+          <td>0%</td>
+          <td>0</td>
+          <td>32.1</td>
+          <td>41.7</td>
+        </tr>
+        <tr>
+          <td>2ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>7463</td>
+          <td>2</td>
+          <td>4.09</td>
+          <td>136.4%</td>
+          <td>0%</td>
+          <td>0</td>
+          <td>26.6</td>
+          <td>33.5</td>
+        </tr>
+        <tr>
+          <td>3ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>7463</td>
+          <td>3</td>
+          <td>6.15</td>
+          <td>205.1%</td>
+          <td>0%</td>
+          <td>0</td>
+          <td>26.7</td>
+          <td>33.8</td>
+        </tr>
+        <tr>
+          <td>4ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>7463</td>
+          <td>4</td>
+          <td>9.17</td>
+          <td>305.6%</td>
+          <td>0%</td>
+          <td>0</td>
+          <td>27.2</td>
+          <td>34.7</td>
+        </tr>
+        <tr>
+          <td>5ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>7463</td>
+          <td>5</td>
+          <td>12.22</td>
+          <td>407.3%</td>
+          <td>0%</td>
+          <td>0</td>
+          <td>27.7</td>
+          <td>35.6</td>
+        </tr>
+        <tr>
+          <td>6ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>7463</td>
+          <td>6</td>
+          <td>15.36</td>
+          <td>511.9%</td>
+          <td>0%</td>
+          <td>0</td>
+          <td>28</td>
+          <td>36.3</td>
+        </tr>
+        <tr>
+          <td>7ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>7463</td>
+          <td>7</td>
+          <td>3.14</td>
+          <td>104.6%</td>
+          <td>0%</td>
+          <td>0</td>
+          <td>29.9</td>
+          <td>37.5</td>
+        </tr>
+        <tr>
+          <td>8ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>7463</td>
+          <td>8</td>
+          <td>4.11</td>
+          <td>137%</td>
+          <td>0%</td>
+          <td>0</td>
+          <td>29.8</td>
+          <td>38.1</td>
+        </tr>
+        <tr>
+          <td>9ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>7463</td>
+          <td>9</td>
+          <td>6.08</td>
+          <td>202.8%</td>
+          <td>0%</td>
+          <td>0</td>
+          <td>30.3</td>
+          <td>38.8</td>
+        </tr>
+        <tr>
+          <td>10ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>7463</td>
+          <td>10</td>
+          <td>9.08</td>
+          <td>302.8%</td>
+          <td>0%</td>
+          <td>0</td>
+          <td>30.6</td>
+          <td>41.3</td>
+        </tr>
+        <tr>
+          <td>11ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>7463</td>
+          <td>11</td>
+          <td>12.14</td>
+          <td>404.5%</td>
+          <td>0%</td>
+          <td>0</td>
+          <td>31.6</td>
+          <td>43.1</td>
+        </tr>
+        <tr>
+          <td>12ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>7463</td>
+          <td>12</td>
+          <td>15.36</td>
+          <td>511.9%</td>
+          <td>0%</td>
+          <td>0</td>
+          <td>33.5</td>
+          <td>45.7</td>
+        </tr>
+        <tr>
+          <td>13ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>7463</td>
+          <td>13</td>
+          <td>3.14</td>
+          <td>104.6%</td>
+          <td>0%</td>
+          <td>0</td>
+          <td>36.2</td>
+          <td>46.7</td>
+        </tr>
+        <tr>
+          <td>14ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>7463</td>
+          <td>14</td>
+          <td>4.13</td>
+          <td>137.8%</td>
+          <td>0%</td>
+          <td>0</td>
+          <td>35.8</td>
+          <td>51</td>
+        </tr>
+        <tr>
+          <td>15ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>7463</td>
+          <td>15</td>
+          <td>6.14</td>
+          <td>204.5%</td>
+          <td>0%</td>
+          <td>0</td>
+          <td>35.8</td>
+          <td>48.6</td>
+        </tr>
+        <tr>
+          <td>16ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>7463</td>
+          <td>16</td>
+          <td>9.14</td>
+          <td>304.5%</td>
+          <td>0%</td>
+          <td>0</td>
+          <td>38.3</td>
+          <td>49.9</td>
+        </tr>
+</table>
+<h2>Threshold Details</h2>
+<table>
+  <tr><th>Channels</th><th>Task</th><th>Strategy</th><th>Metric</th><th>Threshold</th><th>Measured</th><th>Result</th></tr>
+  
+        <tr>
+          <td>1ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Avg Discard Rate</td>
+          <td>0.05</td>
+          <td>0</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>1ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Critical-path Latency (ms)</td>
+          <td>200</td>
+          <td>41.7</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>1ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Detection-node Latency</td>
+          <td>150</td>
+          <td>32.1</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>2ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Avg Discard Rate</td>
+          <td>0.05</td>
+          <td>0</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>2ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Critical-path Latency (ms)</td>
+          <td>200</td>
+          <td>33.5</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>2ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Detection-node Latency</td>
+          <td>150</td>
+          <td>26.6</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>3ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Avg Discard Rate</td>
+          <td>0.05</td>
+          <td>0</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>3ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Critical-path Latency (ms)</td>
+          <td>200</td>
+          <td>33.8</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>3ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Detection-node Latency</td>
+          <td>150</td>
+          <td>26.7</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>4ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Avg Discard Rate</td>
+          <td>0.05</td>
+          <td>0</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>4ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Critical-path Latency (ms)</td>
+          <td>200</td>
+          <td>34.7</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>4ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Detection-node Latency</td>
+          <td>150</td>
+          <td>27.2</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>5ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Avg Discard Rate</td>
+          <td>0.05</td>
+          <td>0</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>5ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Critical-path Latency (ms)</td>
+          <td>200</td>
+          <td>35.6</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>5ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Detection-node Latency</td>
+          <td>150</td>
+          <td>27.7</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>6ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Avg Discard Rate</td>
+          <td>0.05</td>
+          <td>0</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>6ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Critical-path Latency (ms)</td>
+          <td>200</td>
+          <td>36.3</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>6ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Detection-node Latency</td>
+          <td>150</td>
+          <td>28</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>7ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Avg Discard Rate</td>
+          <td>0.05</td>
+          <td>0</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>7ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Critical-path Latency (ms)</td>
+          <td>200</td>
+          <td>37.5</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>7ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Detection-node Latency</td>
+          <td>150</td>
+          <td>29.9</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>8ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Avg Discard Rate</td>
+          <td>0.05</td>
+          <td>0</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>8ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Critical-path Latency (ms)</td>
+          <td>200</td>
+          <td>38.1</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>8ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Detection-node Latency</td>
+          <td>150</td>
+          <td>29.8</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>9ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Avg Discard Rate</td>
+          <td>0.05</td>
+          <td>0</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>9ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Critical-path Latency (ms)</td>
+          <td>200</td>
+          <td>38.8</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>9ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Detection-node Latency</td>
+          <td>150</td>
+          <td>30.3</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>10ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Avg Discard Rate</td>
+          <td>0.05</td>
+          <td>0</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>10ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Critical-path Latency (ms)</td>
+          <td>200</td>
+          <td>41.3</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>10ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Detection-node Latency</td>
+          <td>150</td>
+          <td>30.6</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>11ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Avg Discard Rate</td>
+          <td>0.05</td>
+          <td>0</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>11ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Critical-path Latency (ms)</td>
+          <td>200</td>
+          <td>43.1</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>11ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Detection-node Latency</td>
+          <td>150</td>
+          <td>31.6</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>12ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Avg Discard Rate</td>
+          <td>0.05</td>
+          <td>0</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>12ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Critical-path Latency (ms)</td>
+          <td>200</td>
+          <td>45.7</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>12ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Detection-node Latency</td>
+          <td>150</td>
+          <td>33.5</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>13ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Avg Discard Rate</td>
+          <td>0.05</td>
+          <td>0</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>13ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Critical-path Latency (ms)</td>
+          <td>200</td>
+          <td>46.7</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>13ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Detection-node Latency</td>
+          <td>150</td>
+          <td>36.2</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>14ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Avg Discard Rate</td>
+          <td>0.05</td>
+          <td>0</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>14ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Critical-path Latency (ms)</td>
+          <td>200</td>
+          <td>51</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>14ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Detection-node Latency</td>
+          <td>150</td>
+          <td>35.8</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>15ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Avg Discard Rate</td>
+          <td>0.05</td>
+          <td>0</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>15ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Critical-path Latency (ms)</td>
+          <td>200</td>
+          <td>48.6</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>15ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Detection-node Latency</td>
+          <td>150</td>
+          <td>35.8</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>16ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Avg Discard Rate</td>
+          <td>0.05</td>
+          <td>0</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>16ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Critical-path Latency (ms)</td>
+          <td>200</td>
+          <td>49.9</td>
+          <td class="pass">PASS</td>
+        </tr>
+        <tr>
+          <td>16ch</td>
+          <td>No Safety Helmet 7463</td>
+          <td>cv</td>
+          <td>Detection-node Latency</td>
+          <td>150</td>
+          <td>38.3</td>
+          <td class="pass">PASS</td>
+        </tr>
+</table>
+</body></html>

@@ -535,6 +535,12 @@ async function runBenchmark(args) {
       onStepStart: async (step, active) => {
         currentChannels = active.length;
         currentStepIndex = step.index;
+        
+        const hasVLM = activeEntries().some(e => e.taskType === 'vlm');
+        if (hasVLM && step.index === 0) {
+          log.info(`[warmup] VLM detected in first step, waiting 30 seconds for model loading before sampling...`);
+          await new Promise(r => setTimeout(r, 30000));
+        }
       },
       onSample: async () => {
         await captureSample();

@@ -16,7 +16,7 @@
 #include "util/DateTimeFormat.h"
 #include "util/JsonStructUtil.h"
 #include "util/Log.h"
-#include "util/PlatformConstants.h"
+#include "util/NnBackendConstants.h"
 
 namespace cosmo::service {
 

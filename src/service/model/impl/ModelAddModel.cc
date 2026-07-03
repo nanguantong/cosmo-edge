@@ -19,7 +19,7 @@
 #include "util/ErrorCode.h"
 #include "util/Exception.h"
 #include "util/FileUtil.h"
-#include "util/PlatformConstants.h"
+#include "util/NnBackendConstants.h"
 
 namespace cosmo::service {
 

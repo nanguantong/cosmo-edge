@@ -18,7 +18,7 @@ target_link_libraries(cosmo_service PRIVATE cosmo_common
 )
 # Backend compile definitions and link libraries
 # (MemoryPoolServiceImpl needs allocator selection, HardwareQueryUtil needs device info,
-#  PlatformConstants.h needs backend selection for directory prefix / engine type)
+#  NnBackendConstants.h needs backend selection for directory prefix / engine type)
 if(COSMO_NN_USE_SOPHON_BACKEND)
     target_link_libraries(cosmo_service PRIVATE bmlib)
     target_compile_definitions(cosmo_service PRIVATE COSMO_NN_USE_SOPHON_BACKEND)

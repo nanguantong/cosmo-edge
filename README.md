@@ -9,7 +9,7 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE)
 [![Runtime](https://img.shields.io/badge/runtime-C%2B%2B17-orange?style=flat-square)](#c-native-runtime)
 [![Platform](https://img.shields.io/badge/platform-Sophon%20BM1688%20%2F%20x86%20Linux%20%2F%20Windows-purple?style=flat-square)](#supported-platforms)
-[![Release](https://img.shields.io/badge/release-v0.1.0-green?style=flat-square)](https://github.com/cosmo-wander-ai/cosmo-edge/releases)
+[![Release](https://img.shields.io/badge/release-v1.0.0-green?style=flat-square)](https://github.com/cosmo-wander-ai/cosmo-edge/releases)
 [![Stress Test](https://img.shields.io/badge/stress%20test-200%20video%20samples-brightgreen?style=flat-square)](#validation)
 [![Pipelines](https://img.shields.io/badge/pipelines-26%20validated-brightgreen?style=flat-square)](#validation)
 [![GitHub](https://img.shields.io/badge/GitHub-cosmo--edge-181717?style=flat-square&logo=github)](https://github.com/cosmo-wander-ai/cosmo-edge)
@@ -341,9 +341,9 @@ The open-source engine and all software features are available worldwide today, 
 
 ## Release Status and Roadmap
 
-CosmoEdge is currently versioned as `v0.1.0`. The open-source engine is available for evaluation, integration, and community model expansion. The project is preparing the `v1.0` stable release, with the final regression pass as the remaining release gate.
+CosmoEdge `v1.0.0` is the first stable public release. The engine is production-ready for evaluation, integration, and community model expansion.
 
-### Available in v0.1.0
+### Shipped in v1.0.0
 
 - [X] C++17 edge inference engine
 - [X] Visual pipeline orchestrator
@@ -352,13 +352,9 @@ CosmoEdge is currently versioned as `v0.1.0`. The open-source engine is availabl
 - [X] Sophon BM1688 release packaging
 - [X] VLM and GroundingDINO integration
 - [X] 26 pipeline scenarios internally validated
+- [X] Final v1.0 regression pass and hardening (shell-injection guards, null-safety and lifecycle fixes, default-password enforcement)
 
-### v1.0 Release Gates
-
-- [ ] Final v1.0 regression pass
-- [ ] v1.0 release tag and release notes
-
-### Post-v1.0 Roadmap
+### Roadmap
 
 - [ ] Expand the validated pipeline scenario library
 - [ ] Community model and scenario examples
@@ -366,7 +362,7 @@ CosmoEdge is currently versioned as `v0.1.0`. The open-source engine is availabl
 
 ## Contributing
 
-CosmoEdge is preparing the v1.0 release. We welcome focused contributions in these areas:
+CosmoEdge is at v1.0.0. We welcome focused contributions in these areas:
 
 - Bug reports with logs and reproduction steps.
 - Documentation fixes and tutorial improvements.

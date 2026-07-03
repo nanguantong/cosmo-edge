@@ -4,8 +4,8 @@
 
 namespace cosmo::util {
 
-constexpr int kVersionMajor = 0;
-constexpr int kVersionMinor = 1;
+constexpr int kVersionMajor = 1;
+constexpr int kVersionMinor = 0;
 constexpr int kVersionPatch = 0;
 constexpr int kVersionBuild = 0;
 

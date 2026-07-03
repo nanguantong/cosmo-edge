@@ -16,6 +16,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
+import { normalizeTaskType } from './task-strategies.js';
 
 const FPS_ACTION_ID = 'AA_00001';
 const SUPPORTED_VIDEO_MODES = new Set(['local', 'rtsp-fidelity', 'rtsp-deterministic']);
@@ -287,6 +288,9 @@ export class ScenarioPackage {
       if (seen.has(task.id)) throw new Error(`scenario.yml: duplicate task id "${task.id}"`);
       seen.add(task.id);
       if (!task.scheduleId) throw new Error(`scenario.yml: task "${task.id}" missing scheduleId`);
+      if (normalizeTaskType(task.type) === 'vlm' && task.targetFps == null) {
+        throw new Error(`scenario.yml: VLM task "${task.id}" must define targetFps, for example targetFps: 0.2`);
+      }
     }
 
     const taskIds = new Set(this.tasks.map((t) => t.id));

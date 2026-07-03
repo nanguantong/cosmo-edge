@@ -215,6 +215,38 @@ thresholds:
 
 报告会同时输出整体容量结论和分任务汇总。整体容量仍表示“该 workload 在当前判定阈值下可稳定支撑的最大通道数”；分任务汇总用于定位多任务压测中是哪一个任务先成为瓶颈。
 
+### 任务策略与 VLM
+
+`tasks[].type` 会选择不同的判定策略：
+
+| type | 策略 | 默认判定口径 |
+| --- | --- | --- |
+| `cv` | 传统视觉算法 | 检测/关键链路延时、丢弃率；运行期 FPS 熔断使用 1 路基线折半 |
+| `vlm` | 视觉语言模型分析 | 分析 FPS 达标率、采样缺失率、可选端到端延时；运行期不使用基线折半 |
+
+VLM 任务必须显式给出 `targetFps`，例如 0.2fps：
+
+```yaml
+tasks:
+  - id: vlm
+    displayName: 0.8B VLM 分析
+    type: vlm
+    algorithmId: "12345"
+    scheduleId: "e89c6c6385e5454b35cde0d1653vg"
+    template: vlm-template.json
+    targetFps: 0.2
+
+thresholds:
+  taskTypes:
+    vlm:
+      minFpsRatio: 0.8
+      maxMissingRate: 0
+      maxEndToEndLatencyMs: 30000
+      avgDiscardRate: 0.05
+```
+
+阈值合并顺序为：策略默认值 -> `thresholds.pass` -> `thresholds.taskTypes.<type>` 或 `thresholds.strategies.<type>` -> `thresholds.tasks.<taskId>`。因此可以在同一个 workload 内让 CV 和 VLM 使用不同规则。VLM 不会继承全局 `maxDetectorLatencyMs`、`maxCriticalPathLatencyMs`、`maxAvgNodeLatencyMs`，端到端延时需要在 `taskTypes.vlm` 或 `tasks.<taskId>` 下显式配置。
+
 ## 命令说明
 
 ### `doctor`

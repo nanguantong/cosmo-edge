@@ -101,7 +101,7 @@ const STRATEGIES = {
       '分析',
       '推理',
     ],
-    primaryActionIds: [],
+    primaryActionIds: [/^(?:P?DA_00003)$/],
     useAllNodesForCriticalFallback: true,
     useBaselineFpsFuse: false,
   },

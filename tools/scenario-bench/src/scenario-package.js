@@ -19,6 +19,7 @@ import { parse as parseYaml } from 'yaml';
 import { normalizeTaskType } from './task-strategies.js';
 
 const FPS_ACTION_ID = 'AA_00001';
+const VLM_ACTION_IDS = new Set(['DA_00003', 'PDA_00003']);
 const SUPPORTED_VIDEO_MODES = new Set(['local', 'rtsp-fidelity', 'rtsp-deterministic']);
 
 export class ScenarioPackage {
@@ -194,13 +195,16 @@ export class ScenarioPackage {
     const id = String(spec.id ?? spec.name ?? `task-${index + 1}`);
     const algorithmCode = String(spec.algorithmCode ?? template.algorithmCode ?? template.algorithmId ?? algorithmId);
     const scheduleId = spec.scheduleId ?? this.scenario.scheduleId ?? '';
+    const vlm = detectVlmMode(template);
+    const type = vlm.direct ? 'vlm' : (spec.type ?? 'cv');
     const targetFps = spec.targetFps != null ? Number(spec.targetFps) : extractTargetFpsFromTemplate(template);
     const taskConfig = buildTaskConfig(template, this.videoRepeatCount);
 
     return {
       id,
       displayName: spec.displayName ?? template.algorithmName ?? id,
-      type: spec.type ?? 'cv',
+      type,
+      hasNestedVlmReview: vlm.review,
       algorithmId,
       algorithmCode,
       scheduleId,
@@ -288,6 +292,12 @@ export class ScenarioPackage {
       if (seen.has(task.id)) throw new Error(`scenario.yml: duplicate task id "${task.id}"`);
       seen.add(task.id);
       if (!task.scheduleId) throw new Error(`scenario.yml: task "${task.id}" missing scheduleId`);
+      if (task.hasNestedVlmReview) {
+        throw new Error(
+          `scenario.yml: task "${task.id}" enables BA_00004 LLM review, but RunningDetail does not `
+          + 'expose that nested inference; ScenarioBench can only measure direct DA_00003/PDA_00003 VLM nodes',
+        );
+      }
       if (normalizeTaskType(task.type) === 'vlm' && task.targetFps == null) {
         throw new Error(`scenario.yml: VLM task "${task.id}" must define targetFps, for example targetFps: 0.2`);
       }
@@ -346,9 +356,10 @@ function parseProcessData(template) {
 
 function extractTargetFpsFromTemplate(template) {
   const nodes = parseProcessData(template);
-  const detNode = nodes.find((n) => n && n.actionId === FPS_ACTION_ID);
-  if (!detNode) return null;
-  let configObj = detNode.configObject;
+  const fpsNode = nodes.find((n) => n && VLM_ACTION_IDS.has(String(n.actionId ?? '')))
+    ?? nodes.find((n) => n && n.actionId === FPS_ACTION_ID);
+  if (!fpsNode) return null;
+  let configObj = fpsNode.configObject;
   if (typeof configObj === 'string') {
     try { configObj = JSON.parse(configObj); } catch { return null; }
   }
@@ -358,6 +369,21 @@ function extractTargetFpsFromTemplate(template) {
   if (!fpsParam) return null;
   const val = Number(fpsParam.value);
   return Number.isFinite(val) && val > 0 ? val : null;
+}
+
+export function detectVlmMode(template) {
+  const nodes = parseProcessData(template);
+  const direct = nodes.some((node) => VLM_ACTION_IDS.has(String(node?.actionId ?? '')));
+  const review = nodes.some((node) => {
+    let configObj = node?.configObject;
+    if (typeof configObj === 'string') {
+      try { configObj = JSON.parse(configObj); } catch { return false; }
+    }
+    return Array.isArray(configObj?.params)
+      && configObj.params.some((param) =>
+        param?.key === 'enableLlmReview' && String(param.value) === '1');
+  });
+  return { direct, review };
 }
 
 // Re-export for unit testing of the fps extractor on arbitrary template objects.

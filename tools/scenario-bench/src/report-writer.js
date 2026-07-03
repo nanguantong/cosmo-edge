@@ -107,6 +107,10 @@ export class ReportWriter {
           ch.nodeDurationInfos ?? [],
           s.taskType,
         );
+        if (ch.telemetryMissing
+            || (strategyForTaskType(s.taskType).id === 'vlm' && primaryLatencyMs == null)) {
+          s.missingSamples++;
+        }
         if (primaryLatencyMs != null) s.primaryLat.push(primaryLatencyMs);
         if (criticalPathLatencyMs != null) s.criticalLat.push(criticalPathLatencyMs);
       }

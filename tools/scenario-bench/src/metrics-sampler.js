@@ -1,5 +1,5 @@
 // metrics-sampler.js — Collect RunningDetail + HardwareResource each tick.
-import { isPrimaryThroughputAction } from './task-strategies.js';
+import { isPrimaryThroughputAction, normalizeTaskType } from './task-strategies.js';
 //
 // Response shapes (verified against source DTOs):
 //   RunningDetail: resData.status[] where each item has
@@ -35,6 +35,7 @@ export class MetricsSampler {
   constructor(client, logger) {
     this.client = client;
     this.log = logger;
+    this.counterSnapshots = new Map();
   }
 
   /**
@@ -57,7 +58,7 @@ export class MetricsSampler {
       this.client.queryHardwareResource(),
     ]);
 
-    const perBinding = this._parseRunningDetail(taskDetail, expected);
+    const perBinding = this._parseRunningDetail(taskDetail, expected, ts);
     const hw = this._parseHardware(hwRes);
 
     return {
@@ -72,7 +73,7 @@ export class MetricsSampler {
 
   // ── RunningDetail parsing ──────────────────────────────────────────────
 
-  _parseRunningDetail(detailResult, expectedBindings) {
+  _parseRunningDetail(detailResult, expectedBindings, ts) {
     const out = [];
     if (detailResult.status !== 'fulfilled') {
       // Whole RunningDetail call failed - mark every expected binding as errored.
@@ -94,7 +95,7 @@ export class MetricsSampler {
       }
       out.push({
         ...entry,
-        ...this._summarizeTask(st, entry.targetFps, entry.taskType),
+        ...this._summarizeTask(st, entry.targetFps, entry.taskType, ts),
         taskKey: entry.taskKey,
         taskDisplayName: entry.taskDisplayName,
         taskType: entry.taskType,
@@ -110,13 +111,14 @@ export class MetricsSampler {
    * FPS uses the slowest effective action rate instead of summing pipeline nodes,
    * otherwise multi-node graphs overcount the channel throughput.
    */
-  _summarizeTask(st, targetFps, taskType) {
+  _summarizeTask(st, targetFps, taskType, ts) {
     const actions = Array.isArray(st.actionStatus) ? st.actionStatus : [];
     let insertPeriod = 0, processPeriod = 0, discardPeriod = 0;
     let periodMs = 0, holdCount = 0, alarmCount = 0;
     let insertTotal = 0, processTotal = 0, discardTotal = 0;
     let pipelineMinFps = Infinity;
     let primaryFps = null;
+    let primaryAction = null;
     let maxDiscardRate = 0;
     const actionSummaries = [];
 
@@ -139,6 +141,8 @@ export class MetricsSampler {
       const actionFps = actionPeriodMs > 0 ? (actionProcessPeriod * 1000) / actionPeriodMs : null;
       const actionName = String(a.name ?? '');
       const actionId = String(a.actionId ?? '');
+      const primaryThroughputAction = isPrimaryThroughputAction(actionName, actionId, taskType);
+      if (primaryAction == null && primaryThroughputAction) primaryAction = a;
       actionSummaries.push({
         actionId,
         name: actionName,
@@ -151,7 +155,7 @@ export class MetricsSampler {
 
       if (actionFps != null && actionProcessPeriod > 0) {
         pipelineMinFps = Math.min(pipelineMinFps, actionFps);
-        if (primaryFps == null && isPrimaryThroughputAction(actionName, actionId, taskType)) {
+        if (primaryFps == null && primaryThroughputAction) {
           primaryFps = actionFps;
         }
       }
@@ -161,14 +165,23 @@ export class MetricsSampler {
       }
     }
 
-    if (primaryFps == null) {
+    const isVlm = normalizeTaskType(taskType) === 'vlm';
+    if (isVlm && primaryAction) {
+      const deltaFps = this._counterFps(
+        `${st.taskId}:${primaryAction.actionId ?? primaryAction.name ?? 'vlm'}`,
+        num(primaryAction.processCount),
+        ts,
+      );
+      if (deltaFps != null) primaryFps = deltaFps;
+    }
+    if (primaryFps == null && !isVlm) {
       const firstEffective = actionSummaries.find((a) => a.fps != null && a.processPeriod > 0);
       primaryFps = firstEffective?.fps ?? null;
     }
-    const measuredFps = primaryFps ?? 0;
+    const measuredFps = primaryFps ?? (isVlm ? null : 0);
     const minPipelineFps = pipelineMinFps !== Infinity ? pipelineMinFps : 0;
     const discardRate = maxDiscardRate;
-    const fpsRatio = targetFps && targetFps > 0 ? measuredFps / targetFps : null;
+    const fpsRatio = targetFps && targetFps > 0 && measuredFps != null ? measuredFps / targetFps : null;
 
     return {
       channelId: st.channelId,
@@ -176,8 +189,9 @@ export class MetricsSampler {
       algorithmName: st.algorithmName,
       algorithmVersion: st.algorithmVersion,
       actionCount: actions.length,
-      measuredFps: round(measuredFps, 2),
-      throughputFps: round(measuredFps, 2),
+      measuredFps: measuredFps != null ? round(measuredFps, 2) : null,
+      throughputFps: measuredFps != null ? round(measuredFps, 2) : null,
+      telemetryMissing: isVlm && primaryAction == null,
       pipelineMinFps: round(minPipelineFps, 2),
       targetFps,
       fpsRatio: fpsRatio != null ? round(fpsRatio, 3) : null,
@@ -188,6 +202,13 @@ export class MetricsSampler {
       actionSummaries,
       nodeDurationInfos: Array.isArray(st.nodeDurationInfos) ? st.nodeDurationInfos : [],
     };
+  }
+
+  _counterFps(key, count, ts) {
+    const previous = this.counterSnapshots.get(key);
+    this.counterSnapshots.set(key, { count, ts });
+    if (!previous || ts <= previous.ts || count < previous.count) return null;
+    return (count - previous.count) * 1000 / (ts - previous.ts);
   }
 
   // ── HardwareResource parsing ───────────────────────────────────────────

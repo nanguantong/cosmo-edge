@@ -65,7 +65,11 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 24
+          # Node 22 LTS ships npm 10, matching the build image used for
+          # production frontend builds. Node 24 ships npm 11, whose stricter
+          # lockfile validation rejects the npm 10-generated lockfile and
+          # would test a different dependency resolution than what ships.
+          node-version: 22
           cache: npm
           cache-dependency-path: src/web/package-lock.json
 

@@ -14,5 +14,9 @@ reports/
 *.partial.json
 
 # Local scenario experiments: keep only committed reference scenarios under
-# scenarios/. Any local-only scratch dir is ignored via the rules above
-# (they only contain videos/configs already covered).
+# scenarios/. Run-specific material from manual benchmark sessions should stay
+# local and out of the project tree.
+scenarios/local-*/
+scenarios/tmp-*/
+scenarios/scratch-*/
+scenarios/mixed-helmet-intrusion-20260703/

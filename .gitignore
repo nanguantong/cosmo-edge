@@ -523,3 +523,12 @@ docs/.vitepress/dist/
 !3rd/onnxruntime-linux-x64-1.26.0/lib/
 !3rd/onnxruntime-linux-x64-1.26.0/lib/*
 test/video/demo.mp4
+
+# Local video assets generated or copied for manual benchmark runs.
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+*.flv
+*.m4v

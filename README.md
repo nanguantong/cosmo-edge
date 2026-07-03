@@ -247,7 +247,7 @@ A scenario task (pipeline) bundles model, scheduling, and rule logic; at deploym
 | Video stress test      | Continuous playback test with 200 video samples; no memory leaks or crashes observed                        |
 | Pipeline validation    | 26 pipelines validated against internal scenario baselines (CV, VLM, and GroundingDINO)                      |
 | Concurrent CV workload | ScenarioBench v1.0 verifies up to 16 NPU video channels for CV workloads; detailed reports are linked below |
-| Regression testing     | Multi-round system regression completed with dedicated QA; final release regression pending                  |
+| Regression testing     | Multi-round system regression completed with dedicated QA, including the final v1.0 release regression pass |
 | Pilot deployments      | Authorized customer pilots covering several hundred video-analysis channels, 2+ months continuous, across a range of industry scenarios |
 
 ### Performance Benchmarks
@@ -414,7 +414,7 @@ CosmoEdge is an application runtime for complete edge AI workflows, not just a m
 <details>
 <summary><b>Is CosmoEdge production-ready?</b></summary>
 
-The codebase comes from commercial development for production deployments and has passed internal stress, pipeline, and regression validation. CosmoEdge is currently versioned as `v0.1.0` while the project completes the final v1.0 regression pass. Core workflows and release packaging are built for field deployment; public APIs and contributor workflows may still receive minor stabilization updates before v1.0.
+The codebase comes from commercial development for production deployments and has passed internal stress, pipeline, and regression validation, including the final v1.0 release regression pass. CosmoEdge `v1.0.0` is the first stable public release: the engine, core workflows, and release packaging are built for field deployment, and public APIs and contributor workflows are stable.
 
 </details>
 

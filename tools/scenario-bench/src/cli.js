@@ -46,6 +46,10 @@ run required:
   --scenario <dir>     Scenario package directory
   --output <dir>       Report output directory
 
+scenario package:
+  v1                    algorithm-template.json + videos.yml (single task)
+  v2                    scenario.yml version:2 with channels/tasks/bindings
+
 run options:
   --cleanup            Delete created channels after the run
   --skip-import        Skip algorithm/layout/save when the template already exists
@@ -99,8 +103,9 @@ async function runDoctor(args) {
   try {
     pkg = new ScenarioPackage(args.scenario).load();
     checkLine(true, 'scenario package loaded', path.resolve(args.scenario));
-    checkLine(true, 'algorithm', `${pkg.algorithmId} (${pkg.template?.algorithmName ?? 'unknown'})`);
-    checkLine(true, 'target FPS', pkg.targetFps ?? 'not found in AA_00001');
+    checkLine(true, 'workload version', pkg.version);
+    checkLine(true, 'tasks', pkg.tasks.map((t) => `${t.id}:${t.algorithmId}(${t.type})`).join(', '));
+    checkLine(true, 'target FPS', pkg.tasks.map((t) => `${t.id}=${t.targetFps ?? 'N/A'}`).join(', '));
     checkLine(true, 'video mode', pkg.videoMode);
     checkLine(true, 'load profile', pkg.loadProfile.map((s) => `${s.channels}ch/${s.holdSec}s`).join(' -> '));
   } catch (err) {
@@ -110,8 +115,9 @@ async function runDoctor(args) {
 
   if (pkg) {
     try {
-      const payload = pkg.layoutSavePayload;
-      checkLine(true, 'layout/save payload', `algorithmId=${payload.algorithmId}, category=${payload.algorithmCategory ?? '-'}`);
+      for (const item of pkg.layoutSavePayloads) {
+        checkLine(true, `layout/save payload ${item.taskId}`, `algorithmId=${item.payload.algorithmId}, category=${item.payload.algorithmCategory ?? '-'}`);
+      }
     } catch (err) {
       checkLine(false, 'layout/save payload', err.message);
       failures++;
@@ -299,6 +305,18 @@ async function runBenchmark(args) {
 
   const buildResult = (status = runError ? 'aborted' : 'completed') => ({
     scenarioName: pkg?.scenario?.displayName ?? pkg?.scenario?.name,
+    workloadVersion: pkg?.version,
+    tasks: pkg?.tasks?.map((task) => ({
+      id: task.id,
+      displayName: task.displayName,
+      type: task.type,
+      algorithmId: task.algorithmId,
+      algorithmCode: task.algorithmCode,
+      scheduleId: task.scheduleId,
+      targetFps: task.targetFps,
+      templateFile: task.templateFile,
+    })) ?? [],
+    bindings: pkg?.bindings ?? [],
     algorithmId: pkg?.algorithmId,
     algorithmName: pkg?.template?.algorithmName,
     targetFps: pkg?.targetFps,
@@ -337,7 +355,7 @@ async function runBenchmark(args) {
   try {
     log.info(`Loading scenario package: ${args.scenario}`);
     pkg = new ScenarioPackage(args.scenario).load();
-    log.info(`Scenario "${pkg.scenario.name}" | algorithmId=${pkg.algorithmId} | targetFps=${pkg.targetFps ?? 'N/A'} | mode=${pkg.videoMode}`);
+    log.info(`Scenario "${pkg.scenario.name}" | tasks=${pkg.tasks.map((t) => `${t.id}:${t.algorithmId}`).join(', ')} | mode=${pkg.videoMode}`);
     effectiveLoadProfile = buildEffectiveLoadProfile(pkg.loadProfile, args.profile ?? 'capacity');
     const maxChannels = Math.max(...effectiveLoadProfile.map((s) => s.channels));
     log.info(`Profile mode: ${args.profile ?? 'capacity'} | configured=${pkg.loadProfile.map((s) => s.channels).join(',')} | effective=${effectiveLoadProfile.map((s) => s.channels).join(',')}`);
@@ -363,9 +381,11 @@ async function runBenchmark(args) {
     if (args['skip-import']) {
       log.info('Skipping layout save (--skip-import).');
     } else {
-      log.info('Saving orchestration template via /algorithm/layout/save...');
-      await client.layoutSave(pkg.layoutSavePayload);
-      log.info('Layout saved.');
+      for (const item of pkg.layoutSavePayloads) {
+        log.info(`Saving orchestration template for task "${item.taskId}" via /algorithm/layout/save...`);
+        await client.layoutSave(item.payload);
+      }
+      log.info(`Layout saved for ${pkg.layoutSavePayloads.length} task(s).`);
     }
 
     channelMgr = new ChannelManager(client, {
@@ -379,23 +399,15 @@ async function runBenchmark(args) {
     log.info(`Channels ready: ${videoChannelIds.join(', ')}`);
 
     const runner = new TaskRunner(client, {
-      algorithmId: pkg.algorithmId,
-      algorithmCode: pkg.template.algorithmCode,
-      scheduleId: pkg.scheduleId,
-      taskConfig: pkg.taskConfig,
+      tasks: pkg.tasks,
+      bindings: pkg.bindings,
       rampBatchSize: Number(args['ramp-batch-size'] ?? 1),
       rampBatchDelaySec: Number(args['ramp-batch-delay-sec'] ?? 15),
     }, log);
-    await runner.setChannels(videoChannelIds);
+    runner.setChannels(videoChannelIds);
 
     const sampler = new MetricsSampler(client, log);
-    const activeMap = () => {
-      const m = new Map();
-      for (const chId of runner.allChannelIds.slice(0, currentChannels)) {
-        m.set(chId, runner.taskIdFor(chId));
-      }
-      return m;
-    };
+    const activeEntries = () => runner.expectedTaskEntries(runner.allChannelIds.slice(0, currentChannels));
 
     const FPS_HALVE_RATIO = 0.5;
     const DISCARD_BOTTLENECK = 0.05;
@@ -426,12 +438,12 @@ async function runBenchmark(args) {
     };
 
     const captureSample = async () => {
-      const sample = await sampler.sample(activeMap(), pkg.targetFps);
+      const sample = await sampler.sample(activeEntries());
       sample.stepIndex = currentStepIndex;
       samples.push(sample);
       await writePartial();
       const ch0 = sample.channels[0];
-      log.debug(`sample step=${currentStepIndex} ch=${sample.activeChannels} fps=${ch0?.measuredFps ?? '-'} discard=${ch0?.discardRate ?? '-'} cpu=${sample.hardware?.cpuUtilization?.usedPercent ?? '-'}%`);
+      log.debug(`sample step=${currentStepIndex} ch=${sample.activeChannels} bindings=${sample.activeTaskBindings ?? sample.channels.length} first=${ch0?.taskKey ?? '-'} fps=${ch0?.measuredFps ?? '-'} discard=${ch0?.discardRate ?? '-'} cpu=${sample.hardware?.cpuUtilization?.usedPercent ?? '-'}%`);
       return sample;
     };
 

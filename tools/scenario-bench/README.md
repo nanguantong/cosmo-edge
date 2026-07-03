@@ -144,6 +144,77 @@ local:
     file: "LX0000000007.mp4"
 ```
 
+## 通用工作负载（v2）
+
+旧版场景包仍然可用；工具会把它归一化为“一个任务绑定全部通道”。如果需要表达多任务、任务分组或不同任务类型，推荐直接使用 `version: 2` 的通用工作负载模型：
+
+```yaml
+version: 2
+name: helmet-plus-intrusion
+displayName: 安全帽 + 人体入侵混合任务
+sampleIntervalSec: 3
+
+channels:
+  mode: local
+  repeatCount: 0
+  sources:
+    - name: safety-helmet
+      file: Safety Helmet.mp4
+
+tasks:
+  - id: helmet
+    displayName: 人体检测 + 安全帽分类
+    type: cv
+    algorithmId: "99898"
+    scheduleId: "e89c6c6385e5454b35cde0d1653vg"
+    template: helmet-template.json
+
+  - id: intrusion
+    displayName: 人体入侵检测
+    type: cv
+    algorithmId: "51"
+    scheduleId: "e89c6c6385e5454b35cde0d1653vg"
+    template: intrusion-template.json
+
+bindings:
+  - task: helmet
+    channels: all
+  - task: intrusion
+    channels: all
+
+loadProfile:
+  - channels: 1
+    holdSec: 60
+  - channels: 4
+    holdSec: 60
+  - channels: 8
+    holdSec: 60
+
+thresholds:
+  pass:
+    maxCriticalPathLatencyMs: 200
+    maxDetectorLatencyMs: 150
+    avgDiscardRate: 0.05
+    maxPacketDiscardRate: 0.01
+```
+
+核心语义：
+
+- `channels` 定义通道池和视频源；`repeatCount: 0` 表示 local 视频循环播放。
+- `tasks` 定义可绑定到通道的算法任务，每个任务有自己的算法模板、调度和任务类型。
+- `bindings` 定义任务与通道的绑定矩阵；`channels: all` 表示该任务绑定当前阶梯中的全部通道。
+- 单任务、多任务使用同一条执行链路：导入所有任务模板 -> 创建通道池 -> 按阶梯增加通道 -> 按绑定矩阵批量绑定任务 -> 采样 -> 判定 -> 生成报告。
+
+`bindings[].channels` 可以使用：
+
+| 写法 | 含义 |
+| --- | --- |
+| `all` | 绑定当前阶梯中的全部通道 |
+| `[1, 2, 3]` | 绑定第 1/2/3 个通道（1-based） |
+| `{ from: 1, to: 8 }` | 绑定第 1 到第 8 个通道 |
+
+报告会同时输出整体容量结论和分任务汇总。整体容量仍表示“该 workload 在当前判定阈值下可稳定支撑的最大通道数”；分任务汇总用于定位多任务压测中是哪一个任务先成为瓶颈。
+
 ## 命令说明
 
 ### `doctor`

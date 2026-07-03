@@ -54,6 +54,7 @@ export class ReportWriter {
         detectorLatencyMs: null,
         criticalPathLatencyMs: null,
         channelStats: [],
+        taskStats: [],
         perThreshold: [],
         pass: null,
         reasons: ['未执行，瓶颈提前停止'],
@@ -61,12 +62,19 @@ export class ReportWriter {
       };
     }
 
-    const byChannel = new Map();
+    const byBinding = new Map();
     for (const t of ticks) {
       for (const ch of t.channels ?? []) {
         if (ch.missing) continue;
-        if (!byChannel.has(ch.channelId)) {
-          byChannel.set(ch.channelId, {
+        const taskKey = ch.taskKey ?? 'default';
+        const key = `${taskKey}::${ch.channelId}`;
+        if (!byBinding.has(key)) {
+          byBinding.set(key, {
+            taskKey,
+            taskDisplayName: ch.taskDisplayName ?? taskKey,
+            taskType: ch.taskType ?? 'cv',
+            algorithmId: ch.algorithmId ?? null,
+            channelId: ch.channelId,
             fps: [],
             pipelineMinFps: [],
             discardRate: [],
@@ -74,7 +82,7 @@ export class ReportWriter {
             criticalLat: [],
           });
         }
-        const s = byChannel.get(ch.channelId);
+        const s = byBinding.get(key);
         if (typeof ch.measuredFps === 'number') s.fps.push(ch.measuredFps);
         if (typeof ch.pipelineMinFps === 'number') s.pipelineMinFps.push(ch.pipelineMinFps);
         if (typeof ch.discardRate === 'number') s.discardRate.push(ch.discardRate);
@@ -86,8 +94,12 @@ export class ReportWriter {
       }
     }
 
-    const channelStats = [...byChannel.entries()].map(([channelId, s]) => ({
-      channelId,
+    const channelStats = [...byBinding.values()].map((s) => ({
+      taskKey: s.taskKey,
+      taskDisplayName: s.taskDisplayName,
+      taskType: s.taskType,
+      algorithmId: s.algorithmId,
+      channelId: s.channelId,
       avgDetectorFps: s.fps.length ? round(mean(s.fps), 2) : null,
       minDetectorFps: s.fps.length ? round(Math.min(...s.fps), 2) : null,
       minPipelineFps: s.pipelineMinFps.length ? round(Math.min(...s.pipelineMinFps), 2) : null,
@@ -101,7 +113,12 @@ export class ReportWriter {
     const allDetectorLat = channelStats.map((c) => c.avgDetectorLatencyMs).filter((v) => v != null);
     const allCriticalLat = channelStats.map((c) => c.avgCriticalPathLatencyMs).filter((v) => v != null);
 
-    const targetFps = samples[0]?.channels?.[0]?.targetFps ?? samples[0]?.targetFps ?? null;
+    const targetFpsValues = [...new Set(channelStats.map((c) => c.taskKey)
+      .flatMap((taskKey) => ticks.flatMap((t) => (t.channels ?? [])
+        .filter((ch) => (ch.taskKey ?? 'default') === taskKey)
+        .map((ch) => ch.targetFps)
+        .filter((v) => v != null))))];
+    const targetFps = targetFpsValues.length <= 1 ? (targetFpsValues[0] ?? null) : targetFpsValues.join(' / ');
     const minFpsAcross = allDetectorFps.length ? Math.min(...allDetectorFps) : null;
     const maxDiscard = allDiscard.length ? Math.max(...allDiscard) : null;
     const avgDiscard = allDiscard.length ? round(mean(allDiscard), 4) : null;
@@ -121,6 +138,7 @@ export class ReportWriter {
     const maxNpu = peak((t) => t.hardware?.npuUtilization?.usedPercent);
     const maxCpu = peak((t) => t.hardware?.cpuUtilization?.usedPercent);
     const maxMem = peak((t) => t.hardware?.generalMemoryUtilization?.usedPercent);
+    const taskStats = summarizeTasks(channelStats);
 
     const perThreshold = [];
     const pass = thresholds.pass ?? {};
@@ -159,6 +177,7 @@ export class ReportWriter {
       maxCpu,
       maxMem,
       channelStats,
+      taskStats,
       perThreshold,
       pass: overall.pass,
       reasons: overall.reasons,
@@ -205,6 +224,7 @@ export class ReportWriter {
       scenarioName: r.scenarioName,
       algorithmId: r.algorithmId,
       algorithmName: r.algorithmName,
+      tasks: r.tasks ?? [],
       targetFps: r.targetFps,
       videoMode: r.videoMode,
       profileMode: r.profileMode ?? 'configured',
@@ -252,8 +272,8 @@ export class ReportWriter {
     ];
     const baseRows = [
       ['场景', r.scenarioName],
-      ['算法', `${r.algorithmId} (${r.algorithmName ?? '-'})`],
-      ['编排设定 FPS（参考）', r.targetFps ?? '未提取到'],
+      ['任务', formatTaskList(r.tasks, r.algorithmId, r.algorithmName)],
+      ['编排设定 FPS（参考）', formatTargetFps(r.tasks, r.targetFps)],
       ['视频模式', r.videoMode],
       ['设备', `${r.device?.model ?? ''} / ${r.device?.sn ?? ''}`],
       ['软件版本', r.device?.softwareVersion ?? ''],
@@ -300,6 +320,20 @@ export class ReportWriter {
         </tr>`),
     ).join('');
 
+    const taskRows = stepSummaries.flatMap((s) =>
+      (s.taskStats ?? []).map((t) => `
+        <tr>
+          <td>${s.channels}ch</td>
+          <td>${esc(t.taskDisplayName ?? t.taskKey)}</td>
+          <td>${t.algorithmId ?? '-'}</td>
+          <td>${t.bindingCount}</td>
+          <td>${t.minDetectorFps ?? '-'}</td>
+          <td>${t.avgDiscardRate ?? '-'}</td>
+          <td>${t.maxDetectorLatencyMs ?? '-'}</td>
+          <td>${t.maxCriticalPathLatencyMs ?? '-'}</td>
+        </tr>`),
+    ).join('');
+
     return `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -331,6 +365,11 @@ ${bottleneckBanner}
   <tr><th>序号</th><th>路数</th><th>保持</th><th>目标FPS(参考)</th><th>检测FPS(参考)</th><th>关键链路延时ms</th><th>检测节点延时ms</th><th>平均丢弃率</th><th>最差通道丢弃率</th><th>NPU峰值</th><th>CPU峰值</th><th>内存峰值</th><th>结果</th><th>失败原因</th></tr>
   ${stepRows}
 </table>
+<h2>分任务汇总</h2>
+<table>
+  <tr><th>路数</th><th>任务</th><th>算法ID</th><th>绑定数</th><th>最低检测FPS</th><th>平均丢弃率</th><th>最大检测延时ms</th><th>最大关键链路ms</th></tr>
+  ${taskRows}
+</table>
 <h2>阈值判定明细</h2>
 <table>
   <tr><th>路数</th><th>指标</th><th>阈值</th><th>实测</th><th>结果</th></tr>
@@ -342,6 +381,60 @@ ${bottleneckBanner}
 
 function mean(arr) { return arr.reduce((a, b) => a + b, 0) / arr.length; }
 function round(v, d) { const f = 10 ** d; return Math.round(v * f) / f; }
+
+function summarizeTasks(channelStats) {
+  const byTask = new Map();
+  for (const stat of channelStats) {
+    const key = stat.taskKey ?? 'default';
+    if (!byTask.has(key)) {
+      byTask.set(key, {
+        taskKey: key,
+        taskDisplayName: stat.taskDisplayName ?? key,
+        taskType: stat.taskType ?? 'cv',
+        algorithmId: stat.algorithmId ?? null,
+        fps: [],
+        discard: [],
+        detectorLat: [],
+        criticalLat: [],
+        bindingCount: 0,
+      });
+    }
+    const task = byTask.get(key);
+    task.bindingCount++;
+    if (stat.minDetectorFps != null) task.fps.push(stat.minDetectorFps);
+    if (stat.avgDiscardRate != null) task.discard.push(stat.avgDiscardRate);
+    if (stat.avgDetectorLatencyMs != null) task.detectorLat.push(stat.avgDetectorLatencyMs);
+    if (stat.avgCriticalPathLatencyMs != null) task.criticalLat.push(stat.avgCriticalPathLatencyMs);
+  }
+
+  return [...byTask.values()].map((task) => ({
+    taskKey: task.taskKey,
+    taskDisplayName: task.taskDisplayName,
+    taskType: task.taskType,
+    algorithmId: task.algorithmId,
+    bindingCount: task.bindingCount,
+    minDetectorFps: task.fps.length ? round(Math.min(...task.fps), 2) : null,
+    avgDiscardRate: task.discard.length ? round(mean(task.discard), 4) : null,
+    maxDetectorLatencyMs: task.detectorLat.length ? round(Math.max(...task.detectorLat), 1) : null,
+    maxCriticalPathLatencyMs: task.criticalLat.length ? round(Math.max(...task.criticalLat), 1) : null,
+  }));
+}
+
+function formatTaskList(tasks, legacyAlgorithmId, legacyAlgorithmName) {
+  if (!Array.isArray(tasks) || !tasks.length) {
+    return `${legacyAlgorithmId ?? '-'} (${legacyAlgorithmName ?? '-'})`;
+  }
+  return tasks
+    .map((task) => `${task.id}: ${task.algorithmId}${task.displayName ? ` (${task.displayName})` : ''}`)
+    .join('; ');
+}
+
+function formatTargetFps(tasks, legacyTargetFps) {
+  if (!Array.isArray(tasks) || !tasks.length) {
+    return legacyTargetFps ?? '未提取到';
+  }
+  return tasks.map((task) => `${task.id}=${task.targetFps ?? 'N/A'}`).join('; ');
+}
 
 function isContinuousChannelProfile(stepSummaries) {
   const channels = stepSummaries

@@ -1,0 +1,45 @@
+version: 2
+name: multi-task-example
+displayName: 多任务示例：未戴安全帽 + 玩手机检测
+sampleIntervalSec: 3
+
+channels:
+  mode: local
+  repeatCount: 0
+  sources:
+    - name: no-helmet-01
+      file: ../no-helmet-99898-fps5-20260630/LX0000000007.mp4
+
+tasks:
+  - id: no-helmet
+    displayName: 未戴安全帽检测
+    type: cv
+    algorithmId: "99898"
+    scheduleId: "e89c6c6385e5454b35cde0d1653vg"
+    template: ../no-helmet-99898-fps5-20260630/algorithm-template.json
+
+  - id: play-phone
+    displayName: 玩手机检测
+    type: cv
+    algorithmId: "22"
+    scheduleId: "e89c6c6385e5454b35cde0d1653vg"
+    template: ../play-phone/algorithm-template.json
+
+bindings:
+  - task: no-helmet
+    channels: all
+  - task: play-phone
+    channels: all
+
+loadProfile:
+  - channels: 1
+    holdSec: 30
+  - channels: 2
+    holdSec: 30
+
+thresholds:
+  pass:
+    maxCriticalPathLatencyMs: 200
+    maxDetectorLatencyMs: 150
+    avgDiscardRate: 0.05
+    maxPacketDiscardRate: 0.01

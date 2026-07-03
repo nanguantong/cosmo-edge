@@ -1,24 +1,24 @@
-// scenario-package.js — Parse a scenario directory and the exported template.
+// scenario-package.js - Parse a scenario directory into a normalized workload.
 //
-// A scenario package is a directory:
-//   scenarios/<name>/
-//     algorithm-template.json   # exported from the platform (single JSON file)
-//     scenario.yml              # load profile + base params
-//     thresholds.yml            # pass/fail rules
-//     videos.yml                # video source mode + sources
+// v1 packages remain supported:
+//   algorithm-template.json + scenario.yml + thresholds.yml + videos.yml
 //
-// The exported algorithm-template.json has several fields whose VALUES are JSON
-// strings (not nested objects): algorithmProcessdata, atomicList, algorithmMetadata.
-// They must be parsed a second time. The frame-rate baseline for throughput
-// comparison lives in the orchestration graph at node AA_00001, in
-// configObject.params: [{ key: 'fps', value: '3' }].
+// v2 packages model the generic case directly:
+//   scenario.yml:
+//     version: 2
+//     channels: { mode, repeatCount, sources: [...] }
+//     tasks: [{ id, type, algorithmId, scheduleId, template }]
+//     bindings: [{ task, channels }]
+//
+// Internally both forms become:
+//   tasks[] + bindings[] + videos + thresholds + loadProfile.
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { parse as parseYaml } from 'yaml';
 
 const FPS_ACTION_ID = 'AA_00001';
+const SUPPORTED_VIDEO_MODES = new Set(['local', 'rtsp-fidelity', 'rtsp-deterministic']);
 
 export class ScenarioPackage {
   /**
@@ -26,35 +26,52 @@ export class ScenarioPackage {
    */
   constructor(dir) {
     this.dir = path.resolve(dir);
-    this.template = null;       // parsed algorithm-template.json (object)
-    this.scenario = null;       // parsed scenario.yml (object)
-    this.thresholds = null;     // parsed thresholds.yml (object)
-    this.videos = null;         // parsed videos.yml (object)
-    this.targetFps = null;      // extracted orchestration fps baseline
+    this.scenario = null;
+    this.thresholds = null;
+    this.videos = null;
+    this.channelConfig = null;
+    this.tasks = [];
+    this.bindings = [];
+    this.version = 1;
+
+    // Legacy accessors keep old callers and reports working.
+    this.template = null;
+    this.targetFps = null;
   }
 
-  /** Load and validate all four files. Returns this for chaining. */
+  /** Load and validate the package. Returns this for chaining. */
   load() {
-    this.template = this._readJson('algorithm-template.json');
-    this.scenario = parseYaml(this._readText('scenario.yml'));
-    this.thresholds = parseYaml(this._readText('thresholds.yml')) ?? {};
-    this.videos = parseYaml(this._readText('videos.yml'));
-    this._resolveVideoPaths();
+    this.scenario = parseYaml(this._readText('scenario.yml')) ?? {};
+    this.version = Number(this.scenario.version ?? (Array.isArray(this.scenario.tasks) ? 2 : 1));
+    this.thresholds = this._readOptionalYaml('thresholds.yml') ?? this.scenario.thresholds ?? {};
 
+    if (this.version >= 2 || Array.isArray(this.scenario.tasks)) {
+      this._loadWorkloadV2();
+    } else {
+      this._loadLegacyV1();
+    }
+
+    this._resolveVideoPaths();
     this._validate();
-    this.targetFps = this._extractFps();
+
+    this.template = this.primaryTask?.template ?? null;
+    this.targetFps = this.primaryTask?.targetFps ?? null;
     return this;
   }
 
-  // ── accessors ──────────────────────────────────────────────────────────
+  // -- normalized accessors -------------------------------------------------
 
-  /** algorithmId as a string (matches DTO convention). */
+  get primaryTask() {
+    return this.tasks[0] ?? null;
+  }
+
+  /** algorithmId as a string (legacy single-task accessor). */
   get algorithmId() {
-    return String(this.scenario.algorithmId ?? this.template.algorithmCode ?? '');
+    return this.primaryTask?.algorithmId ?? '';
   }
 
   get scheduleId() {
-    return this.scenario.scheduleId ?? '';
+    return this.primaryTask?.scheduleId ?? '';
   }
 
   get loadProfile() {
@@ -62,13 +79,13 @@ export class ScenarioPackage {
   }
 
   get sampleIntervalSec() {
-    return this.scenario.sampleIntervalSec ?? 5;
+    return Number(this.scenario.sampleIntervalSec ?? 5);
   }
 
   get videoMode() {
     const m = this.videos?.mode;
-    if (!['local', 'rtsp-fidelity', 'rtsp-deterministic'].includes(m)) {
-      throw new Error(`videos.yml: unsupported mode "${m}"`);
+    if (!SUPPORTED_VIDEO_MODES.has(m)) {
+      throw new Error(`videos/channels: unsupported mode "${m}"`);
     }
     return m;
   }
@@ -78,85 +95,141 @@ export class ScenarioPackage {
   }
 
   /**
-   * Local (file-based) video repeat count. 0 = loop forever (AlgChannelDemux
-   * treats video_repeat_count_ <= 0 as unlimited), 1 = play once then stop.
-   * Defaults to 0 for local mode so the task sustains load across holdSec.
-   * Set explicitly in scenario.yml to override (e.g. 1 for single-pass tests).
+   * Local video repeat count. 0 = loop forever (AlgChannelDemux treats
+   * video_repeat_count_ <= 0 as unlimited), 1 = play once then stop.
    */
   get videoRepeatCount() {
-    const v = this.scenario.videoRepeatCount;
+    const v = this.channelConfig?.repeatCount ?? this.scenario.videoRepeatCount;
     if (v == null) return this.videoMode === 'local' ? 0 : 1;
     return Number(v);
   }
 
-  /**
-   * taskConfig payload for /Task/ApplyParamsBatch.
-   * Injects param.videoRepeatCount (key::CHANNEL_SOURCE_REPEAT in Keys.h) so the
-   * demuxer loops local videos. For rtsp modes repeat count is irrelevant but
-   * harmless. Callers may extend this with extra params before sending.
-   */
+  /** Legacy single-task taskConfig accessor. */
   get taskConfig() {
-    const base = this.template.taskConfig ?? { params: [], areas: [] };
-    const params = Array.isArray(base.params) ? [...base.params] : [];
-    const hasRepeat = params.some((p) => p?.key === 'param.videoRepeatCount');
-    if (!hasRepeat) {
-      params.push({ key: 'param.videoRepeatCount', value: String(this.videoRepeatCount) });
-    }
-    return { ...base, params, areas: base.areas ?? [] };
+    return this.primaryTask?.taskConfig ?? { params: [], areas: [] };
   }
 
-  /**
-   * Payload to send straight to /algorithm/layout/save.
-   *
-   * The backend DTO (AlgorithmDto_Layout.cc `MsgLayoutSaveRecv::from_json`) only reads a
-   * FIXED set of fields and does so by reference (`j.at()` / `JSON_OPT`), so any extra
-   * fields in a full platform export are simply ignored — that is NOT the failure mode.
-   * The real trap is TYPE: every field in MsgLayoutSaveRecv is `std::string`, including
-   * `algorithmCategory` and `algorithmUsage`. Platform exports serialize those two as JSON
-   * NUMBERS (e.g. 2 / 1). nlohmann's `get_to<std::string>()` on a JSON number throws
-   * `type_error`, which the router surfaces as code 24「参数异常」. This is why a freshly
-   * exported 100KB+ template is rejected while a hand-trimmed one works.
-   *
-   * Fix: build a minimal payload with ONLY the DTO-known fields, and coerce the two
-   * numeric ones to strings. We also normalize the id field (export uses `algorithmId`,
-   * sometimes `id`/`algorithmCode`) and map `confVersionName` → `configVersionName`
-   * (the DTO field name; the export's `confVersionName` is a different, ignored field).
-   */
+  /** Legacy single-task layout save payload accessor. */
   get layoutSavePayload() {
-    const t = this.template;
-    const algorithmId = String(t.algorithmId ?? t.id ?? t.algorithmCode ?? '');
-    if (!algorithmId) throw new Error('template: cannot derive algorithmId for layout save');
-    const str = (v) => (v == null ? undefined : String(v));
+    if (!this.primaryTask) throw new Error('workload: no tasks defined');
+    return this.primaryTask.layoutSavePayload;
+  }
+
+  /** Payloads for all task templates that need layout/save. */
+  get layoutSavePayloads() {
+    return this.tasks.map((task) => ({
+      taskId: task.id,
+      displayName: task.displayName,
+      algorithmId: task.algorithmId,
+      payload: task.layoutSavePayload,
+    }));
+  }
+
+  // -- loaders --------------------------------------------------------------
+
+  _loadLegacyV1() {
+    const templateFile = 'algorithm-template.json';
+    const template = this._readJson(templateFile);
+    this.videos = parseYaml(this._readText('videos.yml')) ?? {};
+    this.channelConfig = { mode: this.videos.mode, repeatCount: this.scenario.videoRepeatCount };
+
+    const task = this._normalizeTask({
+      id: 'default',
+      displayName: this.scenario.displayName ?? this.scenario.name,
+      type: this.scenario.taskType ?? 'cv',
+      algorithmId: this.scenario.algorithmId,
+      algorithmCode: this.scenario.algorithmCode,
+      scheduleId: this.scenario.scheduleId,
+      template: templateFile,
+    }, template, 0);
+
+    this.tasks = [task];
+    this.bindings = [{ taskId: task.id, channels: 'all' }];
+  }
+
+  _loadWorkloadV2() {
+    if (this.scenario.channels) {
+      this.channelConfig = this.scenario.channels;
+      this.videos = this._videosFromChannels(this.scenario.channels);
+    } else {
+      this.videos = parseYaml(this._readText('videos.yml')) ?? {};
+      this.channelConfig = { mode: this.videos.mode, repeatCount: this.scenario.videoRepeatCount };
+    }
+
+    if (!Array.isArray(this.scenario.tasks) || !this.scenario.tasks.length) {
+      throw new Error('scenario.yml: version 2 workload must define tasks[]');
+    }
+
+    this.tasks = this.scenario.tasks.map((taskSpec, index) => {
+      const templateFile = taskSpec.template ?? (index === 0 ? 'algorithm-template.json' : null);
+      if (!templateFile) {
+        throw new Error(`scenario.yml: tasks[${index}].template is required`);
+      }
+      const template = this._readJson(templateFile);
+      return this._normalizeTask(taskSpec, template, index);
+    });
+
+    this.bindings = this._normalizeBindings(this.scenario.bindings);
+  }
+
+  _videosFromChannels(channels) {
+    const mode = channels.mode;
+    const sources = channels.sources ?? channels.local ?? channels.rtsp ?? [];
+    const videos = { mode };
+    if (mode === 'local') {
+      videos.local = sources;
+    } else {
+      videos.rtsp = sources;
+    }
+    return videos;
+  }
+
+  _normalizeTask(spec, template, index) {
+    const algorithmId = String(spec.algorithmId ?? template.algorithmId ?? template.id ?? template.algorithmCode ?? '');
+    if (!algorithmId) {
+      throw new Error(`scenario.yml: tasks[${index}].algorithmId cannot be derived`);
+    }
+
+    const id = String(spec.id ?? spec.name ?? `task-${index + 1}`);
+    const algorithmCode = String(spec.algorithmCode ?? template.algorithmCode ?? template.algorithmId ?? algorithmId);
+    const scheduleId = spec.scheduleId ?? this.scenario.scheduleId ?? '';
+    const targetFps = spec.targetFps != null ? Number(spec.targetFps) : extractTargetFpsFromTemplate(template);
+    const taskConfig = buildTaskConfig(template, this.videoRepeatCount);
+
     return {
-      confVersionId: t.confVersionId,
+      id,
+      displayName: spec.displayName ?? template.algorithmName ?? id,
+      type: spec.type ?? 'cv',
       algorithmId,
-      configVersionName: str(t.configVersionName ?? t.confVersionName),
-      algorithmCategory: str(t.algorithmCategory),
-      algorithmUsage: str(t.algorithmUsage),
-      remark: str(t.remark),
-      atomicList: str(t.atomicList),
-      algorithmProcessdata: str(t.algorithmProcessdata),
-      algorithmMetadata: str(t.algorithmMetadata),
-      filePath: str(t.filePath),
+      algorithmCode,
+      scheduleId,
+      templateFile: spec.template ?? (index === 0 ? 'algorithm-template.json' : null),
+      template,
+      targetFps: Number.isFinite(targetFps) && targetFps > 0 ? targetFps : null,
+      taskConfig,
+      layoutSavePayload: buildLayoutSavePayload(template),
     };
   }
 
-  // ── internals ──────────────────────────────────────────────────────────
-
-  /**
-   * Resolve relative `file:` entries in videos.yml (local mode) against the
-   * scenario directory, so the channel manager receives absolute paths.
-   */
-  _resolveVideoPaths() {
-    if (this.videos?.mode !== 'local' || !Array.isArray(this.videos.local)) return;
-    for (const src of this.videos.local) {
-      if (src.file && !path.isAbsolute(src.file)) {
-        src.file = path.resolve(this.dir, src.file);
-      }
+  _normalizeBindings(bindings) {
+    if (!bindings?.length) {
+      return this.tasks.map((task) => ({ taskId: task.id, channels: 'all' }));
     }
+
+    return bindings.map((binding, index) => {
+      const taskId = String(binding.task ?? binding.taskId ?? '');
+      if (!taskId) throw new Error(`scenario.yml: bindings[${index}].task is required`);
+      return {
+        taskId,
+        channels: binding.channels ?? 'all',
+      };
+    });
   }
+
+  // -- file helpers ---------------------------------------------------------
+
   _readText(name) {
-    const p = path.join(this.dir, name);
+    const p = path.isAbsolute(name) ? name : path.join(this.dir, name);
     if (!fs.existsSync(p)) {
       throw new Error(`Missing scenario file: ${p}`);
     }
@@ -167,43 +240,23 @@ export class ScenarioPackage {
     return JSON.parse(this._readText(name));
   }
 
-  /**
-   * The export JSON stores algorithmProcessdata as a JSON STRING (a list of
-   * action nodes). Parse it once into an array of nodes.
-   */
-  _parseProcessData() {
-    const raw = this.template.algorithmProcessdata;
-    if (raw == null) return [];
-    if (typeof raw === 'string') {
-      try {
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    }
-    return Array.isArray(raw) ? raw : [];
+  _readOptionalYaml(name) {
+    const p = path.join(this.dir, name);
+    if (!fs.existsSync(p)) return null;
+    return parseYaml(fs.readFileSync(p, 'utf8')) ?? {};
   }
 
   /**
-   * Extract the orchestration frame-rate baseline.
-   * Walks the AA_00001 (目标检测算法) node -> configObject.params -> { key: 'fps' }.
-   * Falls back to null if not found (throughput ratio threshold is then skipped).
+   * Resolve relative file entries against the scenario directory, so the
+   * channel manager receives absolute paths.
    */
-  _extractFps() {
-    const nodes = this._parseProcessData();
-    const detNode = nodes.find((n) => n && n.actionId === FPS_ACTION_ID);
-    if (!detNode) return null;
-    let configObj = detNode.configObject;
-    if (typeof configObj === 'string') {
-      try { configObj = JSON.parse(configObj); } catch { return null; }
+  _resolveVideoPaths() {
+    if (this.videos?.mode !== 'local' || !Array.isArray(this.videos.local)) return;
+    for (const src of this.videos.local) {
+      if (src.file && !path.isAbsolute(src.file)) {
+        src.file = path.resolve(this.dir, src.file);
+      }
     }
-    const params = configObj?.params;
-    if (!Array.isArray(params)) return null;
-    const fpsParam = params.find((p) => p?.key === 'fps');
-    if (!fpsParam) return null;
-    const val = Number(fpsParam.value);
-    return Number.isFinite(val) && val > 0 ? val : null;
   }
 
   _validate() {
@@ -219,14 +272,91 @@ export class ScenarioPackage {
         throw new Error(`scenario.yml: loadProfile[${i}].holdSec must be > 0`);
       }
     }
-    if (!this.videos?.mode) throw new Error('videos.yml: missing "mode"');
-    this.videoMode;  // re-trigger mode validation
+    if (!this.videos?.mode) throw new Error('videos/channels: missing "mode"');
+    this.videoMode; // re-trigger mode validation
+    if (this.videoMode === 'local' && !this.videos.local?.length) {
+      throw new Error('videos/channels: local mode requires at least one source');
+    }
+    if (this.videoMode !== 'local' && !this.videos.rtsp?.length) {
+      throw new Error('videos/channels: rtsp mode requires at least one source');
+    }
+
+    if (!this.tasks.length) throw new Error('scenario.yml: at least one task is required');
+    const seen = new Set();
+    for (const task of this.tasks) {
+      if (seen.has(task.id)) throw new Error(`scenario.yml: duplicate task id "${task.id}"`);
+      seen.add(task.id);
+      if (!task.scheduleId) throw new Error(`scenario.yml: task "${task.id}" missing scheduleId`);
+    }
+
+    const taskIds = new Set(this.tasks.map((t) => t.id));
+    for (const binding of this.bindings) {
+      if (!taskIds.has(binding.taskId)) {
+        throw new Error(`scenario.yml: binding references unknown task "${binding.taskId}"`);
+      }
+    }
   }
+}
+
+function buildTaskConfig(template, videoRepeatCount) {
+  const base = template.taskConfig ?? { params: [], areas: [] };
+  const params = Array.isArray(base.params) ? [...base.params] : [];
+  const hasRepeat = params.some((p) => p?.key === 'param.videoRepeatCount');
+  if (!hasRepeat) {
+    params.push({ key: 'param.videoRepeatCount', value: String(videoRepeatCount) });
+  }
+  return { ...base, params, areas: base.areas ?? [] };
+}
+
+function buildLayoutSavePayload(template) {
+  const algorithmId = String(template.algorithmId ?? template.id ?? template.algorithmCode ?? '');
+  if (!algorithmId) throw new Error('template: cannot derive algorithmId for layout save');
+  const str = (v) => (v == null ? undefined : String(v));
+  return {
+    confVersionId: template.confVersionId,
+    algorithmId,
+    configVersionName: str(template.configVersionName ?? template.confVersionName),
+    algorithmCategory: str(template.algorithmCategory),
+    algorithmUsage: str(template.algorithmUsage),
+    remark: str(template.remark),
+    atomicList: str(template.atomicList),
+    algorithmProcessdata: str(template.algorithmProcessdata),
+    algorithmMetadata: str(template.algorithmMetadata),
+    filePath: str(template.filePath),
+  };
+}
+
+function parseProcessData(template) {
+  const raw = template.algorithmProcessdata;
+  if (raw == null) return [];
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return Array.isArray(raw) ? raw : [];
+}
+
+function extractTargetFpsFromTemplate(template) {
+  const nodes = parseProcessData(template);
+  const detNode = nodes.find((n) => n && n.actionId === FPS_ACTION_ID);
+  if (!detNode) return null;
+  let configObj = detNode.configObject;
+  if (typeof configObj === 'string') {
+    try { configObj = JSON.parse(configObj); } catch { return null; }
+  }
+  const params = configObj?.params;
+  if (!Array.isArray(params)) return null;
+  const fpsParam = params.find((p) => p?.key === 'fps');
+  if (!fpsParam) return null;
+  const val = Number(fpsParam.value);
+  return Number.isFinite(val) && val > 0 ? val : null;
 }
 
 // Re-export for unit testing of the fps extractor on arbitrary template objects.
 export function extractTargetFps(template) {
-  const pkg = Object.create(ScenarioPackage.prototype);
-  pkg.template = template;
-  return pkg._extractFps();
+  return extractTargetFpsFromTemplate(template);
 }

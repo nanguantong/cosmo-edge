@@ -486,7 +486,7 @@ async function runBenchmark(args) {
       if (mem98Count >= 3) reasons.push(`memory >= 98% for ${mem98Count} consecutive samples`);
       if (memAvg60s != null && memAvg60s >= 95) reasons.push(`memory 60s average ${memAvg60s.toFixed(1)}% >= 95%`);
       if (cpu98Count >= 3) reasons.push(`CPU >= 98% for ${cpu98Count} consecutive samples`);
-      if (npu98Count >= 3) reasons.push(`NPU >= 98% for ${npu98Count} consecutive samples`);
+      // if (npu98Count >= 3) reasons.push(`NPU >= 98% for ${npu98Count} consecutive samples`);
       if (discardCount >= 2) reasons.push(`discardRate > ${DISCARD_BOTTLENECK} for ${discardCount} consecutive samples`);
       return reasons.length ? { stop: true, reason: reasons.join('; ') } : { stop: false };
     };

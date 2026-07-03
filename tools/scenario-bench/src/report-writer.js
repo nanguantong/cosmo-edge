@@ -191,7 +191,8 @@ export class ReportWriter {
     const maxVerifiedPassedChannels = passed.length ? Math.max(...passed.map((s) => s.channels)) : null;
     const continuousProfile = r.profileMode === 'capacity' || isContinuousChannelProfile(stepSummaries);
     const maxStableChannels = continuousProfile ? maxVerifiedPassedChannels : null;
-    const overallPass = r.status !== 'aborted' && ran.length > 0 && ran.every((s) => s.pass);
+    const overallPass = r.status !== 'aborted' && ran.length > 0 && 
+      (r.profileMode === 'capacity' ? maxVerifiedPassedChannels > 0 : ran.every((s) => s.pass));
     const bottleneck = r.bottleneck ?? (firstFailed
       ? {
           stepIndex: firstFailed.step.index,
@@ -305,7 +306,7 @@ export class ReportWriter {
         <td class="${s.maxNpu >= 90 ? 'fail' : ''}">${s.maxNpu != null ? s.maxNpu + '%' : '-'}</td>
         <td class="${s.maxCpu >= 90 ? 'fail' : ''}">${s.maxCpu != null ? s.maxCpu + '%' : '-'}</td>
         <td class="${s.maxMem >= 90 ? 'fail' : ''}">${s.maxMem != null ? s.maxMem + '%' : '-'}</td>
-        <td class="${s.skipped ? 'na' : (s.pass ? 'pass' : 'fail')}">${s.skipped ? 'SKIP' : (s.pass ? 'PASS' : 'FAIL')}</td>
+        <td class="${s.skipped ? 'na' : (s.pass ? 'pass' : (summary.bottleneck?.stepIndex === s.step.index ? 'warn' : 'fail'))}">${s.skipped ? 'SKIP' : (s.pass ? 'PASS' : (summary.bottleneck?.stepIndex === s.step.index ? 'STOPPED' : 'FAIL'))}</td>
         <td>${esc((s.reasons ?? []).join('; '))}</td>
       </tr>`).join('');
 

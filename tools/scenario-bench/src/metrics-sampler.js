@@ -37,15 +37,18 @@ export class MetricsSampler {
   }
 
   /**
-   * Take one sample for the currently active channels.
-   * @param {Map<string,string>} channelTaskMap  channelId -> taskId (active set)
-   * @param {number} targetFps  orchestration fps baseline (for computed FPS ratio)
+   * Take one sample for the currently active task/channel bindings.
+   * @param {Array<object>|Map<string,string>} expectedBindings active task bindings.
+   *   The array form is [{ taskKey, taskId, channelId, targetFps, ... }].
+   *   A legacy Map channelId -> taskId is still accepted.
+   * @param {number} [legacyTargetFps] orchestration fps baseline for legacy callers
    * @returns {Promise<object>} a sample record
    */
-  async sample(channelTaskMap, targetFps) {
+  async sample(expectedBindings, legacyTargetFps = null) {
     const ts = Date.now();
-    const activeChannelIds = [...channelTaskMap.keys()];
-    const activeTaskIds = [...channelTaskMap.values()];
+    const expected = normalizeExpectedBindings(expectedBindings, legacyTargetFps);
+    const activeChannelIds = [...new Set(expected.map((entry) => entry.channelId))];
+    const activeTaskIds = [...new Set(expected.map((entry) => entry.taskId))];
 
     // Sample both endpoints in parallel; either may fail independently.
     const [taskDetail, hwRes] = await Promise.allSettled([
@@ -53,28 +56,27 @@ export class MetricsSampler {
       this.client.queryHardwareResource(),
     ]);
 
-    const perChannel = this._parseRunningDetail(
-      taskDetail, activeChannelIds, channelTaskMap, targetFps,
-    );
+    const perBinding = this._parseRunningDetail(taskDetail, expected);
     const hw = this._parseHardware(hwRes);
 
     return {
       ts,
       iso: new Date(ts).toISOString(),
       activeChannels: activeChannelIds.length,
-      channels: perChannel,
+      activeTaskBindings: expected.length,
+      channels: perBinding,
       hardware: hw,
     };
   }
 
   // ── RunningDetail parsing ──────────────────────────────────────────────
 
-  _parseRunningDetail(detailResult, activeChannelIds, channelTaskMap, targetFps) {
+  _parseRunningDetail(detailResult, expectedBindings) {
     const out = [];
     if (detailResult.status !== 'fulfilled') {
-      // Whole RunningDetail call failed — mark every channel as errored.
-      for (const chId of activeChannelIds) {
-        out.push({ channelId: chId, taskId: channelTaskMap.get(chId), error: String(detailResult.reason?.message ?? detailResult.reason), missing: true });
+      // Whole RunningDetail call failed - mark every expected binding as errored.
+      for (const entry of expectedBindings) {
+        out.push({ ...entry, error: String(detailResult.reason?.message ?? detailResult.reason), missing: true });
       }
       return out;
     }
@@ -82,15 +84,22 @@ export class MetricsSampler {
     const statusList = detailResult.value?.status ?? [];
     const returnedByTaskId = new Map(statusList.map((s) => [s.taskId, s]));
 
-    for (const chId of activeChannelIds) {
-      const taskId = channelTaskMap.get(chId);
-      const st = returnedByTaskId.get(taskId);
+    for (const entry of expectedBindings) {
+      const st = returnedByTaskId.get(entry.taskId);
       if (!st) {
         // Not returned -> either action count <= 2 (silent filter) or task not started yet.
-        out.push({ channelId: chId, taskId, missing: true });
+        out.push({ ...entry, missing: true });
         continue;
       }
-      out.push(this._summarizeTask(st, targetFps));
+      out.push({
+        ...entry,
+        ...this._summarizeTask(st, entry.targetFps),
+        taskKey: entry.taskKey,
+        taskDisplayName: entry.taskDisplayName,
+        taskType: entry.taskType,
+        algorithmId: entry.algorithmId,
+        algorithmCode: entry.algorithmCode,
+      });
     }
     return out;
   }
@@ -208,6 +217,33 @@ function num(v) {
 function round(v, digits) {
   const f = 10 ** digits;
   return Math.round(v * f) / f;
+}
+
+function normalizeExpectedBindings(expectedBindings, legacyTargetFps) {
+  if (expectedBindings instanceof Map) {
+    return [...expectedBindings.entries()].map(([channelId, taskId]) => ({
+      taskKey: 'default',
+      taskDisplayName: 'default',
+      taskType: 'cv',
+      algorithmId: null,
+      algorithmCode: null,
+      targetFps: legacyTargetFps,
+      channelId,
+      taskId,
+    }));
+  }
+
+  if (!Array.isArray(expectedBindings)) return [];
+  return expectedBindings.map((entry) => ({
+    taskKey: entry.taskKey ?? entry.taskId,
+    taskDisplayName: entry.taskDisplayName ?? entry.taskKey ?? entry.taskId,
+    taskType: entry.taskType ?? 'cv',
+    algorithmId: entry.algorithmId ?? null,
+    algorithmCode: entry.algorithmCode ?? null,
+    targetFps: entry.targetFps ?? null,
+    channelId: entry.channelId,
+    taskId: entry.taskId,
+  }));
 }
 
 function isPrimaryThroughputAction(name, actionId) {

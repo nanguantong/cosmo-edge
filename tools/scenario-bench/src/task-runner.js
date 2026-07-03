@@ -1,69 +1,104 @@
-// Bind scenario tasks and drive a slow-start load staircase.
+// Bind workload tasks and drive a slow-start load staircase.
 //
-// ApplyParamsBatch auto-enables tasks, so a large batch can create a short but
-// severe decode/model/memory allocation spike. The runner therefore binds new
-// channels in small batches and gives the CLI a chance to sample/fuse after each
-// batch. Local file tasks are still bound only once; OFF->ON may not reopen the
-// local demuxer.
+// A workload can contain one or many tasks. The single-task case is represented
+// as one task bound to all active channels, so the run path stays unified.
 
 export class TaskRunner {
   /**
    * @param {import('./cosmo-client.js').CosmoClient} client
    * @param {object} ctx
-   * @param {string} ctx.algorithmId
-   * @param {string|number} ctx.algorithmCode
-   * @param {string} ctx.scheduleId
-   * @param {object} ctx.taskConfig
+   * @param {Array<object>} [ctx.tasks] normalized workload tasks
+   * @param {Array<object>} [ctx.bindings] normalized binding matrix
+   * @param {string} [ctx.algorithmId] legacy single-task algorithm id
+   * @param {string|number} [ctx.algorithmCode] legacy single-task algorithm code
+   * @param {string} [ctx.scheduleId] legacy single-task schedule id
+   * @param {object} [ctx.taskConfig] legacy single-task config
    * @param {number} [ctx.rampBatchSize]
    * @param {number} [ctx.rampBatchDelaySec]
    * @param {import('./logger.js').Logger} [logger]
    */
   constructor(client, ctx, logger) {
     this.client = client;
-    this.algorithmId = String(ctx.algorithmId);
-    this.algorithmCode = String(ctx.algorithmCode);
-    this.scheduleId = ctx.scheduleId;
-    this.taskConfig = ctx.taskConfig ?? { params: [], areas: [] };
+    this.tasks = normalizeTasks(ctx);
+    this.taskById = new Map(this.tasks.map((task) => [task.id, task]));
+    this.bindings = normalizeBindings(ctx.bindings, this.tasks);
     this.rampBatchSize = Math.max(1, Number(ctx.rampBatchSize ?? 1));
     this.rampBatchDelaySec = Math.max(0, Number(ctx.rampBatchDelaySec ?? 15));
     this.log = logger;
-    /** @type {Map<string, string>} channelId -> taskId */
-    this.channelTaskMap = new Map();
     /** @type {string[]} videoChannelIds in bind order */
     this.allChannelIds = [];
   }
 
-  taskIdFor(videoChannelId) {
-    return `${videoChannelId}_${this.algorithmCode}`;
+  /**
+   * Legacy signature taskIdFor(videoChannelId) still works for the primary task.
+   * New signature is taskIdFor(taskId, videoChannelId).
+   */
+  taskIdFor(taskOrChannelId, maybeChannelId) {
+    const task = maybeChannelId == null ? this.tasks[0] : this.taskById.get(String(taskOrChannelId));
+    const channelId = maybeChannelId == null ? taskOrChannelId : maybeChannelId;
+    if (!task) throw new Error(`unknown task: ${taskOrChannelId}`);
+    return `${channelId}_${task.algorithmCode}`;
   }
 
   setChannels(videoChannelIds) {
     this.allChannelIds = [...videoChannelIds];
-    this.channelTaskMap = new Map(videoChannelIds.map((id) => [id, this.taskIdFor(id)]));
+  }
+
+  /**
+   * Return expected task/channel records for the currently active channel set.
+   * These records are passed to MetricsSampler and BatchSwitchTask.
+   * @param {string[]} videoChannelIds
+   */
+  expectedTaskEntries(videoChannelIds) {
+    const entries = [];
+    for (const task of this.tasks) {
+      const taskChannels = this._channelsForTask(task.id, videoChannelIds);
+      for (const channelId of taskChannels) {
+        entries.push({
+          taskKey: task.id,
+          taskDisplayName: task.displayName,
+          taskType: task.type,
+          algorithmId: task.algorithmId,
+          algorithmCode: task.algorithmCode,
+          targetFps: task.targetFps,
+          channelId,
+          taskId: this.taskIdFor(task.id, channelId),
+        });
+      }
+    }
+    return entries;
   }
 
   async _bind(videoChannelIds) {
     if (!videoChannelIds.length) return [];
-    this.log?.info(`Binding ${videoChannelIds.length} channel(s) via ApplyParamsBatch...`);
-    const { failedList } = await this.client.taskApplyParamsBatch({
-      algorithmId: this.algorithmId,
-      scheduleId: this.scheduleId,
-      taskConfig: this.taskConfig,
-      targetChannelIds: videoChannelIds,
-    });
-    if (failedList?.length) {
-      const failed = failedList.map((f) => f.id).join(', ');
-      this.log?.warn(`ApplyParamsBatch partially failed on: ${failed}`);
+    const failures = [];
+    for (const task of this.tasks) {
+      const targetChannelIds = this._channelsForTask(task.id, videoChannelIds);
+      if (!targetChannelIds.length) continue;
+      this.log?.info(
+        `Binding task "${task.id}" (${task.algorithmId}) to ${targetChannelIds.length} channel(s) via ApplyParamsBatch...`,
+      );
+      const { failedList } = await this.client.taskApplyParamsBatch({
+        algorithmId: task.algorithmId,
+        scheduleId: task.scheduleId,
+        taskConfig: task.taskConfig,
+        targetChannelIds,
+      });
+      if (failedList?.length) {
+        const failed = failedList.map((f) => f.id).join(', ');
+        this.log?.warn(`ApplyParamsBatch partially failed for task "${task.id}" on: ${failed}`);
+        failures.push(...failedList.map((f) => ({ ...f, taskId: task.id })));
+      }
     }
-    return failedList ?? [];
+    return failures;
   }
 
-  async _switch(videoChannelIds, enable) {
-    if (!videoChannelIds.length) return [];
-    const tasks = videoChannelIds.map((id) => ({
-      id: this.taskIdFor(id),
-      channelId: id,
-      algorithmId: this.algorithmId,
+  async _switch(entries, enable) {
+    if (!entries.length) return [];
+    const tasks = entries.map((entry) => ({
+      id: entry.taskId,
+      channelId: entry.channelId,
+      algorithmId: entry.algorithmId,
       enable,
     }));
     const { failedList } = await this.client.taskBatchSwitch(tasks);
@@ -76,10 +111,10 @@ export class TaskRunner {
   /**
    * @param {Array<{channels:number, holdSec:number}>} loadProfile
    * @param {object} hooks
-   * @param {(step:object, active:string[], added:string[]) => Promise<{stop:boolean, reason?:string}|void>} [hooks.onRampBatch]
-   * @param {(step:object, active:string[]) => Promise<void>} [hooks.onStepStart]
+   * @param {(step:object, active:string[], added:string[], entries:object[]) => Promise<{stop:boolean, reason?:string}|void>} [hooks.onRampBatch]
+   * @param {(step:object, active:string[], entries:object[]) => Promise<void>} [hooks.onStepStart]
    * @param {() => Promise<void>} [hooks.onSample]
-   * @param {(step:object, active:string[]) => Promise<{stop:boolean, reason?:string}|void>} [hooks.onStepEnd]
+   * @param {(step:object, active:string[], entries:object[]) => Promise<{stop:boolean, reason?:string}|void>} [hooks.onStepEnd]
    * @param {number} sampleIntervalSec
    * @returns {Promise<{bottleneckStep?:number, bottleneckReason?:string}>}
    */
@@ -102,9 +137,10 @@ export class TaskRunner {
           const batch = toAdd.slice(offset, offset + this.rampBatchSize);
           await this._bind(batch);
           active = this.allChannelIds.slice(0, active.length + batch.length);
+          const entries = this.expectedTaskEntries(active);
 
           if (hooks?.onRampBatch) {
-            const decision = await hooks.onRampBatch(step, active, batch);
+            const decision = await hooks.onRampBatch(step, active, batch, entries);
             if (decision?.stop) {
               this.log?.warn(`[step ${i + 1}] ramp fuse tripped: ${decision.reason ?? 'threshold breached'}`);
               bottleneck = { bottleneckStep: i, bottleneckReason: decision.reason ?? 'ramp fuse tripped' };
@@ -119,7 +155,7 @@ export class TaskRunner {
         }
 
         active = target;
-        if (hooks?.onStepStart) await hooks.onStepStart(step, active);
+        if (hooks?.onStepStart) await hooks.onStepStart(step, active, this.expectedTaskEntries(active));
 
         const ticks = Math.max(1, Math.floor(step.holdSec / sampleIntervalSec));
         for (let t = 0; t < ticks; t++) {
@@ -132,7 +168,7 @@ export class TaskRunner {
         }
 
         if (hooks?.onStepEnd) {
-          const decision = await hooks.onStepEnd(step, active);
+          const decision = await hooks.onStepEnd(step, active, this.expectedTaskEntries(active));
           if (decision?.stop) {
             this.log?.warn(`[step ${i + 1}] bottleneck detected - stopping staircase: ${decision.reason ?? 'threshold breached'}`);
             bottleneck = { bottleneckStep: i, bottleneckReason: decision.reason ?? 'threshold breached' };
@@ -144,15 +180,96 @@ export class TaskRunner {
       return bottleneck ?? {};
     } finally {
       if (active.length) {
-        this.log?.info(`Switching ${active.length} active task(s) OFF.`);
+        const entries = this.expectedTaskEntries(active);
+        this.log?.info(`Switching ${entries.length} active task binding(s) OFF.`);
         try {
-          await this._switch(active, 0);
+          await this._switch(entries, 0);
         } catch (err) {
           this.log?.warn(`Best-effort task OFF failed: ${err.message}`);
         }
       }
     }
   }
+
+  _channelsForTask(taskId, candidateChannelIds) {
+    const matchingBindings = this.bindings.filter((binding) => binding.taskId === taskId);
+    if (!matchingBindings.length) return [...candidateChannelIds];
+
+    const selected = new Set();
+    for (const binding of matchingBindings) {
+      for (const channelId of candidateChannelIds) {
+        const oneBasedIndex = this.allChannelIds.indexOf(channelId) + 1;
+        if (matchesChannelSelector(binding.channels, channelId, oneBasedIndex)) {
+          selected.add(channelId);
+        }
+      }
+    }
+    return [...selected];
+  }
+}
+
+function normalizeTasks(ctx) {
+  if (Array.isArray(ctx.tasks) && ctx.tasks.length) {
+    return ctx.tasks.map((task, index) => ({
+      id: String(task.id ?? `task-${index + 1}`),
+      displayName: task.displayName ?? task.id ?? `task-${index + 1}`,
+      type: task.type ?? 'cv',
+      algorithmId: String(task.algorithmId),
+      algorithmCode: String(task.algorithmCode ?? task.algorithmId),
+      scheduleId: task.scheduleId,
+      taskConfig: task.taskConfig ?? { params: [], areas: [] },
+      targetFps: task.targetFps ?? null,
+    }));
+  }
+
+  return [{
+    id: 'default',
+    displayName: 'default',
+    type: 'cv',
+    algorithmId: String(ctx.algorithmId),
+    algorithmCode: String(ctx.algorithmCode ?? ctx.algorithmId),
+    scheduleId: ctx.scheduleId,
+    taskConfig: ctx.taskConfig ?? { params: [], areas: [] },
+    targetFps: ctx.targetFps ?? null,
+  }];
+}
+
+function normalizeBindings(bindings, tasks) {
+  if (Array.isArray(bindings) && bindings.length) {
+    return bindings.map((binding) => ({
+      taskId: String(binding.taskId ?? binding.task),
+      channels: binding.channels ?? 'all',
+    }));
+  }
+  return tasks.map((task) => ({ taskId: task.id, channels: 'all' }));
+}
+
+function matchesChannelSelector(selector, channelId, oneBasedIndex) {
+  if (selector == null || selector === 'all') return true;
+
+  if (Array.isArray(selector)) {
+    return selector.some((item) => matchesChannelSelector(item, channelId, oneBasedIndex));
+  }
+
+  if (typeof selector === 'number') {
+    return oneBasedIndex === selector;
+  }
+
+  if (typeof selector === 'string') {
+    const numeric = Number(selector);
+    if (Number.isInteger(numeric) && numeric > 0) return oneBasedIndex === numeric;
+    return selector === channelId;
+  }
+
+  if (typeof selector === 'object') {
+    const from = Number(selector.from ?? selector.start ?? 1);
+    const to = Number(selector.to ?? selector.end ?? from);
+    if (Number.isInteger(from) && Number.isInteger(to)) {
+      return oneBasedIndex >= from && oneBasedIndex <= to;
+    }
+  }
+
+  return false;
 }
 
 function sleep(ms) {

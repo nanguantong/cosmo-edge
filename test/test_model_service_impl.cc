@@ -8,8 +8,8 @@
 #include "mock/MockServiceRegistry.h"
 #include "service/model/impl/ModelServiceImpl.h"
 #include "util/FileUtil.h"
+#include "util/NnBackendConstants.h"
 #include "util/PathUtil.h"
-#include "util/PlatformConstants.h"
 
 using namespace cosmo::service;
 using namespace cosmo;

@@ -1,11 +1,11 @@
-// PlatformConstants.h — Compile-time platform-specific constants.
+// NnBackendConstants.h — Compile-time NN backend selection constants.
 //
 // Provides directory naming prefixes, engine type identifiers, and model file
 // extensions that differ between Sophon (BM1688) and CPU (x86) backends.
 // All values are constexpr so they resolve at compile time with zero runtime cost.
 //
 // Usage:
-//   #include "util/PlatformConstants.h"
+//   #include "util/NnBackendConstants.h"
 //   std::string dir = cosmo::util::kPlatformDirPrefix + modelCode + "_" + name;
 
 #pragma once

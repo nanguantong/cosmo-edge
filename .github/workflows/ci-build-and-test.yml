@@ -32,6 +32,16 @@ jobs:
 
     timeout-minutes: 60
 
+    env:
+      # GitHub Actions runs container jobs with HOME=/github/home, but the
+      # builder image installs rustup under /root. rustup derives RUSTUP_HOME
+      # from $HOME, so it reads /github/home/.rustup (empty) and aborts with
+      # "no default is configured" when tokenizers-cpp invokes cargo to build
+      # libtokenizers_c.a. Pin both homes to the image's install — the image
+      # PATH already hardcodes /root/.cargo/bin, so this couples no further.
+      RUSTUP_HOME: /root/.rustup
+      CARGO_HOME: /root/.cargo
+
     steps:
       # Container runs as root but workspace is owned by host UID.
       # Suppress git "dubious ownership" errors that break test-reporter.
@@ -39,6 +49,18 @@ jobs:
         run: git config --global --add safe.directory '*'
 
       - uses: actions/checkout@v7
+
+      # ── Rust toolchain ───────────────────────────────────────────────
+      # With RUSTUP_HOME/CARGO_HOME pinned above, the image's toolchain
+      # resolves correctly. Verify it; install stable as a fallback only if
+      # a future image ships without one.
+      - name: Verify Rust toolchain
+        run: |
+          if ! cargo --version >/dev/null 2>&1; then
+            rustup toolchain install stable --profile minimal --no-self-update
+            rustup default stable
+          fi
+          cargo --version
 
       # ── Build ────────────────────────────────────────────────────────
       - name: Configure and build cosmo-tests (x86 CPU backend)

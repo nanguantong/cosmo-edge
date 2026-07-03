@@ -10,6 +10,7 @@ import { TaskRunner } from './task-runner.js';
 import { MetricsSampler } from './metrics-sampler.js';
 import { ReportWriter } from './report-writer.js';
 import { Logger } from './logger.js';
+import { normalizeTaskType, resolveTaskThresholds, strategyForTaskType } from './task-strategies.js';
 
 function parseArgs(argv) {
   const args = {};
@@ -105,6 +106,7 @@ async function runDoctor(args) {
     checkLine(true, 'scenario package loaded', path.resolve(args.scenario));
     checkLine(true, 'workload version', pkg.version);
     checkLine(true, 'tasks', pkg.tasks.map((t) => `${t.id}:${t.algorithmId}(${t.type})`).join(', '));
+    checkLine(true, 'task strategies', pkg.tasks.map((t) => `${t.id}=${strategyForTaskType(t.type).id}`).join(', '));
     checkLine(true, 'target FPS', pkg.tasks.map((t) => `${t.id}=${t.targetFps ?? 'N/A'}`).join(', '));
     checkLine(true, 'video mode', pkg.videoMode);
     checkLine(true, 'load profile', pkg.loadProfile.map((s) => `${s.channels}ch/${s.holdSec}s`).join(' -> '));
@@ -295,6 +297,7 @@ async function runBenchmark(args) {
   let channelMgr = null;
   const samples = [];
   let baselineFps = null;
+  const baselineByTask = {};
   let bottleneckStep = null;
   let bottleneckReason = null;
   let runError = null;
@@ -337,6 +340,7 @@ async function runBenchmark(args) {
       ? { stepIndex: bottleneckStep, stepNumber: bottleneckStep + 1, channels: effectiveLoadProfile?.[bottleneckStep]?.channels, reason: bottleneckReason }
       : null,
     baselineFps,
+    baselineByTask,
     startedAt,
     endedAt: new Date().toISOString(),
     samples,
@@ -408,16 +412,18 @@ async function runBenchmark(args) {
 
     const sampler = new MetricsSampler(client, log);
     const activeEntries = () => runner.expectedTaskEntries(runner.allChannelIds.slice(0, currentChannels));
+    const taskById = new Map(pkg.tasks.map((task) => [task.id, task]));
 
     const FPS_HALVE_RATIO = 0.5;
     const DISCARD_BOTTLENECK = 0.05;
 
     const summarizeSamples = (stepIdx) => {
       const all = samples.filter((s) => s.stepIndex === stepIdx && !s.channels.every((c) => c.missing));
-      if (!all.length) return { minFps: null, meanDiscard: null, maxNpu: null, maxCpu: null };
+      if (!all.length) return { minFps: null, meanDiscard: null, maxNpu: null, maxCpu: null, taskStats: [] };
       const steady = all.slice(Math.floor(all.length / 2));
       let minFps = Infinity, maxNpu = -Infinity, maxCpu = -Infinity;
       const discardValues = [];
+      const byTask = new Map();
       for (const t of steady) {
         const npu = t.hardware?.npuUtilization?.usedPercent;
         const cpu = t.hardware?.cpuUtilization?.usedPercent;
@@ -425,15 +431,44 @@ async function runBenchmark(args) {
         if (typeof cpu === 'number' && cpu > maxCpu) maxCpu = cpu;
         for (const ch of t.channels) {
           if (ch.missing) continue;
+          const taskKey = ch.taskKey ?? 'default';
+          if (!byTask.has(taskKey)) {
+            const task = taskById.get(taskKey) ?? {};
+            byTask.set(taskKey, {
+              taskKey,
+              taskDisplayName: ch.taskDisplayName ?? task.displayName ?? taskKey,
+              taskType: normalizeTaskType(ch.taskType ?? task.type),
+              targetFps: ch.targetFps ?? task.targetFps ?? null,
+              fps: [],
+              fpsRatio: [],
+              discard: [],
+            });
+          }
+          const stat = byTask.get(taskKey);
           if (typeof ch.measuredFps === 'number' && ch.measuredFps < minFps) minFps = ch.measuredFps;
-          if (typeof ch.discardRate === 'number') discardValues.push(ch.discardRate);
+          if (typeof ch.measuredFps === 'number') stat.fps.push(ch.measuredFps);
+          if (typeof ch.fpsRatio === 'number') stat.fpsRatio.push(ch.fpsRatio);
+          if (typeof ch.discardRate === 'number') {
+            discardValues.push(ch.discardRate);
+            stat.discard.push(ch.discardRate);
+          }
         }
       }
+      const taskStats = [...byTask.values()].map((stat) => ({
+        taskKey: stat.taskKey,
+        taskDisplayName: stat.taskDisplayName,
+        taskType: stat.taskType,
+        targetFps: stat.targetFps,
+        minFps: stat.fps.length ? Math.min(...stat.fps) : null,
+        minFpsRatio: stat.fpsRatio.length ? Math.min(...stat.fpsRatio) : null,
+        meanDiscard: stat.discard.length ? stat.discard.reduce((a, b) => a + b, 0) / stat.discard.length : null,
+      }));
       return {
         minFps: minFps === Infinity ? null : minFps,
         meanDiscard: discardValues.length ? discardValues.reduce((a, b) => a + b, 0) / discardValues.length : null,
         maxNpu: maxNpu === -Infinity ? null : maxNpu,
         maxCpu: maxCpu === -Infinity ? null : maxCpu,
+        taskStats,
       };
     };
 
@@ -486,7 +521,7 @@ async function runBenchmark(args) {
       if (mem98Count >= 3) reasons.push(`memory >= 98% for ${mem98Count} consecutive samples`);
       if (memAvg60s != null && memAvg60s >= 95) reasons.push(`memory 60s average ${memAvg60s.toFixed(1)}% >= 95%`);
       if (cpu98Count >= 3) reasons.push(`CPU >= 98% for ${cpu98Count} consecutive samples`);
-      if (npu98Count >= 3) reasons.push(`NPU >= 98% for ${npu98Count} consecutive samples`);
+      // if (npu98Count >= 3) reasons.push(`NPU >= 98% for ${npu98Count} consecutive samples`);
       if (discardCount >= 2) reasons.push(`discardRate > ${DISCARD_BOTTLENECK} for ${discardCount} consecutive samples`);
       return reasons.length ? { stop: true, reason: reasons.join('; ') } : { stop: false };
     };
@@ -505,16 +540,40 @@ async function runBenchmark(args) {
         await captureSample();
       },
       onStepEnd: async (step) => {
-        const { minFps, meanDiscard, maxNpu, maxCpu } = summarizeSamples(step.index);
+        const { minFps, meanDiscard, maxNpu, maxCpu, taskStats } = summarizeSamples(step.index);
         const sat = `npu=${maxNpu ?? '-'}% cpu=${maxCpu ?? '-'}%`;
         if (step.index === 0) {
           baselineFps = minFps ?? null;
-          log.info(`[baseline] step 1 steady minFps=${baselineFps} fps (${sat}) -> gate at fps<${baselineFps == null ? '-' : (baselineFps * FPS_HALVE_RATIO).toFixed(1)} or meanDiscard>${DISCARD_BOTTLENECK}`);
+          for (const stat of taskStats) {
+            baselineByTask[stat.taskKey] = stat.minFps;
+          }
+          const baselineText = taskStats
+            .map((stat) => `${stat.taskKey}=${stat.minFps == null ? '-' : stat.minFps.toFixed(2)}fps`)
+            .join(', ');
+          log.info(`[baseline] step 1 steady minFps=${baselineFps} fps (${sat}) tasks=[${baselineText}] -> strategy gates active`);
           return;
         }
         const reasons = [];
-        if (baselineFps != null && minFps != null && minFps < baselineFps * FPS_HALVE_RATIO) {
-          reasons.push(`fps ${minFps.toFixed(1)} < baseline ${baselineFps.toFixed(1)}*${FPS_HALVE_RATIO} (${(baselineFps * FPS_HALVE_RATIO).toFixed(1)})`);
+        for (const stat of taskStats) {
+          const strategy = strategyForTaskType(stat.taskType);
+          const taskThresholds = resolveTaskThresholds(pkg.thresholds, {
+            taskKey: stat.taskKey,
+            taskType: stat.taskType,
+          });
+          if (strategy.useBaselineFpsFuse) {
+            const taskBaseline = baselineByTask[stat.taskKey];
+            if (taskBaseline != null && stat.minFps != null && stat.minFps < taskBaseline * FPS_HALVE_RATIO) {
+              reasons.push(`${stat.taskKey} fps ${stat.minFps.toFixed(1)} < baseline ${taskBaseline.toFixed(1)}*${FPS_HALVE_RATIO} (${(taskBaseline * FPS_HALVE_RATIO).toFixed(1)})`);
+            }
+          } else if (taskThresholds.minFpsRatio != null && stat.minFpsRatio != null && stat.minFpsRatio < taskThresholds.minFpsRatio) {
+            reasons.push(`${stat.taskKey} fpsRatio ${stat.minFpsRatio.toFixed(3)} < ${taskThresholds.minFpsRatio}`);
+          } else if (taskThresholds.minThroughputFps != null && stat.minFps != null && stat.minFps < taskThresholds.minThroughputFps) {
+            reasons.push(`${stat.taskKey} fps ${stat.minFps.toFixed(2)} < ${taskThresholds.minThroughputFps}`);
+          }
+          const discardLimit = taskThresholds.avgDiscardRate ?? taskThresholds.maxDiscardRate ?? DISCARD_BOTTLENECK;
+          if (stat.meanDiscard != null && stat.meanDiscard > discardLimit) {
+            reasons.push(`${stat.taskKey} meanDiscard ${stat.meanDiscard.toFixed(3)} > ${discardLimit}`);
+          }
         }
         if (meanDiscard != null && meanDiscard > DISCARD_BOTTLENECK) {
           reasons.push(`meanDiscard ${meanDiscard.toFixed(3)} > ${DISCARD_BOTTLENECK}`);

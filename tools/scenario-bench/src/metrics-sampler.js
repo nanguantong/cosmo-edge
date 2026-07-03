@@ -1,4 +1,5 @@
 // metrics-sampler.js — Collect RunningDetail + HardwareResource each tick.
+import { isPrimaryThroughputAction } from './task-strategies.js';
 //
 // Response shapes (verified against source DTOs):
 //   RunningDetail: resData.status[] where each item has
@@ -93,7 +94,7 @@ export class MetricsSampler {
       }
       out.push({
         ...entry,
-        ...this._summarizeTask(st, entry.targetFps),
+        ...this._summarizeTask(st, entry.targetFps, entry.taskType),
         taskKey: entry.taskKey,
         taskDisplayName: entry.taskDisplayName,
         taskType: entry.taskType,
@@ -109,7 +110,7 @@ export class MetricsSampler {
    * FPS uses the slowest effective action rate instead of summing pipeline nodes,
    * otherwise multi-node graphs overcount the channel throughput.
    */
-  _summarizeTask(st, targetFps) {
+  _summarizeTask(st, targetFps, taskType) {
     const actions = Array.isArray(st.actionStatus) ? st.actionStatus : [];
     let insertPeriod = 0, processPeriod = 0, discardPeriod = 0;
     let periodMs = 0, holdCount = 0, alarmCount = 0;
@@ -150,7 +151,7 @@ export class MetricsSampler {
 
       if (actionFps != null && actionProcessPeriod > 0) {
         pipelineMinFps = Math.min(pipelineMinFps, actionFps);
-        if (primaryFps == null && isPrimaryThroughputAction(actionName, actionId)) {
+        if (primaryFps == null && isPrimaryThroughputAction(actionName, actionId, taskType)) {
           primaryFps = actionFps;
         }
       }
@@ -176,6 +177,7 @@ export class MetricsSampler {
       algorithmVersion: st.algorithmVersion,
       actionCount: actions.length,
       measuredFps: round(measuredFps, 2),
+      throughputFps: round(measuredFps, 2),
       pipelineMinFps: round(minPipelineFps, 2),
       targetFps,
       fpsRatio: fpsRatio != null ? round(fpsRatio, 3) : null,
@@ -244,13 +246,4 @@ function normalizeExpectedBindings(expectedBindings, legacyTargetFps) {
     channelId: entry.channelId,
     taskId: entry.taskId,
   }));
-}
-
-function isPrimaryThroughputAction(name, actionId) {
-  const n = String(name).toLowerCase();
-  const id = String(actionId);
-  return n.includes('aidetector')
-    || n.includes('detector')
-    || n.includes('检测')
-    || id.startsWith('1001');
 }

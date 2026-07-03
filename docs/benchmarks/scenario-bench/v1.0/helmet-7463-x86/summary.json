@@ -1,0 +1,66 @@
+{
+  "scenarioName": "No Safety Helmet x86 Baseline Benchmark (7463)",
+  "algorithmId": "7463",
+  "algorithmName": "No Safety Helmet",
+  "tasks": [
+    {
+      "id": "helmet-7463",
+      "displayName": "No Safety Helmet 7463",
+      "type": "cv",
+      "algorithmId": "7463",
+      "algorithmCode": "7463",
+      "scheduleId": "public-benchmark",
+      "targetFps": 3,
+      "templateFile": "7463_No Safety Helmet_20260629094147.json",
+      "displayNameZhCN": "安全帽检测 7463"
+    }
+  ],
+  "targetFps": 3,
+  "videoMode": "local",
+  "profileMode": "capacity",
+  "status": "completed",
+  "overallPass": false,
+  "allRanStepsPass": false,
+  "hasBottleneck": true,
+  "capacityMeasured": true,
+  "conclusion": "Stable capacity is 7 channels; 8 channels exceeded the benchmark thresholds.",
+  "maxStableChannels": 7,
+  "maxStableChannelsExact": true,
+  "maxVerifiedPassedChannels": 7,
+  "firstFailedStep": {
+    "stepIndex": 7,
+    "stepNumber": 8,
+    "channels": 8,
+    "reasons": [
+      "安全帽检测 7463: 关键链路延时ms 245.2ms，阈值 200ms",
+      "安全帽检测 7463: 检测节点延时 217.3ms，阈值 150ms"
+    ],
+    "reasonsEn": [
+      "Critical-path latency reached 245.2 ms, above the 200 ms threshold.",
+      "Detection-node latency reached 217.3 ms, above the 150 ms threshold."
+    ]
+  },
+  "capacityBound": null,
+  "bottleneck": {
+    "stepIndex": 9,
+    "stepNumber": 10,
+    "channels": 10,
+    "reason": "helmet-7463 meanDiscard 0.089 > 0.05; meanDiscard 0.089 > 0.05"
+  },
+  "baselineFps": 3.1,
+  "baselineByTask": {
+    "helmet-7463": 3.1
+  },
+  "device": {
+    "model": "X86-TRIAL",
+    "sn": "X86-Baseline",
+    "softwareVersion": "V0.1.0.0",
+    "hardwareVersion": "X86-Generic-Kernel"
+  },
+  "startedAt": "2026-07-03T11:00:32.902Z",
+  "endedAt": "2026-07-03T11:06:17.564Z",
+  "sampleCount": 110,
+  "scenarioNameZhCN": "安全帽算法 x86 基线压测 (7463)",
+  "algorithmNameZhCN": "No Safety Helmet",
+  "conclusionZhCN": "容量上限：7 路；8 路开始不满足通过条件，原因：安全帽检测 7463: 关键链路延时ms 245.2ms，阈值 200ms; 安全帽检测 7463: 检测节点延时 217.3ms，阈值 150ms"
+}

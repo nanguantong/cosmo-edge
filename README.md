@@ -246,22 +246,25 @@ A scenario task (pipeline) bundles model, scheduling, and rule logic; at deploym
 | ---------------------- | ------------------------------------------------------------------------------------------------------------ |
 | Video stress test      | Continuous playback test with 200 video samples; no memory leaks or crashes observed                        |
 | Pipeline validation    | 26 pipelines validated against internal scenario baselines (CV, VLM, and GroundingDINO)                      |
-| Concurrent CV workload | 16-channel CV inference verified on a single BM1688 device                                                   |
+| Concurrent CV workload | ScenarioBench v1.0 verifies up to 16 NPU video channels for CV workloads; detailed reports are linked below |
 | Regression testing     | Multi-round system regression completed with dedicated QA; final release regression pending                  |
 | Pilot deployments      | Authorized customer pilots covering several hundred video-analysis channels, 2+ months continuous, across a range of industry scenarios |
 
 ### Performance Benchmarks
 
-The numbers below are representative system combinations based on internal records. A video channel means one decoded input stream; multiple concurrent scenario tasks can share the same decoded stream. E2E latency is frame-to-OSD or frame-to-event latency under the listed workload, not single-model inference time.
+The results below are reproducible ScenarioBench v1.0 release benchmarks. The repository keeps sanitized summaries and human-readable reports under [docs/benchmarks/scenario-bench/v1.0](docs/benchmarks/scenario-bench/v1.0/README.md); full raw `metrics.json` traces are distributed with the v1.0 release assets.
 
-| Workload                               | Video channels | Concurrent scenario tasks |  FPS target | E2E&nbsp;latency&nbsp;(ms) | Hardware                                    | Notes                                                                                                   |
-| -------------------------------------- | -------------: | -------------: | ----------: | -------------------------: | ------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Full-stream YOLOv8n detection          |             16 |             16 |   3/channel |                 32&#8209;68 | BM1688                                      | Decode + inference + OSD enabled; stable high-load case                                                 |
-| Shared-codec dense CV tasks            |              4 |             20 |   3/channel |                84&#8209;141 | BM1688                                      | Multiple concurrent scenario tasks share decoded streams; demonstrates task concurrency                 |
-| Safety compliance pipeline             |             16 |             16 |   3/channel |               182&#8209;314 | BM1688                                      | Detection + tracking + attribute/rule + alarm; representative safety pipeline                           |
-| Prompt-driven AI pipeline              |              8 |              8 | 0.2/channel |             3154&#8209;4128 | BM1688                                      | Validated `CosmoEdge-VL-Judge-0.8B`; VLM async nodes; event-driven path, not frame-synchronous OSD     |
-| One-stream<br />YOLOv8n<br />detection |              1 |              1 |  24/channel |                 25&#8209;30 | BM1688                                      | YOLOv8n development and evaluation workload                                                             |
-| x86 developer mode                     |              1 |              1 |  24/channel |               235&#8209;250 | x86 CPU<br />(Intel(R) Core(TM) i7-14700HX) | YOLOv8n development and evaluation workload                                                             |
+A video channel means one decoded input stream. A scenario task is one algorithm pipeline bound to a channel, so mixed scenarios can run more tasks than video channels. The table reports the maximum verified stable channel count within the published benchmark range.
+
+| ScenarioBench workload | Hardware profile | Max verified video channels | Concurrent scenario tasks | Target FPS | Result | Evidence |
+| --- | --- | ---: | ---: | ---: | --- | --- |
+| No Safety Helmet | YY-16T01-Preview / NPU | 16 | 16 | 3/channel | PASS | [report](docs/benchmarks/scenario-bench/v1.0/helmet-7463-npu/report.html) |
+| Pedestrian Detection | YY-16T01-Preview / NPU | 16 | 16 | 5/channel | PASS | [report](docs/benchmarks/scenario-bench/v1.0/pedestrian-45626-npu/report.html) |
+| Pedestrian + No Safety Helmet | YY-16T01-Preview / NPU | 16 | 32 | 3/channel/task | PASS | [report](docs/benchmarks/scenario-bench/v1.0/pedestrian-helmet-mixed-npu/report.html) |
+| VLM Review | YY-16T01-Preview / NPU | 8 | 8 | 0.1/channel | PASS | [report](docs/benchmarks/scenario-bench/v1.0/vlm-55009-npu/report.html) |
+| No Safety Helmet x86 baseline | X86 CPU baseline | 7 | 7 | 3/channel | LIMITED; 8 channels exceeded latency thresholds | [report](docs/benchmarks/scenario-bench/v1.0/helmet-7463-x86/report.html) |
+
+See the bilingual [benchmark manifest](docs/benchmarks/scenario-bench/v1.0/manifest.json) and [environment notes](docs/benchmarks/scenario-bench/v1.0/environment.md) for hardware profiles, model inputs, and publication policy. The x86 row is a CPU-only comparison baseline, not the v1.0 NPU device capacity target.
 
 ## Architecture
 

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ScenarioBench Report - Pedestrian + No Safety Helmet Mixed NPU Benchmark (45626 + 7463)</title>
+  <style>
+    :root { color-scheme: light; --ink: #172026; --muted: #5f6b75; --line: #d9e0e7; --bg: #f7f9fb; --card: #ffffff; --pass: #0f7a4f; --limited: #a45b00; }
+    body { margin: 0; font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); }
+    main { max-width: 980px; margin: 0 auto; padding: 40px 24px 56px; }
+    h1 { margin: 0 0 8px; font-size: 32px; line-height: 1.18; }
+    h2 { margin-top: 32px; font-size: 20px; }
+    p { color: var(--muted); }
+    .status { display: inline-flex; align-items: center; gap: 8px; margin: 16px 0 8px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); font-weight: 650; }
+    .status.pass { color: var(--pass); }
+    .status.limited { color: var(--limited); }
+    table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); }
+    th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { width: 240px; color: var(--muted); font-weight: 600; }
+    tr:last-child th, tr:last-child td { border-bottom: 0; }
+    a { color: #075bb5; }
+    .note { padding: 14px 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); }
+    code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.95em; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Pedestrian + No Safety Helmet Mixed NPU Benchmark (45626 + 7463)</h1>
+  <p>Mixed pedestrian detection and no-safety-helmet capacity benchmark on the NPU accelerated node.</p>
+  <div class="status pass">PASS: All tested channel counts passed; verified stable capacity is at least 16 channels.</div>
+
+  <h2>Benchmark Summary</h2>
+  <table><tr><th>Scenario</th><td>Pedestrian + No Safety Helmet Mixed NPU Benchmark (45626 + 7463)</td></tr>
+<tr><th>Chinese scenario name</th><td>行人 + 安全帽双算法压测 (45626 + 7463)</td></tr>
+<tr><th>Hardware profile</th><td>npu-yy-16t01-preview</td></tr>
+<tr><th>Device alias</th><td>NPU-Device-A</td></tr>
+<tr><th>Device model</th><td>YY-16T01-Preview</td></tr>
+<tr><th>Software version</th><td>V1.0.0.0</td></tr>
+<tr><th>Algorithms</th><td>Pedestrian Detection 45626, No Safety Helmet 7463</td></tr>
+<tr><th>Target FPS</th><td>3</td></tr>
+<tr><th>Baseline FPS</th><td>3.21</td></tr>
+<tr><th>Max stable channels</th><td>16</td></tr>
+<tr><th>Sample count</th><td>176</td></tr>
+<tr><th>Started at</th><td>2026-07-03T10:11:21.206Z</td></tr>
+<tr><th>Ended at</th><td>2026-07-03T10:20:23.124Z</td></tr></table>
+
+  <h2>Threshold Result</h2>
+  <p>No failed step was observed in the published benchmark range.</p>
+
+  <h2>Artifacts</h2>
+  <p class="note">The machine-readable summary is available in <a href="summary.json">summary.json</a>. The original Chinese ScenarioBench report is preserved as <a href="report.zh-CN.html">report.zh-CN.html</a>. Full raw metrics are distributed with the v1.0 release assets instead of being committed under docs.</p>
+</main>
+</body>
+</html>

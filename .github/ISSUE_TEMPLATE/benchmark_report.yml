@@ -1,0 +1,90 @@
+name: Benchmark report
+description: Propose or claim a performance benchmark or hardware validation report.
+title: "[Benchmark]: "
+labels: ["benchmark", "help wanted"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for benchmark reports, hardware validation, ScenarioBench extensions, throughput tests, latency tests, or x86 baseline results.
+  - type: input
+    id: benchmark_name
+    attributes:
+      label: Benchmark name
+      placeholder: x86 CPU baseline, 1080p resolution comparison, BM1688 multi-stream test...
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Test environment
+      description: Include hardware, OS, Docker, CosmoEdge version, model, and video input information.
+      placeholder: |
+        CPU:
+        GPU / NPU:
+        Memory:
+        OS:
+        Docker:
+        CosmoEdge version or commit:
+        Model:
+        Video source:
+        Resolution:
+        Stream count:
+    validations:
+      required: true
+  - type: textarea
+    id: method
+    attributes:
+      label: Test method
+      description: Describe commands, duration, warm-up, data source, and measurement method.
+      placeholder: |
+        Commands:
+        Test duration:
+        Warm-up:
+        Metrics collection:
+        ScenarioBench config:
+    validations:
+      required: true
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Metrics to report
+      description: Which metrics should the report include?
+      placeholder: |
+        - Average FPS:
+        - Average latency:
+        - CPU usage:
+        - Memory usage:
+        - Stream count:
+        - Pass/fail threshold:
+    validations:
+      required: true
+  - type: textarea
+    id: expected_output
+    attributes:
+      label: Expected output
+      description: List the expected report path and attachments.
+      placeholder: |
+        docs/community/benchmarks/<benchmark-name>.md
+        screenshots or sanitized logs if useful
+        metrics summary table
+    validations:
+      required: true
+  - type: textarea
+    id: limitations
+    attributes:
+      label: Known limitations or uncertainty
+      description: Note unstable streams, thermal throttling, model constraints, measurement limits, or incomplete hardware access.
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues and discussions.
+          required: true
+        - label: The benchmark environment can be described without leaking private IPs, device SN values, customer names, or tokens.
+          required: true
+        - label: Any screenshots, videos, datasets, or model references will include source and license information.
+          required: true
+        - label: The report will include enough detail for maintainers to understand how results were produced.
+          required: true

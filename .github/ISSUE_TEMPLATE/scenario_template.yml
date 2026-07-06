@@ -1,0 +1,103 @@
+name: Scenario template
+description: Propose or claim a reusable CosmoEdge scenario template.
+title: "[Scenario]: "
+labels: ["scenario-template", "help wanted"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for reusable AI scenario packages such as people counting, PPE safety, zone intrusion, smoke/fire detection, vehicle analytics, or industrial inspection.
+  - type: input
+    id: scenario_name
+    attributes:
+      label: Scenario name
+      placeholder: People counting, PPE safety inspection, zone intrusion, smoke/fire detection...
+    validations:
+      required: true
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case and target users
+      description: What real-world problem does this scenario solve, and who would use it?
+      placeholder: Describe the deployment context, industry, cameras, and expected operator workflow.
+    validations:
+      required: true
+  - type: textarea
+    id: expected_output
+    attributes:
+      label: Expected output
+      description: List the expected files or package structure.
+      placeholder: |
+        examples/community/scenarios/<scenario-name>/
+          README.md
+          scenario.json
+          expected-events.json
+          sample-config/
+          screenshots/
+    validations:
+      required: true
+  - type: textarea
+    id: model
+    attributes:
+      label: Recommended model or algorithm
+      description: What model type is expected? Include source and license if a public model is referenced.
+      placeholder: |
+        Model type:
+        Classes:
+        Input size:
+        Public model source:
+        License:
+    validations:
+      required: true
+  - type: textarea
+    id: configuration
+    attributes:
+      label: Scenario configuration
+      description: Describe regions, lines, thresholds, schedules, event rules, or pipeline assumptions.
+      placeholder: |
+        - Video source assumptions:
+        - Region or line-crossing rules:
+        - Event conditions:
+        - OSD or alarm output:
+    validations:
+      required: true
+  - type: textarea
+    id: expected_events
+    attributes:
+      label: Expected event output
+      description: Include a minimal example event payload.
+      render: json
+      placeholder: |
+        {
+          "event_type": "person_counting",
+          "camera_id": "demo-camera-001",
+          "timestamp": "2026-01-01T12:00:00Z",
+          "count": 3
+        }
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation plan
+      description: How can contributors or maintainers verify this scenario?
+      placeholder: |
+        - x86 developer mode:
+        - Edge device:
+        - Sample video or screenshot:
+        - Known limitations:
+    validations:
+      required: true
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues and discussions.
+          required: true
+        - label: The scenario can be documented without private customer data.
+          required: true
+        - label: Any screenshots, videos, datasets, or model references will include source and license information.
+          required: true
+        - label: The contribution will not include private IPs, device SN values, tokens, or proprietary model links.
+          required: true

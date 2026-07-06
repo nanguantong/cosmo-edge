@@ -1,0 +1,101 @@
+name: Community task
+description: Claim or propose a scoped community contribution task.
+title: "[Community]: "
+labels: ["help wanted"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for scoped community tasks that do not fit the bug, feature, or documentation templates. Please keep the task small enough to review in one pull request.
+  - type: dropdown
+    id: track
+    attributes:
+      label: Contribution track
+      description: Which track best describes this task?
+      options:
+        - Documentation
+        - Scenario template
+        - Model adapter
+        - Integration example
+        - Benchmark
+        - Frontend
+        - Backend
+        - Core runtime
+        - Hardware support
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: background
+    attributes:
+      label: Background
+      description: Why is this task useful for CosmoEdge users or contributors?
+      placeholder: Explain the user problem, deployment context, or community need.
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What should be completed?
+      placeholder: Describe the final contribution in one or two focused paragraphs.
+    validations:
+      required: true
+  - type: textarea
+    id: expected_output
+    attributes:
+      label: Expected output
+      description: List files, examples, docs, screenshots, or reports expected from the pull request.
+      placeholder: |
+        - docs/community/...
+        - examples/community/...
+        - README update
+    validations:
+      required: true
+  - type: textarea
+    id: suggested_files
+    attributes:
+      label: Suggested files or directories
+      description: Where should contributors work?
+      placeholder: |
+        docs/community/
+        examples/community/
+        .github/
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance criteria
+      description: What must be true before this can be merged?
+      placeholder: |
+        - Scope is limited to the files listed above.
+        - Steps are reproducible.
+        - Verification steps are included.
+        - No private data, secrets, or proprietary assets are included.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: How should maintainers or contributors verify the task?
+      placeholder: Include commands, screenshots, local run steps, or manual checks.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: References or notes
+      description: Add links to discussions, docs, examples, or related issues.
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues and discussions.
+          required: true
+        - label: I kept the proposed scope small enough for one pull request.
+          required: true
+        - label: I removed secrets, private IPs, device SN values, customer names, and private model links.
+          required: true
+        - label: Any third-party assets, models, datasets, media, or code will include source and license information.
+          required: true

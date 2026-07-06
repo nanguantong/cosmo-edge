@@ -1,0 +1,99 @@
+name: Model adapter
+description: Propose or claim a model adaptation, conversion, or validation task.
+title: "[Model]: "
+labels: ["model-adapter", "help wanted"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for model adaptation examples, conversion notes, labels, post-processing docs, or validation reports. Do not attach large model files unless maintainers explicitly approve it.
+  - type: input
+    id: model_name
+    attributes:
+      label: Model name or architecture
+      placeholder: YOLOv8n, YOLOv11, classification model, segmentation model, GroundingDINO...
+    validations:
+      required: true
+  - type: textarea
+    id: model_source
+    attributes:
+      label: Model source and license
+      description: Link the model source and state its license.
+      placeholder: |
+        Source URL:
+        License:
+        Weights included in PR: no
+    validations:
+      required: true
+  - type: dropdown
+    id: target_runtime
+    attributes:
+      label: Target runtime or format
+      options:
+        - ONNX / x86 developer mode
+        - bmodel / Sophon deployment
+        - Both ONNX and bmodel
+        - Documentation only
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: expected_output
+    attributes:
+      label: Expected output
+      description: List expected files or docs.
+      placeholder: |
+        examples/community/models/<model-name>/
+          README.md
+          model-config.json
+          labels.txt
+          conversion.md
+          postprocess.md
+          benchmark.md
+    validations:
+      required: true
+  - type: textarea
+    id: io_format
+    attributes:
+      label: Input and output format
+      description: Describe tensor shapes, class mapping, output fields, or post-processing assumptions.
+      placeholder: |
+        Input:
+        Output:
+        Labels:
+        Post-processing:
+    validations:
+      required: true
+  - type: textarea
+    id: conversion
+    attributes:
+      label: Conversion or adaptation steps
+      description: How should contributors reproduce the conversion or adaptation?
+      placeholder: Include commands, tool versions, environment notes, and expected artifacts.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: How should the model adapter be validated?
+      placeholder: |
+        - x86 developer mode result:
+        - Sophon device result:
+        - Screenshot or event output:
+        - Known limitations:
+    validations:
+      required: true
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues and discussions.
+          required: true
+        - label: The model source and license are documented.
+          required: true
+        - label: I will not commit large model files unless maintainers explicitly approve it.
+          required: true
+        - label: I will not include private model weights, private download links, customer data, tokens, or device SN values.
+          required: true

@@ -90,14 +90,12 @@ node src/cli.js doctor --scenario scenarios/my-scenario --output reports/my-scen
 
 ## 场景包结构
 
-一个场景包是一个目录，至少包含以下文件：
+一个场景包是一个目录，`scenario.yml` 是唯一配置入口。单任务和多任务使用同一套模型：单任务只是 `tasks` 里只有一个元素。
 
 | 文件 | 说明 |
 | --- | --- |
-| `algorithm-template.json` | 从平台导出的算法编排模板；需先在 Web 页面完成场景任务编排并导出 |
-| `scenario.yml` | 场景名称、算法 ID、调度 ID、采样间隔和容量扫描范围 |
-| `thresholds.yml` | 报告 PASS/FAIL 使用的阈值 |
-| `videos.yml` | 视频输入模式和视频文件配置 |
+| `scenario.yml` | 场景名称、通道池、任务列表、容量扫描范围和阈值 |
+| `algorithm-template.json` 或其他模板 JSON | 从平台导出的算法编排模板；每个 task 可指定自己的模板 |
 | `*.mp4` | local 模式下的本地输入视频 |
 
 `scenario.yml` 示例：
@@ -105,90 +103,28 @@ node src/cli.js doctor --scenario scenarios/my-scenario --output reports/my-scen
 ```yaml
 name: "no-helmet-99898-fps5"
 displayName: "未戴安全帽检测(算法 99898, fps5)"
-algorithmId: "99898"
-scheduleId: "e89c6c6385e5454b35cde0d1653vg"
-sampleIntervalSec: 3
-videoRepeatCount: 0
-loadProfile:
-  - channels: 1
-    holdSec: 30
-  - channels: 4
-    holdSec: 30
-  - channels: 8
-    holdSec: 30
-  - channels: 16
-    holdSec: 30
-  - channels: 24
-    holdSec: 30
-```
-
-默认运行模式为 `--profile capacity`，工具会将 `loadProfile` 展开为连续路数扫描。以上配置表示最多扫描到 24 路，实际执行路数为 `1,2,3,...,24`。`holdSec` 使用相邻配置的保持时间；常规场景中保持各项一致即可。
-
-`thresholds.yml` 示例：
-
-```yaml
-pass:
-  maxCriticalPathLatencyMs: 200
-  maxDetectorLatencyMs: 150
-  avgDiscardRate: 0.02
-  maxPacketDiscardRate: 0.01
-```
-
-`videos.yml` 示例：
-
-```yaml
-mode: local
-
-local:
-  - name: "no-helmet-01"
-    file: "LX0000000007.mp4"
-```
-
-## 通用工作负载（v2）
-
-旧版场景包仍然可用；工具会把它归一化为“一个任务绑定全部通道”。如果需要表达多任务、任务分组或不同任务类型，推荐直接使用 `version: 2` 的通用工作负载模型：
-
-```yaml
-version: 2
-name: helmet-plus-intrusion
-displayName: 安全帽 + 人体入侵混合任务
 sampleIntervalSec: 3
 
 channels:
   mode: local
   repeatCount: 0
   sources:
-    - name: safety-helmet
-      file: Safety Helmet.mp4
+    - name: "no-helmet-01"
+      file: "LX0000000007.mp4"
 
 tasks:
-  - id: helmet
-    displayName: 人体检测 + 安全帽分类
+  - id: no-helmet
+    displayName: 未戴安全帽检测
     type: cv
     algorithmId: "99898"
     scheduleId: "e89c6c6385e5454b35cde0d1653vg"
-    template: helmet-template.json
-
-  - id: intrusion
-    displayName: 人体入侵检测
-    type: cv
-    algorithmId: "51"
-    scheduleId: "e89c6c6385e5454b35cde0d1653vg"
-    template: intrusion-template.json
-
-bindings:
-  - task: helmet
-    channels: all
-  - task: intrusion
-    channels: all
+    template: algorithm-template.json
 
 loadProfile:
   - channels: 1
-    holdSec: 60
-  - channels: 4
-    holdSec: 60
-  - channels: 8
-    holdSec: 60
+    holdSec: 30
+  - channels: 24
+    holdSec: 30
 
 thresholds:
   pass:
@@ -197,6 +133,8 @@ thresholds:
     avgDiscardRate: 0.05
     maxPacketDiscardRate: 0.01
 ```
+
+默认运行模式为 `--profile capacity`，工具会将 `loadProfile` 展开为连续路数扫描。以上配置表示最多扫描到 24 路，实际执行路数为 `1,2,3,...,24`。`holdSec` 使用相邻配置的保持时间；常规场景中保持各项一致即可。
 
 核心语义：
 
@@ -207,7 +145,7 @@ thresholds:
 - `BA_00004.enableLlmReview=1` 属于告警节点内部的嵌套审核。当前 RunningDetail 不暴露
   该内部调用的计数与耗时，因此工具会在运行前明确拒绝这类场景，避免回退到 detector
   指标后产生看似正常但错误的报告。
-- `bindings` 定义任务与通道的绑定矩阵；`channels: all` 表示该任务绑定当前阶梯中的全部通道。
+- `bindings` 可选，定义任务与通道的绑定矩阵；省略时所有任务绑定当前阶梯中的全部通道。
 - 单任务、多任务使用同一条执行链路：导入所有任务模板 -> 创建通道池 -> 按阶梯增加通道 -> 按绑定矩阵批量绑定任务 -> 采样 -> 判定 -> 生成报告。
 
 `bindings[].channels` 可以使用：
@@ -266,7 +204,7 @@ node src/cli.js doctor --scenario <dir> [--output <dir>] [--device <url> --user 
 检查项包括：
 
 - Node.js 版本
-- 场景包四个核心配置文件
+- `scenario.yml`、算法模板和 local 视频文件
 - 算法 ID、目标 FPS、视频模式、并发阶梯
 - `layout/save` payload 可生成
 - local 视频文件存在
@@ -309,7 +247,7 @@ node src/cli.js init-scenario --name <name> --template <algorithm-template.json>
 | `--display-name <name>` | 报告展示名称 |
 | `--algorithm-id <id>` | 算法 ID；不传时从模板推导 |
 | `--schedule-id <id>` | 调度 ID |
-| `--target-fps <n>` | 仅用于默认展示名；运行时目标 FPS 从模板中提取 |
+| `--target-fps <n>` | 当模板无法暴露目标 FPS 时写入 `tasks[].targetFps` |
 
 ## 判定口径
 
@@ -318,7 +256,7 @@ node src/cli.js init-scenario --name <name> --template <algorithm-template.json>
 | 概念 | 含义 |
 | --- | --- |
 | 容量上限 | 最后一个完整执行、且所有报告阈值均 PASS 的连续路数 |
-| 路数 PASS/FAIL | 按 `thresholds.yml` 中的阈值对某个路数进行判定 |
+| 路数 PASS/FAIL | 按 `scenario.yml` 中 `thresholds` 的阈值对某个路数进行判定 |
 | 瓶颈停止 | 运行期保护熔断，用于避免继续加压导致设备不可用 |
 | 基线 FPS | 第 1 阶梯稳定窗口的最低处理 FPS；CV 为检测吞吐，直接 VLM 为推理完成吞吐 |
 
@@ -330,7 +268,7 @@ node src/cli.js init-scenario --name <name> --template <algorithm-template.json>
 
 此时准确结论是“容量上限 15 路”。失败路数及失败原因仍会保留在报告明细中。
 
-如需复现旧行为，可显式使用 `--profile configured`，按 `scenario.yml` 原始 `1/4/8/16/24` 配置执行；此模式只能给出已验证配置点，不能给出连续容量上限。
+如需只按 `scenario.yml` 中列出的阶梯执行，可显式使用 `--profile configured`。此模式只能给出已验证配置点，不能给出连续容量上限。
 
 ## 指标聚合
 
@@ -349,7 +287,7 @@ node src/cli.js init-scenario --name <name> --template <algorithm-template.json>
 | 关键链路延时 | CV 包含解码、检测、跟踪、分类、判断；直接 VLM 任务额外加入 Qwen3VL 节点平均耗时 |
 | NPU/CPU/内存峰值 | 稳定窗口内硬件资源峰值 |
 
-报告 PASS/FAIL 使用 `thresholds.yml`。运行期瓶颈停止使用独立保护规则，典型规则包括：
+报告 PASS/FAIL 使用 `scenario.yml` 中的 `thresholds`。运行期瓶颈停止使用独立保护规则，典型规则包括：
 
 - 稳定窗口最低 FPS 低于第 1 阶梯基线的 50%
 - 运行期通道平均丢弃率连续采样超过 5%

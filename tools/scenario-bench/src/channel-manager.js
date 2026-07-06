@@ -37,7 +37,7 @@ export class ChannelManager {
   /**
    * Ensure `count` channels exist for the scenario's video mode.
    * Reuses existing bench channels when reuse=true, otherwise always creates new.
-   * @param {object} videos parsed videos.yml object
+   * @param {object} videos normalized scenario channels object
    * @param {number} count max channels needed (largest loadProfile step)
    * @returns {Promise<string[]>} array of videoChannelIds (length === count)
    */
@@ -53,7 +53,7 @@ export class ChannelManager {
     let index = videoChannelIds.length;
     while (videoChannelIds.length < count) {
       const code = `${this.prefix}-${String(index + 1).padStart(2, '0')}`;
-      const name = `压测通道${String(index + 1).padStart(2, '0')}`;
+      const name = `${this.prefix}-${String(index + 1).padStart(2, '0')}`;
       const id = await this._createOne(mode, code, name, videos, index);
       videoChannelIds.push(id);
       this.created.set(id, { videoChannelId: id, channelCode: code, channelName: name, mode });
@@ -77,7 +77,7 @@ export class ChannelManager {
   async _createOne(mode, code, name, videos, index) {
     if (mode === 'local') {
       const src = videos.local?.[index] ?? videos.local?.[0];
-      if (!src) throw new Error(`videos.yml: not enough local sources for channel ${index + 1}`);
+      if (!src) throw new Error(`scenario.yml channels: not enough local sources for channel ${index + 1}`);
       // Two ways to source a local video:
       //   - file:     a path on THIS machine → uploaded to the device temp store first.
       //   - filePath: a path already staged on the device → used directly (skip upload).
@@ -93,12 +93,12 @@ export class ChannelManager {
         filePath = src.filePath;
         contentLength = Number(src.contentLength ?? 0);
       } else {
-        throw new Error(`videos.yml: local source must define 'file' or 'filePath'`);
+        throw new Error(`scenario.yml channels: local source must define 'file' or 'filePath'`);
       }
       // Backend (MessageCameraHandler.cc:44) reads only {filePath, channelName, contentLength}
       // from AddVideo; channelCode is NOT consumed there, so we omit it.
       const res = await this.client.cameraAddVideo({
-        channelName: src.name ?? name,
+        channelName: this._channelNameForSource(name, src),
         filePath,
         contentLength: String(contentLength),
       });
@@ -108,7 +108,7 @@ export class ChannelManager {
     }
     // rtsp-fidelity / rtsp-deterministic
     const src = videos.rtsp?.[index] ?? videos.rtsp?.[0];
-    if (!src) throw new Error(`videos.yml: not enough rtsp sources for channel ${index + 1}`);
+    if (!src) throw new Error(`scenario.yml channels: not enough rtsp sources for channel ${index + 1}`);
     const payload = {
       channelCode: code,
       channelName: src.name ?? name,
@@ -121,6 +121,13 @@ export class ChannelManager {
     return id;
   }
 
+  _channelNameForSource(baseName, src) {
+    const sourceLabel = src?.name
+      ?? (src?.file ? path.parse(src.file).name : null)
+      ?? (src?.filePath ? path.parse(src.filePath).name : null);
+    return sourceLabel ? `${baseName}-${sourceLabel}` : baseName;
+  }
+
   /**
    * Upload a local video file to the device temp store in chunks, returning the
    * device-side filePath to pass to AddVideo. Mirrors the frontend
@@ -129,7 +136,7 @@ export class ChannelManager {
    */
   async _uploadLocalVideo(src) {
     const localPath = src.file;
-    if (!localPath) throw new Error(`videos.yml: local source missing 'file' path`);
+    if (!localPath) throw new Error(`scenario.yml channels: local source missing 'file' path`);
     const stat = fs.statSync(localPath);
     const totalSize = stat.size;
     const CHUNK_SIZE = 32 * 1024 * 1024;
@@ -184,11 +191,12 @@ export class ChannelManager {
         const list = res?.rows ?? res?.list ?? res?.data ?? [];
         if (!list.length) break;
         for (const ch of list) {
-          // Match by channelName containing our prefix marker (bench channel names are localized,
-          // so match on channelCode prefix instead when present).
+          // Local AddVideo may not persist channelCode, so channelName also carries the bench prefix.
           const code = ch.channelCode ?? '';
-          if (code.startsWith(this.prefix) && ch.videoChannelId) {
-            found.push(ch.videoChannelId);
+          const name = ch.channelName ?? ch.name ?? '';
+          const id = ch.videoChannelId ?? ch.id;
+          if ((code.startsWith(this.prefix) || name.startsWith(this.prefix)) && id) {
+            found.push(id);
             if (found.length >= count) break;
           }
         }

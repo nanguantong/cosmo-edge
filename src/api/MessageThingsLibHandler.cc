@@ -211,15 +211,20 @@ ThingsLib::MsgAddLibThingsSend MessageThingsLibHandler::Handle(ThingsLib::MsgAdd
         if (!thing.pictureBase64.empty()) {
             picBin = util::DecBase64Vec(thing.pictureBase64);
         } else if (!thing.pictureUrl.empty()) {
-            std::string srcPath =
-                (std::filesystem::path(cosmo::path::GetBaseDir()) / thing.pictureUrl.ToString()).string();
-            if (util::FileExist(srcPath)) {
-                std::ifstream ifs(srcPath, std::ios::binary);
-                picBin.assign(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>());
-            } else {
-                LOG_WARN("AddLibThings skip: source file not found: {}", srcPath);
+            // pictureUrl is joined under the base dir and must stay confined to it to block
+            // path traversal (CWE-22).
+            const auto base_dir = cosmo::path::GetBaseDir();
+            const std::string src_path =
+                (std::filesystem::path(base_dir) / thing.pictureUrl.ToString()).string();
+            if (!cosmo::path::IsWithinRoot(base_dir, src_path) || !util::FileExist(src_path)) {
+                LOG_WARN(
+                    "AddLibThings skip: path outside base dir or not found, pictureUrl:{} "
+                    "resolved:{}",
+                    thing.pictureUrl, src_path);
                 continue;
             }
+            std::ifstream ifs(src_path, std::ios::binary);
+            picBin.assign(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>());
         }
         auto frame = video_codec_.DecodeJpeg(picBin);
         if (!frame) {

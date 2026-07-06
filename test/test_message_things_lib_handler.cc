@@ -5,12 +5,17 @@
 #include "catch2/trompeloeil.hpp"
 // clang-format on
 
+#include <chrono>
+#include <filesystem>
+#include <fstream>
+
 #include "api/MessageThingsLibHandler.h"
 #include "mock/MockArticlesReidDaoService.h"
 #include "mock/MockCameraService.h"
 #include "mock/MockServiceRegistry.h"
 #include "mock/MockVideoFrameCodec.h"
 #include "util/ErrorCode.h"
+#include "util/PathUtil.h"
 
 using namespace cosmo;
 using namespace cosmo::test;
@@ -23,6 +28,24 @@ MessageThingsLibHandler MakeHandler(MockServiceRegistry& mocks) {
                                    static_cast<cosmo::service::ICameraTaskConfig&>(mocks.cameraSvc),
                                    mocks.videoCodecSvc);
 }
+
+/// Redirect cosmo::path roots to a throwaway temp dir for the test's lifetime, so the handler's
+/// EnsureDir calls and file reads stay off the real /data tree. Restores defaults on destruction.
+struct ScopedPathOverride {
+    std::string tmp_dir;
+
+    ScopedPathOverride() {
+        tmp_dir = "/tmp/cosmo_things_handler_" +
+                  std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+        std::filesystem::create_directories(tmp_dir);
+        cosmo::path::OverrideRootPathForTest(tmp_dir, tmp_dir);
+    }
+    ~ScopedPathOverride() {
+        cosmo::path::OverrideRootPathForTest("/data/cwaiuserdata", "/appfs/cosmo_wander/cwai_data");
+        std::error_code ec;
+        std::filesystem::remove_all(tmp_dir, ec);
+    }
+};
 
 }  // namespace
 
@@ -104,4 +127,57 @@ TEST_CASE("ThingsLibHandler: QueryThingsLibInfo", "[things-lib-handler]") {
     auto ret = handler.Handle(std::move(data), errc);
     REQUIRE(ret.resData.thingsLibCount == 1);
     REQUIRE(ret.resData.thingsLibList.size() == 1);
+}
+
+TEST_CASE("ThingsLibHandler: AddLibThings rejects path-traversal pictureUrl", "[things-lib-handler]") {
+    MockServiceRegistry mocks;
+    auto handler = MakeHandler(mocks);
+    ScopedPathOverride path_override;
+
+    // No file may be decoded or inserted when the resolved path escapes the base dir.
+    FORBID_CALL(mocks.videoCodecSvc, DecodeJpeg(_));
+    FORBID_CALL(mocks.articlesReidDaoSvc, AddArticlesReid(_, _, _, _));
+
+    const std::vector<std::string> payloads{"..", "../../../../etc/passwd", "/etc/passwd",
+                                            "weblibPic/../../etc/passwd"};
+    for (const auto& payload : payloads) {
+        ThingsLib::MsgAddLibThingsRecv data{};
+        data.thingsOperation = 1;  // Add
+        data.thingsLibId     = "lib-1";
+        ThingsLib::MsgAddLibThingsRecv::ArticlesReid thing{};
+        thing.pictureUrl = payload;
+        data.thingsList.push_back(thing);
+
+        std::error_condition errc;
+        auto ret = handler.Handle(std::move(data), errc);
+        REQUIRE(ret.resData.thingsId.empty());
+    }
+}
+
+TEST_CASE("ThingsLibHandler: AddLibThings reaches decode for legit in-base path", "[things-lib-handler]") {
+    MockServiceRegistry mocks;
+    auto handler = MakeHandler(mocks);
+    ScopedPathOverride path_override;
+
+    // Plant a small source file directly under the (overridden) base dir.
+    const auto base_dir = cosmo::path::GetBaseDir();
+    {
+        std::ofstream ofs(base_dir + "/legit.jpg", std::ios::binary);
+        ofs << "jpg";
+    }
+
+    // DecodeJpeg returning a null frame short-circuits the pipeline, but the requirement being met
+    // proves the in-base path was accepted and read.
+    REQUIRE_CALL(mocks.videoCodecSvc, DecodeJpeg(_)).RETURN(nullptr);
+
+    ThingsLib::MsgAddLibThingsRecv data{};
+    data.thingsOperation = 1;  // Add
+    data.thingsLibId     = "lib-1";
+    ThingsLib::MsgAddLibThingsRecv::ArticlesReid thing{};
+    thing.pictureUrl = "legit.jpg";
+    data.thingsList.push_back(thing);
+
+    std::error_condition errc;
+    auto ret = handler.Handle(std::move(data), errc);
+    REQUIRE(ret.resData.thingsId.empty());  // null frame -> skipped after decode
 }

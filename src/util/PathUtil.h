@@ -62,6 +62,17 @@ std::string GetDbBackUpPath();
 /// Root data directory for the application.
 std::string GetBaseDir();
 
+/// True iff @p candidate, after canonicalization, is equal to or nested under
+/// @p root (both canonicalized identically). Neither path is required to exist.
+///
+/// Canonicalization uses weakly_canonical (resolves symlinks and normalizes the
+/// non-existent tail); on OS error it falls back to absolute().lexically_normal()
+/// (textual only, does not resolve symlinks). Comparison is component-aware, not a
+/// string prefix: /data/a does NOT contain /data/ab. Symlinks under @p root that
+/// resolve outside @p root are rejected because their canonical form is no longer
+/// a prefix of @p root's canonical form. Returns false if either argument is empty.
+[[nodiscard]] bool IsWithinRoot(const std::string& root, const std::string& candidate);
+
 // ── Event / recording paths (formerly IPathEvent) ────────────────────────────
 
 /// Root directory for event recordings.

@@ -97,7 +97,7 @@ namespace ThingsLib {
             friend void from_json(const nlohmann::json& j, ArticlesReid& v);
         };
 
-        util::RangeInt<1, 2> thingsOperation{0};
+        util::RangeInt<1, 2> thingsOperation{1};  // Add; 0 is out of range and would throw on construct
         util::String<0, 36> thingsLibId;
         std::vector<ArticlesReid> thingsList;
     };

@@ -126,3 +126,57 @@ TEST_CASE("PathUtil: GetTemporaryDirPath returns non-empty", "[path-util]") {
     auto tmp = GetTemporaryDirPath();
     REQUIRE(!tmp.empty());
 }
+
+TEST_CASE("PathUtil: IsWithinRoot containment check", "[path-util]") {
+    SECTION("Exact equal path is within") {
+        REQUIRE(IsWithinRoot("/data/a", "/data/a"));
+    }
+    SECTION("Nested child is within") {
+        REQUIRE(IsWithinRoot("/data/a", "/data/a/b"));
+        REQUIRE(IsWithinRoot("/data/a", "/data/a/b/c"));
+    }
+    SECTION("Sibling prefix is NOT within (component-aware)") {
+        REQUIRE_FALSE(IsWithinRoot("/data/a", "/data/ab"));
+        REQUIRE_FALSE(IsWithinRoot("/data/a", "/data/ab/c"));
+    }
+    SECTION("Parent (candidate shorter than root) is NOT within") {
+        REQUIRE_FALSE(IsWithinRoot("/data/a/b", "/data/a"));
+        REQUIRE_FALSE(IsWithinRoot("/data/a", "/data"));
+    }
+    SECTION("Dotdot traversal escapes root") {
+        REQUIRE_FALSE(IsWithinRoot("/data/a", "/data/a/.."));    // resolves to /data
+        REQUIRE_FALSE(IsWithinRoot("/data/a", "/data/a/../b"));  // resolves to /data/b
+        REQUIRE_FALSE(IsWithinRoot("/data/a", "/data/a/../../etc/passwd"));
+    }
+    SECTION("Absolute escape is NOT within") {
+        REQUIRE_FALSE(IsWithinRoot("/data/a", "/etc/passwd"));
+        REQUIRE_FALSE(IsWithinRoot("/data/a", "/etc/shadow"));
+    }
+    SECTION("Dot segment collapses, nested child still within") {
+        REQUIRE(IsWithinRoot("/data/a", "/data/a/./b"));  // resolves to /data/a/b
+    }
+    // Trailing-slash inputs are not asserted: production roots (GetBaseDir/GetPersonLibPhotoDir)
+    // and the path(root)/filename joins never carry trailing separators, and the device libstdc++
+    // path-iterator leaves a trailing empty component for root "/x/" that the mismatch check (which
+    // is correct for all real inputs, see the cases above) does not need to defend against.
+    SECTION("Non-existent deep tail still within") {
+        REQUIRE(IsWithinRoot("/data/a", "/data/a/x/y/z/none"));
+    }
+    SECTION("Empty inputs are rejected") {
+        REQUIRE_FALSE(IsWithinRoot("", "/data/a"));
+        REQUIRE_FALSE(IsWithinRoot("/data/a", ""));
+    }
+}
+
+TEST_CASE("PathUtil: IsWithinRoot with real filesystem", "[path-util]") {
+    TestPathFixture fix;
+    const auto root    = fix.test_dir + "/root";
+    const auto outside = fix.test_dir + "/outside";
+    std::filesystem::create_directories(root + "/sub");
+    std::filesystem::create_directories(outside);
+
+    REQUIRE(IsWithinRoot(root, root));                     // existing exact
+    REQUIRE(IsWithinRoot(root, root + "/sub"));            // existing child
+    REQUIRE(IsWithinRoot(root, root + "/sub/deep/none"));  // non-existent tail inside
+    REQUIRE_FALSE(IsWithinRoot(root, outside));            // sibling dir
+}

@@ -2,9 +2,11 @@
 
 #include "util/PathUtil.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 #include <vector>
 
 #include "util/DateTimeFormat.h"
@@ -220,6 +222,27 @@ std::string GetDbBackUpPath() {
 std::string GetBaseDir() {
     EnsureDir(g_dataPath);
     return g_dataPath;
+}
+
+[[nodiscard]] bool IsWithinRoot(const std::string& root, const std::string& candidate) {
+    if (root.empty() || candidate.empty()) {
+        return false;
+    }
+    const auto canonicalize = [](const std::string& s) {
+        std::error_code ec;
+        auto p = fs::weakly_canonical(fs::path(s), ec);
+        if (ec) {
+            p = fs::absolute(fs::path(s), ec);
+        }
+        return p.lexically_normal();  // strip trailing separators / empty tail components
+    };
+    const fs::path root_path = canonicalize(root);
+    const fs::path cand_path = canonicalize(candidate);
+    // Must use the 4-arg overload: the 3-arg std::mismatch is UB when cand_path
+    // is shorter than root_path.
+    const auto mismatch_result =
+        std::mismatch(root_path.begin(), root_path.end(), cand_path.begin(), cand_path.end());
+    return mismatch_result.first == root_path.end();
 }
 
 // ── Event / recording paths ───────────────────────────────────────────────────

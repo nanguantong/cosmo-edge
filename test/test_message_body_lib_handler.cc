@@ -6,6 +6,10 @@
 #include "catch2/trompeloeil.hpp"
 // clang-format on
 
+#include <chrono>
+#include <filesystem>
+#include <fstream>
+
 #include "api/MessageBodyLibHandler.h"
 #include "mock/MockBodyLibService.h"
 #include "mock/MockCameraService.h"
@@ -13,6 +17,7 @@
 #include "mock/MockServiceRegistry.h"
 #include "mock/MockVideoFrameCodec.h"
 #include "util/ErrorCode.h"
+#include "util/PathUtil.h"
 
 using namespace cosmo;
 using namespace cosmo::test;
@@ -25,6 +30,24 @@ MessageBodyLibHandler MakeHandler(MockServiceRegistry& mocks) {
     return MessageBodyLibHandler(mocks.personRecogDaoSvc, mocks.bodyLibSvc, mocks.cameraSvc,
                                  mocks.videoCodecSvc);
 }
+
+/// Redirect cosmo::path roots to a throwaway temp dir for the test's lifetime, so the handler's
+/// EnsureDir calls and file copies stay off the real /data tree. Restores defaults on destruction.
+struct ScopedPathOverride {
+    std::string tmp_dir;
+
+    ScopedPathOverride() {
+        tmp_dir = "/tmp/cosmo_body_handler_" +
+                  std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+        std::filesystem::create_directories(tmp_dir);
+        cosmo::path::OverrideRootPathForTest(tmp_dir, tmp_dir);
+    }
+    ~ScopedPathOverride() {
+        cosmo::path::OverrideRootPathForTest("/data/cwaiuserdata", "/appfs/cosmo_wander/cwai_data");
+        std::error_code ec;
+        std::filesystem::remove_all(tmp_dir, ec);
+    }
+};
 
 }  // namespace
 
@@ -194,4 +217,60 @@ TEST_CASE("BodyLibHandler: DetectPerson empty image", "[body-lib-handler]") {
     data.imageBase64 = "";
     std::error_condition errc;
     REQUIRE_THROWS_AS(handler.Handle(std::move(data), errc), util::ErrorMessage);
+}
+
+TEST_CASE("BodyLibHandler: AddLibPerson rejects path-traversal pictureUrl", "[body-lib-handler]") {
+    MockServiceRegistry mocks;
+    auto handler = MakeHandler(mocks);
+    ScopedPathOverride path_override;
+
+    // No file may be decoded or inserted when the resolved path escapes its allowed root.
+    FORBID_CALL(mocks.videoCodecSvc, DecodeJpeg(_));
+    FORBID_CALL(mocks.personRecogDaoSvc, AddPerson(_, _, _, _));
+
+    const std::vector<std::string> payloads{
+        "..", "../", "../../../../etc/passwd", "/etc/passwd", "weblibPic/../../etc/passwd", "/etc/shadow"};
+    for (const auto& payload : payloads) {
+        BodyLib::MsgAddLibPersonRecv data{};
+        data.personOperation = 1;  // Add
+        data.personLibId     = "lib-1";
+        BodyLib::MsgAddLibPersonRecv::Person person{};
+        person.pictureUrl = payload;
+        data.personList.push_back(person);
+
+        std::error_condition errc;
+        auto ret = handler.Handle(std::move(data), errc);
+        REQUIRE(ret.resData.personId.empty());
+    }
+}
+
+TEST_CASE("BodyLibHandler: AddLibPerson accepts legit in-root picture", "[body-lib-handler]") {
+    MockServiceRegistry mocks;
+    auto handler = MakeHandler(mocks);
+    ScopedPathOverride path_override;
+
+    // Plant a small source file inside the person-photo dir; filename() of pictureUrl must resolve to it.
+    const auto photo_dir = cosmo::path::GetPersonLibPhotoDir();
+    std::filesystem::create_directories(photo_dir);
+    {
+        std::ofstream ofs(photo_dir + "/legit.jpg", std::ios::binary);
+        ofs << "jpg";
+    }
+
+    // A null decoded frame skips feature extraction but the person is still inserted; proving the
+    // in-root path was accepted, read, and decoded.
+    REQUIRE_CALL(mocks.videoCodecSvc, DecodeJpeg(_)).RETURN(nullptr);
+    REQUIRE_CALL(mocks.personRecogDaoSvc, AddPerson(_, _, _, _)).RETURN(true);
+    REQUIRE_CALL(mocks.bodyLibSvc, InvalidateCache(_));
+
+    BodyLib::MsgAddLibPersonRecv data{};
+    data.personOperation = 1;  // Add
+    data.personLibId     = "lib-1";
+    BodyLib::MsgAddLibPersonRecv::Person person{};
+    person.pictureUrl = "legit.jpg";
+    data.personList.push_back(person);
+
+    std::error_condition errc;
+    auto ret = handler.Handle(std::move(data), errc);
+    REQUIRE(ret.resData.personId.size() == 1);
 }

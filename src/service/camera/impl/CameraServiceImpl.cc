@@ -502,7 +502,7 @@ void CameraServiceImpl::MonitorCameraEntity(const CameraEntityPtr& camera, bool 
                 (!ServiceRegistry::Instance().Get<IScheduleService>().InRunTime(task->schedule_id_) ||
                  (!isAuthed))) {
                 LOG_INFO("[{}/{}] Stop TaskEnable:{} AUTH:{} Schedule:{}/{}", camera->videoChannelId,
-                         task->task_id_, task->is_enabled_, isAuthed, task->schedule_id_,
+                         task->task_id_, task->is_enabled_.load(), isAuthed, task->schedule_id_,
                          task->schedule_name_);
                 ServiceRegistry::Instance().Get<ITaskLifecycle>().TaskStop(task->task_id_);
                 if (task->is_enabled_)                         // Switch is still on
@@ -830,7 +830,7 @@ void to_json(nlohmann::json& j, const CameraTask& v) {
     j["scheduleId"]    = v.schedule_id_;
     j["algorithmName"] = v.algorithm_name_;
     j["scheduleName"]  = v.schedule_name_;
-    j["switch"]        = v.is_enabled_;
+    j["switch"]        = v.is_enabled_.load();
 }
 
 void from_json(const nlohmann::json& j, CameraTask& v) {
@@ -841,7 +841,7 @@ void from_json(const nlohmann::json& j, CameraTask& v) {
     if (j.contains("scheduleName") && !j["scheduleName"].is_null())
         j.at("scheduleName").get_to(v.schedule_name_);
     if (j.contains("switch") && !j["switch"].is_null())
-        j.at("switch").get_to(v.is_enabled_);
+        v.is_enabled_ = j.at("switch").get<bool>();
 }
 
 }  // namespace cosmo

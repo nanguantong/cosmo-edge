@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -37,12 +38,12 @@ struct CameraTaskOp {
 
 struct CameraTask {
     std::string task_id_{};
-    std::string algorithm_code_{};  // Algorithm code
-    std::string algorithm_name_{};  // Algorithm name
-    std::string schedule_id_{};     // Schedule template ID
-    std::string schedule_name_{};   // Schedule template name
-    bool is_enabled_{false};        // Enable switch
-    CameraTaskStatus status_{CameraTaskStatus::kStop};
+    std::string algorithm_code_{};         // Algorithm code
+    std::string algorithm_name_{};         // Algorithm name
+    std::string schedule_id_{};            // Schedule template ID
+    std::string schedule_name_{};          // Schedule template name
+    std::atomic<bool> is_enabled_{false};  // Enable switch
+    std::atomic<CameraTaskStatus> status_{CameraTaskStatus::kStop};
     std::vector<CameraTaskOp> ops_;  // Operation log (max 10 entries, not persisted)
 
     MsgTaskCreateRecv data_;   // Structured overlay data

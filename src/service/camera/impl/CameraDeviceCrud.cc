@@ -274,7 +274,7 @@ std::vector<MsgCameraInfo> CameraServiceImpl::Query(const std::string& channelNa
                         taskInfo.scheduleName  = taskPtr->schedule_name_;
                         taskInfo.scheduleId    = taskPtr->schedule_id_;
                         taskInfo.enable        = taskPtr->is_enabled_;
-                        taskInfo.status        = static_cast<int>(taskPtr->status_);
+                        taskInfo.status        = static_cast<int>(taskPtr->status_.load());
                         return taskInfo;
                     });
             }

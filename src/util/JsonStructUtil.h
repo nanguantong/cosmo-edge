@@ -24,10 +24,15 @@ struct adl_serializer<std::shared_ptr<T>> {
             j = nullptr;
     }
     static void from_json(const json& j, std::shared_ptr<T>& ptr) {
-        if (j.is_null())
+        if (j.is_null()) {
             ptr = nullptr;
-        else
-            ptr = std::make_shared<T>(j.get<T>());
+        } else {
+            // Default-construct then deserialize in place. This supports
+            // non-copyable / non-movable T (e.g. structs with std::atomic
+            // members) and avoids an extra copy/move vs make_shared<T>(j.get<T>()).
+            ptr = std::make_shared<T>();
+            j.get_to(*ptr);
+        }
     }
 };
 }  // namespace nlohmann

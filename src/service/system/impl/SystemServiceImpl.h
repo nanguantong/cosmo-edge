@@ -10,6 +10,9 @@
 
 namespace cosmo::service {
 
+// Serialization envelope for alarmParam.json; defined in SystemServiceImpl.cc.
+struct CfgAlarmParamInfo;
+
 class SystemServiceImpl : public IConfigReadService,
                           public IConfigWriteService,
                           public IConfigNetworkService {
@@ -61,14 +64,14 @@ private:
     cosmo::CfgAlarmParamOverviewInfo overview_config_;
     cosmo::CfgAlarmParamVideoRecordInfo video_record_config_;
 
-    void SaveAlarmCfg();
+    void SaveAlarmCfg(const CfgAlarmParamInfo& cfg);
 
     // Reboot config state (migrated from CfgRebootParam singleton)
     mutable std::shared_mutex reboot_mtx_;
     std::string reboot_cfg_file_{"devRebootParam.json"};
     cosmo::CfgRebootParamInfo reboot_config_;
 
-    void SaveRebootCfg();
+    void SaveRebootCfg(const cosmo::CfgRebootParamInfo& cfg);
 
     // System config state (migrated from CfgSystemParam singleton)
     struct SysConfigState;

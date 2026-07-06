@@ -48,9 +48,9 @@ struct SystemServiceImpl::SysConfigState {
         LOG_INFO("{}", "SysConfigState: system config loaded");
     }
 
-    void SaveCfg() {
+    void SaveCfg(const cosmo::CfgSystemParamInfo& cfg) {
         auto path = (std::filesystem::path(cosmo::path::GetCfgPath()) / conf_file_name).string();
-        static_cast<void>(cosmo::util::SaveStructToJsonFile(path, config));
+        static_cast<void>(cosmo::util::SaveStructToJsonFile(path, cfg));
     }
 };
 
@@ -69,18 +69,14 @@ SystemServiceImpl::SystemServiceImpl() : sys_config_state_(std::make_unique<SysC
 
 SystemServiceImpl::~SystemServiceImpl() = default;
 
-void SystemServiceImpl::SaveAlarmCfg() {
-    CfgAlarmParamInfo cfg;
-    cfg.overviewInfo    = overview_config_;
-    cfg.videoRecordInfo = video_record_config_;
-
+void SystemServiceImpl::SaveAlarmCfg(const CfgAlarmParamInfo& cfg) {
     auto path = (std::filesystem::path(cosmo::path::GetCfgPath()) / alarm_cfg_file_).string();
     static_cast<void>(cosmo::util::SaveStructToJsonFile(path, cfg));
 }
 
-void SystemServiceImpl::SaveRebootCfg() {
+void SystemServiceImpl::SaveRebootCfg(const cosmo::CfgRebootParamInfo& cfg) {
     auto path = (std::filesystem::path(cosmo::path::GetCfgPath()) / reboot_cfg_file_).string();
-    static_cast<void>(cosmo::util::SaveStructToJsonFile(path, reboot_config_));
+    static_cast<void>(cosmo::util::SaveStructToJsonFile(path, cfg));
 }
 
 cosmo::CfgAlarmParamOverviewInfo SystemServiceImpl::GetPictureQuality() {
@@ -92,23 +88,36 @@ cosmo::util::ErrorEnum SystemServiceImpl::SetPictureQuality(cosmo::CfgAlarmParam
     if ((info.picQuality <= 0) || (info.picQuality > 100)) {
         return cosmo::util::ErrorEnum::ParameterException;
     }
-    std::lock_guard<std::shared_mutex> lock(alarm_mtx_);
-    if ((info.picQuality != overview_config_.picQuality) ||
-        (info.alarmTypeOverview != overview_config_.alarmTypeOverview) ||
-        (info.areaOverview != overview_config_.areaOverview) ||
-        (info.targetBoxOverview != overview_config_.targetBoxOverview) ||
-        (info.targetSizeOverview != overview_config_.targetSizeOverview)) {
-        overview_config_ = info;
-        SaveAlarmCfg();
+    bool changed = false;
+    CfgAlarmParamInfo snapshot;
+    {
+        std::lock_guard<std::shared_mutex> lock(alarm_mtx_);
+        if ((info.picQuality != overview_config_.picQuality) ||
+            (info.alarmTypeOverview != overview_config_.alarmTypeOverview) ||
+            (info.areaOverview != overview_config_.areaOverview) ||
+            (info.targetBoxOverview != overview_config_.targetBoxOverview) ||
+            (info.targetSizeOverview != overview_config_.targetSizeOverview)) {
+            overview_config_         = info;
+            snapshot.overviewInfo    = overview_config_;
+            snapshot.videoRecordInfo = video_record_config_;
+            changed                  = true;
+        }
+    }
+    if (changed) {
+        SaveAlarmCfg(snapshot);
     }
     return cosmo::util::ErrorEnum::Success;
 }
 
 cosmo::util::ErrorEnum SystemServiceImpl::ResetPictureQuality() {
-    cosmo::CfgAlarmParamOverviewInfo info;
-    std::lock_guard<std::shared_mutex> lock(alarm_mtx_);
-    overview_config_ = info;
-    SaveAlarmCfg();
+    CfgAlarmParamInfo snapshot;
+    {
+        std::lock_guard<std::shared_mutex> lock(alarm_mtx_);
+        overview_config_         = cosmo::CfgAlarmParamOverviewInfo{};
+        snapshot.overviewInfo    = overview_config_;
+        snapshot.videoRecordInfo = video_record_config_;
+    }
+    SaveAlarmCfg(snapshot);
     return cosmo::util::ErrorEnum::Success;
 }
 
@@ -124,21 +133,34 @@ cosmo::util::ErrorEnum SystemServiceImpl::SetAlarmVideoDuration(cosmo::CfgAlarmP
     if ((info.aftreDuration <= 0) || (info.aftreDuration > 100)) {
         return cosmo::util::ErrorEnum::ParameterException;
     }
-    std::lock_guard<std::shared_mutex> lock(alarm_mtx_);
-    if ((info.bopen != video_record_config_.bopen) ||
-        (info.preDuration != video_record_config_.preDuration) ||
-        (info.aftreDuration != video_record_config_.aftreDuration)) {
-        video_record_config_ = info;
-        SaveAlarmCfg();
+    bool changed = false;
+    CfgAlarmParamInfo snapshot;
+    {
+        std::lock_guard<std::shared_mutex> lock(alarm_mtx_);
+        if ((info.bopen != video_record_config_.bopen) ||
+            (info.preDuration != video_record_config_.preDuration) ||
+            (info.aftreDuration != video_record_config_.aftreDuration)) {
+            video_record_config_     = info;
+            snapshot.overviewInfo    = overview_config_;
+            snapshot.videoRecordInfo = video_record_config_;
+            changed                  = true;
+        }
+    }
+    if (changed) {
+        SaveAlarmCfg(snapshot);
     }
     return cosmo::util::ErrorEnum::Success;
 }
 
 cosmo::util::ErrorEnum SystemServiceImpl::ResetAlarmVideoDuration() {
-    cosmo::CfgAlarmParamVideoRecordInfo info;
-    std::lock_guard<std::shared_mutex> lock(alarm_mtx_);
-    video_record_config_ = info;
-    SaveAlarmCfg();
+    CfgAlarmParamInfo snapshot;
+    {
+        std::lock_guard<std::shared_mutex> lock(alarm_mtx_);
+        video_record_config_     = cosmo::CfgAlarmParamVideoRecordInfo{};
+        snapshot.overviewInfo    = overview_config_;
+        snapshot.videoRecordInfo = video_record_config_;
+    }
+    SaveAlarmCfg(snapshot);
     return cosmo::util::ErrorEnum::Success;
 }
 
@@ -151,20 +173,32 @@ cosmo::util::ErrorEnum SystemServiceImpl::SetRebootParam(cosmo::CfgRebootParamIn
     if ((info.weekDay < 0) || (info.weekDay > 7)) {
         return cosmo::util::ErrorEnum::ParameterException;
     }
-    std::lock_guard<std::shared_mutex> lock(reboot_mtx_);
-    if ((info.isTimingRestart != reboot_config_.isTimingRestart) ||
-        (info.weekDay != reboot_config_.weekDay) || (info.restartTimeSec != reboot_config_.restartTimeSec)) {
-        reboot_config_ = info;
-        SaveRebootCfg();
+    bool changed = false;
+    cosmo::CfgRebootParamInfo snapshot;
+    {
+        std::lock_guard<std::shared_mutex> lock(reboot_mtx_);
+        if ((info.isTimingRestart != reboot_config_.isTimingRestart) ||
+            (info.weekDay != reboot_config_.weekDay) ||
+            (info.restartTimeSec != reboot_config_.restartTimeSec)) {
+            reboot_config_ = info;
+            snapshot       = reboot_config_;
+            changed        = true;
+        }
+    }
+    if (changed) {
+        SaveRebootCfg(snapshot);
     }
     return cosmo::util::ErrorEnum::Success;
 }
 
 cosmo::util::ErrorEnum SystemServiceImpl::ResetRebootParam() {
-    cosmo::CfgRebootParamInfo info;
-    std::lock_guard<std::shared_mutex> lock(reboot_mtx_);
-    reboot_config_ = info;
-    SaveRebootCfg();
+    cosmo::CfgRebootParamInfo snapshot;
+    {
+        std::lock_guard<std::shared_mutex> lock(reboot_mtx_);
+        reboot_config_ = cosmo::CfgRebootParamInfo{};
+        snapshot       = reboot_config_;
+    }
+    SaveRebootCfg(snapshot);
     return cosmo::util::ErrorEnum::Success;
 }
 
@@ -187,6 +221,7 @@ cosmo::util::ErrorEnum SystemServiceImpl::SetSystemLogo(const std::string& syste
                                                         const std::string& bigScreenName) {
     std::string logo_name = "logo" + logoFileType;
     std::string logo_path;
+    cosmo::CfgSystemParamInfo snapshot;
     {
         std::lock_guard<std::shared_mutex> lock(sys_config_state_->mtx);
         sys_config_state_->config.logoInfo.systemName   = systemName;
@@ -195,9 +230,10 @@ cosmo::util::ErrorEnum SystemServiceImpl::SetSystemLogo(const std::string& syste
         if (!bigScreenName.empty()) {
             sys_config_state_->config.logoInfo.bigScreenName = bigScreenName;
         }
-        sys_config_state_->SaveCfg();
+        snapshot  = sys_config_state_->config;
         logo_path = (std::filesystem::path(cosmo::path::GetLogoPath()) / logo_name).string();
     }
+    sys_config_state_->SaveCfg(snapshot);
     cosmo::util::WriteFile(logo_path, reinterpret_cast<const std::uint8_t*>(logo_img.data()),
                            static_cast<int>(logo_img.size()));
     return {};
@@ -231,14 +267,22 @@ void SystemServiceImpl::GetPopUpParam(int& pop_up_switch, int& audio_play, int& 
 }
 
 void SystemServiceImpl::SetPopUpParam(int pop_up_switch, int audio_play, int pop_up_duration) {
-    std::lock_guard<std::shared_mutex> lock(sys_config_state_->mtx);
-    if ((pop_up_switch != sys_config_state_->config.popUpInfo.popUpSwitch) ||
-        (pop_up_duration != sys_config_state_->config.popUpInfo.popUpDuration) ||
-        (audio_play != sys_config_state_->config.popUpInfo.audioPlay)) {
-        sys_config_state_->config.popUpInfo.popUpSwitch   = pop_up_switch;
-        sys_config_state_->config.popUpInfo.popUpDuration = pop_up_duration;
-        sys_config_state_->config.popUpInfo.audioPlay     = audio_play;
-        sys_config_state_->SaveCfg();
+    bool changed = false;
+    cosmo::CfgSystemParamInfo snapshot;
+    {
+        std::lock_guard<std::shared_mutex> lock(sys_config_state_->mtx);
+        if ((pop_up_switch != sys_config_state_->config.popUpInfo.popUpSwitch) ||
+            (pop_up_duration != sys_config_state_->config.popUpInfo.popUpDuration) ||
+            (audio_play != sys_config_state_->config.popUpInfo.audioPlay)) {
+            sys_config_state_->config.popUpInfo.popUpSwitch   = pop_up_switch;
+            sys_config_state_->config.popUpInfo.popUpDuration = pop_up_duration;
+            sys_config_state_->config.popUpInfo.audioPlay     = audio_play;
+            snapshot                                          = sys_config_state_->config;
+            changed                                           = true;
+        }
+    }
+    if (changed) {
+        sys_config_state_->SaveCfg(snapshot);
     }
 }
 
@@ -271,6 +315,7 @@ MqttParam SystemServiceImpl::GetMqttParam() {
 
 cosmo::util::ErrorEnum SystemServiceImpl::SetMqttParam(const MqttParam& param) {
     bool changed = false;
+    cosmo::CfgSystemParamInfo snapshot;
     {
         std::lock_guard<std::shared_mutex> lock(sys_config_state_->mtx);
         auto& mqtt = sys_config_state_->config.interfaceModeInfo.standAloneParam.mqttParam;
@@ -284,11 +329,12 @@ cosmo::util::ErrorEnum SystemServiceImpl::SetMqttParam(const MqttParam& param) {
             mqtt.clientId = param.clientId;
             mqtt.userName = param.userName;
             mqtt.passwd   = param.passwd;
-            sys_config_state_->SaveCfg();
-            changed = true;
+            snapshot      = sys_config_state_->config;
+            changed       = true;
         }
     }
     if (changed) {
+        sys_config_state_->SaveCfg(snapshot);
         if (param.enable) {
             service::ServiceRegistry::Instance().Get<service::INetworkService>().MqttStop();
             service::ServiceRegistry::Instance().Get<service::INetworkService>().MqttStart();
@@ -306,15 +352,17 @@ cosmo::RunMode SystemServiceImpl::GetRunMode() {
 
 void SystemServiceImpl::SetRunMode(cosmo::RunMode mode) {
     bool changed = false;
+    cosmo::CfgSystemParamInfo snapshot;
     {
         std::lock_guard<std::shared_mutex> lock(sys_config_state_->mtx);
         if (mode != sys_config_state_->config.interfaceModeInfo.runMode) {
             sys_config_state_->config.interfaceModeInfo.runMode = mode;
-            sys_config_state_->SaveCfg();
-            changed = true;
+            snapshot                                            = sys_config_state_->config;
+            changed                                             = true;
         }
     }
     if (changed) {
+        sys_config_state_->SaveCfg(snapshot);
         LOG_WARN("{}", "RunMode changed, rebooting device (face libraries will be cleared)");
         ServiceRegistry::Instance().Get<ISystemOperationService>().RebootDevice("RunModel Changed");
     }
@@ -335,15 +383,24 @@ IotNetworkParam SystemServiceImpl::GetIotNetworkParam() {
 
 void SystemServiceImpl::SetIotNetworkParam(const std::string& httpUrl, const std::string& mqttIp,
                                            int mqtt_port) {
-    std::lock_guard<std::shared_mutex> lock(sys_config_state_->mtx);
-    auto& iot = sys_config_state_->config.interfaceModeInfo.iotParam;
-    if ((httpUrl != iot.httpParam.url) || (mqttIp != iot.mqttParam.ip) || (mqtt_port != iot.mqttParam.port)) {
-        iot.httpParam.url     = httpUrl;
-        iot.httpParam.bEnable = true;
-        iot.mqttParam.ip      = mqttIp;
-        iot.mqttParam.port    = mqtt_port;
-        iot.mqttParam.bEnable = true;
-        sys_config_state_->SaveCfg();
+    bool changed = false;
+    cosmo::CfgSystemParamInfo snapshot;
+    {
+        std::lock_guard<std::shared_mutex> lock(sys_config_state_->mtx);
+        auto& iot = sys_config_state_->config.interfaceModeInfo.iotParam;
+        if ((httpUrl != iot.httpParam.url) || (mqttIp != iot.mqttParam.ip) ||
+            (mqtt_port != iot.mqttParam.port)) {
+            iot.httpParam.url     = httpUrl;
+            iot.httpParam.bEnable = true;
+            iot.mqttParam.ip      = mqttIp;
+            iot.mqttParam.port    = mqtt_port;
+            iot.mqttParam.bEnable = true;
+            snapshot              = sys_config_state_->config;
+            changed               = true;
+        }
+    }
+    if (changed) {
+        sys_config_state_->SaveCfg(snapshot);
     }
 }
 
@@ -353,10 +410,18 @@ bool SystemServiceImpl::GetResourceLimit() {
 }
 
 void SystemServiceImpl::SetResourceLimit(bool enable) {
-    std::lock_guard<std::shared_mutex> lock(sys_config_state_->mtx);
-    if (enable != sys_config_state_->config.resourceInfo.bResourceLimitOpen) {
-        sys_config_state_->config.resourceInfo.bResourceLimitOpen = enable;
-        sys_config_state_->SaveCfg();
+    bool changed = false;
+    cosmo::CfgSystemParamInfo snapshot;
+    {
+        std::lock_guard<std::shared_mutex> lock(sys_config_state_->mtx);
+        if (enable != sys_config_state_->config.resourceInfo.bResourceLimitOpen) {
+            sys_config_state_->config.resourceInfo.bResourceLimitOpen = enable;
+            snapshot                                                  = sys_config_state_->config;
+            changed                                                   = true;
+        }
+    }
+    if (changed) {
+        sys_config_state_->SaveCfg(snapshot);
     }
 }
 

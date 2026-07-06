@@ -41,7 +41,7 @@ npm run docs:preview
 Notes:
 
 - The documentation build verifies VitePress pages, navigation, and in-site links.
-- The repository already contains `.github/workflows/docs.yml` (a manually triggered `workflow_dispatch` workflow that builds VitePress and deploys it to GitHub Pages).
+- The repository does not currently have a dedicated documentation-site workflow; `npm run docs:build` is the local validation command and can be used as the basis for future PR CI or GitHub Pages deployment workflows.
 - Dependency auditing may currently report npm dependency vulnerabilities; these should be evaluated separately before public release and the resolution recorded.
 
 ## Frontend Checks

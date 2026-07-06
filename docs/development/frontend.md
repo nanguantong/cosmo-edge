@@ -2,8 +2,8 @@
 title: 前端工程
 description: 前端技术栈、项目结构、常用脚本、API 层、i18n、构建配置及新增页面指南。
 prev:
-  text: 模型与资源
-  link: /reference/models
+  text: 贡献者上手路径
+  link: /development/contributing
 next:
   text: 后端开发
   link: /development/backend

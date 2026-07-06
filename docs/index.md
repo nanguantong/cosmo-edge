@@ -37,5 +37,5 @@ features:
 4. 需要理解项目结构，请阅读[架构概览](guide/architecture.md)。
 5. 需要排查运行问题，请阅读[故障排查](guide/troubleshooting.md)。
 6. 需要对接接口或模型资源，请阅读[API 概览](reference/api.md)、[字段级 API 参考](reference/api-fields.md)、[MQTT 接入参考](reference/mqtt.md)、[HTTP Webhook 参考](reference/webhook.md)和[模型与资源](reference/models.md)。
-7. 需要参与开发，请阅读[前端工程](development/frontend.md)、[后端开发](development/backend.md)和[CI 与质量检查](development/ci.md)。
+7. 需要参与开发，请先阅读[贡献者上手路径](development/contributing.md)，再按需查看[前端工程](development/frontend.md)、[后端开发](development/backend.md)和[CI 与质量检查](development/ci.md)。
 8. 需要维护前端术语和紧凑文案，请阅读[I18N Glossary](i18n/GLOSSARY.md)和[Short Scope Rules](i18n/SHORT-SCOPES.md)。

@@ -164,10 +164,12 @@ git clone https://github.com/cosmo-wander-ai/cosmo-edge.git
 # 或使用 Gitee 镜像（国内推荐）：
 # git clone https://gitee.com/cosmo-wander-ai/cosmo-edge.git
 cd cosmo-edge
+```
 
 > **💡 Docker Compose 版本提示**
 > 本文档统一使用最新的 Docker Compose V2 命令格式 (`docker compose`)。如果你使用的是旧版 Docker 环境，请将文中的 `docker compose` 替换为带横杠的 `docker-compose`。
 
+```bash
 # 2. 启动 x86 模式
 # Linux：
 sudo docker compose -f docker-compose.x86.yml up -d --build
@@ -373,7 +375,7 @@ CosmoEdge 已发布 v1.0.0，欢迎围绕以下方向进行聚焦贡献：
 - 场景示例和集成说明。
 - 先通过 issue 讨论，再提交范围清晰的小型 PR。
 
-提交 pull request 前，请先阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
+提交 pull request 前，请先阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。首次贡献者也可以从[贡献者上手路径](docs/development/contributing.md)开始。
 
 ## FAQ
 

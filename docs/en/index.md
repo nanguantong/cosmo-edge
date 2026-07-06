@@ -33,4 +33,4 @@ features:
 4. To understand the project layout, read the [Architecture Overview](guide/architecture.md).
 5. To troubleshoot runtime issues, read [Troubleshooting](guide/troubleshooting.md).
 6. For integrations, read [API Overview](reference/api.md), [API Fields](reference/api-fields.md), [MQTT Reference](reference/mqtt.md), [HTTP Webhook Reference](reference/webhook.md), and [Models and Resources](reference/models.md).
-7. For development, read [Frontend Development](development/frontend.md), [Backend Development](development/backend.md), and [CI and Quality Checks](development/ci.md).
+7. For development, start with the [Contributor Guide](development/contributing.md), then read [Frontend Development](development/frontend.md), [Backend Development](development/backend.md), and [CI and Quality Checks](development/ci.md) as needed.

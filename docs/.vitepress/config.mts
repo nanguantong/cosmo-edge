@@ -18,6 +18,7 @@ const referenceZh = [
 ]
 
 const developmentZh = [
+  { text: '贡献者上手路径', link: '/development/contributing' },
   { text: '前端工程', link: '/development/frontend' },
   { text: '后端开发', link: '/development/backend' },
   { text: 'CI 与质量检查', link: '/development/ci' }
@@ -55,6 +56,7 @@ const referenceEn = [
 ]
 
 const developmentEn = [
+  { text: 'Contributor Guide', link: '/en/development/contributing' },
   { text: 'Frontend Development', link: '/en/development/frontend' },
   { text: 'Backend Development', link: '/en/development/backend' },
   { text: 'CI and Quality Checks', link: '/en/development/ci' }
@@ -75,6 +77,11 @@ export default defineConfig({
   base: '/cosmo-edge/',
   cleanUrls: true,
   lastUpdated: true,
+  // Benchmark reports are checked in as static HTML files next to their
+  // Markdown indexes. VitePress dead-link checking treats them as page routes.
+  ignoreDeadLinks: [
+    /^(?:\.\/)?(vlm-55009-npu|helmet-7463-npu|pedestrian-45626-npu|pedestrian-helmet-mixed-npu|helmet-7463-x86)\/report(?:\.zh-CN)?$/
+  ],
 
   locales: {
     root: {

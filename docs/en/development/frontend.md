@@ -2,8 +2,8 @@
 title: Frontend Development
 description: Frontend stack, project structure, common scripts, API layer, i18n, build configuration, and how to add new pages.
 prev:
-  text: Models and Resources
-  link: /en/reference/models
+  text: Contributor Guide
+  link: /en/development/contributing
 next:
   text: Backend Development
   link: /en/development/backend

@@ -162,10 +162,12 @@ git clone https://github.com/cosmo-wander-ai/cosmo-edge.git
 # Or use Gitee mirror (China):
 # git clone https://gitee.com/cosmo-wander-ai/cosmo-edge.git
 cd cosmo-edge
+```
 
 > **💡 Docker Compose Version Note**
 > This documentation uses the latest Docker Compose V2 command format (`docker compose`). If you are using an older Docker environment, please replace `docker compose` with the hyphenated `docker-compose` in all commands.
 
+```bash
 # 2. Start in x86 mode
 # Linux:
 sudo docker compose -f docker-compose.x86.yml up -d --build
@@ -372,7 +374,7 @@ CosmoEdge is at v1.0.0. We welcome focused contributions in these areas:
 - Scenario examples and integration notes.
 - Small, scoped pull requests after an issue discussion.
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. First-time contributors can also start with the [Contributor Guide](docs/en/development/contributing.md).
 
 ## FAQ
 

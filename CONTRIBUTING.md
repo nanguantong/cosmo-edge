@@ -12,6 +12,42 @@ By participating in this project, you agree to abide by our [Code of Conduct](CO
 
 ---
 
+## First-Time Contributor Path
+
+If you are new to the project, start with the smallest path that matches your change. You do not need Sophon hardware for documentation fixes, frontend work, or most x86 CPU-backend C++ validation.
+
+| Change type | Good first validation |
+| --- | --- |
+| Documentation only | `npm ci` and `npm run docs:build` |
+| Frontend web console | `cd src/web`, `npm ci`, `npm run build` |
+| C++ backend or tests | `bash scripts/format_check.sh --staged --check`, `bash scripts/build_cpu_test.sh`, `./build_cpu/cosmo-tests` |
+| Runtime smoke test | `docker compose -f docker-compose.x86.yml up -d --build` on Linux, or `docker compose -f docker-compose.x86.windows.yml up -d --build` on Windows |
+| Sophon release package | `docker compose -f docker-compose.sophon.yml run --rm cosmo-sophon-package`, or `.\scripts\build_sophon_package.ps1` on Windows |
+
+For a fuller contributor-oriented walkthrough, see:
+
+- [Contributor Guide](docs/en/development/contributing.md)
+- [贡献者上手路径](docs/development/contributing.md)
+- [Build Guide](docs/en/guide/build.md)
+- [CI and Quality Checks](docs/en/development/ci.md)
+
+### Suggested Local Workflow
+
+1. Fork the repository and create a branch from `main`.
+2. Keep the change focused on one bug, document, feature, or refactor.
+3. Run the smallest relevant validation commands from the table above.
+4. Include the commands you ran in the pull request's **Verification** section.
+5. Sign off your commits with `git commit -s`.
+
+### Useful Local Tools
+
+- `clang-format` is required for C++ formatting checks.
+- `cppcheck` is optional locally, but useful before touching shared C++ modules.
+- Docker Compose V2 (`docker compose`) is the documented path. If you use Docker Compose V1, replace `docker compose` with `docker-compose`.
+- Native CPU test builds require the normal C++ build toolchain plus packages reported by `scripts/build_cpu_test.sh` if they are missing.
+
+---
+
 ## How Can I Contribute?
 
 ### 1. Reporting Bugs
@@ -32,7 +68,7 @@ To keep the engine core stable and maintain high code quality, please follow thi
 1.  **Open an Issue First**: For any non-trivial code changes (more than 50 lines), please open an issue to discuss your proposed design before writing code. This helps ensure your work aligns with the project's roadmap and C++ architecture.
 2.  **Fork and Branch**: Fork the repository and create a branch from `main`. Name your branch descriptively (e.g., `fix/rtsp-reconnect-latency` or `feat/yolov11-node`).
 3.  **Keep it Focused**: Avoid mixing unrelated fixes or features in a single PR. Small, incremental PRs are much easier to review and merge quickly.
-4.  **Test Your Changes**: Verify that your changes build cleanly on x86, run unit tests, and do not introduce memory leaks.
+4.  **Test Your Changes**: Verify that your changes build cleanly on x86, run relevant unit tests, and do not introduce memory leaks or lifecycle issues.
 
 ---
 
@@ -41,7 +77,12 @@ To keep the engine core stable and maintain high code quality, please follow thi
 ### C++ Standards & Code Style
 CosmoEdge is written in modern C++17.
 *   **Style Guide**: We follow the [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html).
-*   **Formatting**: Use `clang-format` to format your code before submitting a PR. We provide a `.clang-format` file in the repository root. You can format your changes by running:
+*   **Formatting**: Use `clang-format` to format your code before submitting a PR. We provide a `.clang-format` file in the repository root. For most changes, prefer the repository helper:
+    ```bash
+    bash scripts/format_check.sh --staged --check
+    bash scripts/format_check.sh --staged --fix
+    ```
+    You can also format an individual file by running:
     ```bash
     clang-format -i path/to/modified_file.cc
     ```

@@ -41,7 +41,7 @@ npm run docs:preview
 说明：
 
 - 文档站构建会检查 VitePress 页面、导航和站内链接。
-- 仓库已存在 `.github/workflows/docs.yml`（手动触发 `workflow_dispatch`，构建 VitePress 并部署到 GitHub Pages）；上表"文档站"层的 `npm run docs:build` 可作为该 workflow 的基础或在其上扩展。
+- 当前仓库还没有单独的文档站 workflow；上表"文档站"层的 `npm run docs:build` 是本地验证命令，也可作为后续 PR CI 或 GitHub Pages 部署 workflow 的基础。
 - 当前依赖审计可能报告 npm dependency vulnerabilities，公开发布前应单独评估并记录处理结论。
 
 ## 前端检查
@@ -169,4 +169,3 @@ Windows PowerShell：
 ```
 
 Sophon 发布包构建依赖交叉编译环境和 Sophon SDK。`build_output/` 中导出的包名格式为 `cosmo-V<major>.<minor>.<patch>-<md5>.tar.gz`。
-

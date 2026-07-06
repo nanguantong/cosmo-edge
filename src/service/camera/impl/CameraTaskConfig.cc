@@ -43,21 +43,6 @@ namespace {
 }  // namespace
 
 // ============================================================
-//  Per-camera task lookup helper
-// ============================================================
-
-CameraTaskPtr CameraServiceImpl::GetCameraTask(const CameraEntityPtr& camera,
-                                               const std::string& algorithmCode) const {
-    std::shared_lock<std::shared_mutex> lock(camera->task_mtx_);
-    auto it = std::find_if(camera->tasks_.begin(), camera->tasks_.end(),
-                           [&](const CameraTaskPtr& cfg) { return cfg->algorithm_code_ == algorithmCode; });
-    if (it != camera->tasks_.end()) {
-        return (*it);
-    }
-    return nullptr;
-}
-
-// ============================================================
 //  Task parameter / area / strategy / switch operations
 // ============================================================
 
@@ -241,7 +226,9 @@ util::ErrorEnum CameraServiceImpl::SwitchTask(const std::string& cameraId, const
             std::vector<GpuMemSnapshot> devs;
             devs.reserve(gpu_info.gpudevusage.size());
             std::transform(gpu_info.gpudevusage.begin(), gpu_info.gpudevusage.end(), std::back_inserter(devs),
-                           [](const auto& d) { return GpuMemSnapshot{d.gpumemtotal, d.gpumemavailable}; });
+                           [](const auto& d) {
+                               return GpuMemSnapshot{d.gpumemtotal, d.gpumemavailable};
+                           });
             auto score = CalcCustomScore(gpu_info.gpuusage, gpu_info.gpumemtotal, gpu_info.gpumemavailable,
                                          devs, discard_percent, continues_discard_sec);
             if (score > 100.0) {
@@ -606,25 +593,35 @@ util::ErrorEnum CameraServiceImpl::BindTaskLibPara(const std::string& cameraId,
     if (!camera) {
         return util::ErrorEnum::NoSuchId;
     }
-    auto task = GetCameraTask(camera, algorithmCode);
-    if (!task || !task->task_) {
+
+    // Snapshot task_->task_ into a local shared_ptr under the shared lock so concurrent
+    // RebuildAlgorithmForReload (which std::move/reset task_->task_ under the exclusive lock)
+    // cannot null or destroy the unit mid-call. SetLibPara/SetParams then run lock-free on the
+    // snapshot, keeping disk I/O (SaveLibPara/SaveParam) out of the lock scope. Mirrors the
+    // NotifyAlgorithmsChanged snapshot idiom above.
+    CameraTaskUnitPtr taskUnit;
+    {
+        std::shared_lock<std::shared_mutex> lock(camera->task_mtx_);
+        auto it = std::find_if(camera->tasks_.begin(), camera->tasks_.end(),
+                               [&](const CameraTaskPtr& t) { return t->algorithm_code_ == algorithmCode; });
+        if (it != camera->tasks_.end()) {
+            taskUnit = (*it)->task_;
+        }
+    }
+    if (!taskUnit) {
         return util::ErrorEnum::TaskNotExist;
     }
 
     auto mutable_bind_libs = bindLibs;
-    auto errc              = task->task_->SetLibPara(mutable_bind_libs);
+    auto errc              = taskUnit->SetLibPara(mutable_bind_libs);
     if (errc == util::ErrorEnum::Success) {
         MsgTaskConfig cfg;
         MsgDynamicKeyValue kv;
         kv.key   = paramKey;
         kv.value = util::JoinStrings(bindLibs);
         cfg.params.push_back(std::move(kv));
-
-        std::lock_guard<std::shared_mutex> lock(camera->task_mtx_);
-        auto it = std::find_if(camera->tasks_.begin(), camera->tasks_.end(),
-                               [&](const CameraTaskPtr& t) { return t->algorithm_code_ == algorithmCode; });
-        if (it != camera->tasks_.end() && (*it)->task_ && (*it)->task_->IsReady()) {
-            errc = (*it)->task_->SetParams(cfg);
+        if (taskUnit->IsReady()) {
+            errc = taskUnit->SetParams(cfg);
         }
     }
     return errc;

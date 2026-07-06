@@ -191,7 +191,6 @@ private:
                                                     const std::string& algorithmCode);
     void RebuildAlgorithmForReload(const CameraEntityPtr& camera, const std::string& algorithmCode);
     void StartTasksAfterReload(const CameraEntityPtr& camera, const std::vector<std::string>& taskIds);
-    CameraTaskPtr GetCameraTask(const CameraEntityPtr& camera, const std::string& algorithmCode) const;
 
 private:
     mutable std::shared_mutex mtx_;

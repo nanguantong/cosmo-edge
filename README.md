@@ -12,10 +12,12 @@
 [![Release](https://img.shields.io/badge/release-v1.0.0-green?style=flat-square)](https://github.com/cosmo-wander-ai/cosmo-edge/releases)
 [![Stress Test](https://img.shields.io/badge/stress%20test-200%20video%20samples-brightgreen?style=flat-square)](#validation)
 [![Pipelines](https://img.shields.io/badge/pipelines-26%20validated-brightgreen?style=flat-square)](#validation)
+[![Website](https://img.shields.io/badge/website-cosmowander.ai-3B82F6?style=flat-square)](https://www.cosmowander.ai/)
+[![Docs](https://img.shields.io/badge/docs-online-2563EB?style=flat-square)](https://www.cosmowander.ai/docs/)
 [![GitHub](https://img.shields.io/badge/GitHub-cosmo--edge-181717?style=flat-square&logo=github)](https://github.com/cosmo-wander-ai/cosmo-edge)
 [![Gitee](https://img.shields.io/badge/Gitee-cosmo--edge-C71D23?style=flat-square&logo=gitee)](https://gitee.com/cosmo-wander-ai/cosmo-edge)
 
-[Quick Start](#quick-start) | [Features](#key-features) | [Validation](#validation) | [Docs](#documentation) | [Hardware](#cosmoedge-ready-devices)
+[Official Website](https://www.cosmowander.ai/) | [Online Docs](https://www.cosmowander.ai/docs/) | [Quick Start](#quick-start) | [Features](#key-features) | [Validation](#validation) | [Benchmarks](https://www.cosmowander.ai/docs/benchmarks/scenario-bench/v1.0/) | [Hardware](#cosmoedge-ready-devices)
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 

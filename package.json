@@ -1,6 +1,15 @@
 {
   "name": "cosmo-edge-docs",
   "private": true,
+  "description": "CosmoEdge documentation site for the open-source C++ edge AI engine.",
+  "homepage": "https://www.cosmowander.ai/docs/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cosmo-wander-ai/cosmo-edge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/cosmo-wander-ai/cosmo-edge/issues"
+  },
   "type": "module",
   "scripts": {
     "docs:dev": "vitepress dev docs",

@@ -259,26 +259,23 @@ void MemoryPoolMng::Recycle(Block* block) {
 
 std::vector<PoolStatus> MemoryPoolMng::Status() const {
     std::vector<PoolStatus> status;
-    for (auto it = pools_.begin(); it != pools_.end();) {
+    ForEachPool([&status](const std::shared_ptr<FixedBlockPool>& pool) {
         PoolStatus statu;
-        statu.pool_size         = it->second->BlockSize();
-        statu.used_cnt          = it->second->UsingCount();
-        statu.idle_cnt          = it->second->IdleCount();
-        statu.used_nodes_status = it->second->Status();
+        statu.pool_size         = pool->BlockSize();
+        statu.used_cnt          = pool->UsingCount();
+        statu.idle_cnt          = pool->IdleCount();
+        statu.used_nodes_status = pool->Status();
         status.push_back(statu);
-        it++;
-    }
+    });
     return status;
 }
 
 std::string MemoryPoolMng::OutputMallocBuf() const {
     std::string msg;
-    std::shared_lock<std::shared_mutex> lock(mtx_);
-    for (auto it = pools_.begin(); it != pools_.end();) {
-        msg += it->second->OutputMalloc();
+    ForEachPool([&msg](const std::shared_ptr<FixedBlockPool>& pool) {
+        msg += pool->OutputMalloc();
         msg += "\\n";
-        it++;
-    }
+    });
     return msg;
 }
 

@@ -2,6 +2,7 @@
 
 #include <map>
 #include <memory>
+#include <shared_mutex>
 #include <string>
 #include <vector>
 
@@ -61,6 +62,17 @@ private:
     mutable std::shared_mutex mtx_;
     std::vector<int> pool_block_size_;
     std::map<int, std::shared_ptr<FixedBlockPool>> pools_;
+
+    // Iterate pools_ under a shared lock: keeps the map structure stable and
+    // each node's shared_ptr alive for the duration of fn, mutually exclusive
+    // with the exclusive writers CleanAllPool()/CreatePoolInst().
+    template <typename Fn>
+    void ForEachPool(Fn&& fn) const {
+        std::shared_lock<std::shared_mutex> lock(mtx_);
+        for (const auto& kv : pools_) {
+            fn(kv.second);
+        }
+    }
 
     cosmo::AsyncQueue<BlockOp> block_op_queue_;
 

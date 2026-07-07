@@ -81,10 +81,9 @@ export class ReportWriter {
       conclusion = `压测中断：运行到 ${r.error?.atChannels ?? '?'} 路时停止，原因：${r.error?.message ?? '未知错误'}`;
     } else if (bottleneck) {
       if (continuousProfile) {
-        const failChannels = firstFailed?.channels ?? bottleneck.channels;
-        conclusion = `容量上限：${maxStableChannels ?? 0} 路；${failChannels} 路开始不满足通过条件，原因：${(firstFailed?.reasons?.join('; ') || bottleneck.reason)}`;
+        conclusion = `容量上限：${maxStableChannels ?? 0} 路；第 ${bottleneck.stepNumber} 阶段（${bottleneck.channels} 路）触发失败/停止，原因：${bottleneck.reason}`;
       } else {
-        const upper = firstFailed?.channels ?? bottleneck.channels;
+        const upper = bottleneck.channels;
         conclusion = `已验证通过阶梯：${maxVerifiedPassedChannels ?? 0} 路；连续最大稳定路数未精确测定，已知 >= ${maxVerifiedPassedChannels ?? 0} 路且 < ${upper} 路；第 ${bottleneck.stepNumber} 阶段 ${bottleneck.channels} 路触发失败/停止，原因：${bottleneck.reason}`;
       }
     } else if (overallPass) {
@@ -118,9 +117,9 @@ export class ReportWriter {
         channels: firstFailed.channels,
         reasons: firstFailed.reasons,
       } : null,
-      capacityBound: !continuousProfile && firstFailed ? {
+      capacityBound: !continuousProfile && bottleneck ? {
         lowerInclusive: maxVerifiedPassedChannels,
-        upperExclusive: firstFailed.channels,
+        upperExclusive: bottleneck.channels,
       } : null,
       bottleneck,
       baselineFps: r.baselineFps,

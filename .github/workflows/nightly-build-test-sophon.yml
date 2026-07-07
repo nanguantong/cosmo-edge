@@ -89,6 +89,7 @@ jobs:
           shards_dir="$results_dir/shards"
           bisect_dir="$results_dir/bisect"
           summary_file="$results_dir/summary.txt"
+          gcov_dir="${RUNNER_TEMP:-/tmp}/cosmo-gcov-${GITHUB_RUN_ID:-manual}-${GITHUB_RUN_ATTEMPT:-0}"
 
           # Validate numeric knobs: a non-positive shard_count would skip every loop and
           # the verdict below would pass 0/0 → green with zero tests run.
@@ -102,8 +103,15 @@ jobs:
           require_pos_int COSMO_CATCH2_SHARD_TIMEOUT_SECONDS "$shard_timeout_seconds"
           require_pos_int COSMO_TEST_CASE_TIMEOUT_SECONDS    "$case_timeout_seconds"
 
-          mkdir -p "$shards_dir" "$bisect_dir"
+          mkdir -p "$shards_dir" "$bisect_dir" "$gcov_dir"
           : > "$summary_file"
+
+          # cosmo-tests is built with --coverage. The binary was produced in
+          # GitHub's /__w workspace, but this job runs on a Sophon device where
+          # that path does not exist. Redirect gcov writes to a local writable
+          # directory so libgcov does not pollute stderr or fail process exit.
+          export GCOV_PREFIX="$gcov_dir"
+          export GCOV_PREFIX_STRIP=4
 
           if ! command -v timeout >/dev/null 2>&1; then
             echo "Required command is missing: timeout" >&2
@@ -114,13 +122,18 @@ jobs:
           #    plain name per line (Catch2's listTestNamesOnly), which round-trips through
           #    --input-file. Wrap in timeout in case the binary deadlocks while loading.
           list_file="$results_dir/test-list.txt"
-          timeout 120s ./cosmo-tests --list-tests --verbosity quiet > "$list_file" 2>&1
+          raw_list_file="$results_dir/test-list.raw.txt"
+          list_stderr_file="$results_dir/test-list.stderr.log"
+          timeout 120s ./cosmo-tests --list-tests --verbosity quiet > "$raw_list_file" 2> "$list_stderr_file"
           list_status=$?
           if [ "$list_status" -ne 0 ]; then
             echo "Failed to list Catch2 test cases, exit code: $list_status" >&2
-            cat "$list_file"
+            cat "$raw_list_file"
+            cat "$list_stderr_file"
             exit "$list_status"
           fi
+
+          awk 'NF && $0 !~ /^profiling:/' "$raw_list_file" > "$list_file"
 
           mapfile -t all_tests < "$list_file"
           total=${#all_tests[@]}

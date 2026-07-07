@@ -189,6 +189,9 @@ thresholds:
       avgDiscardRate: 0.05
 ```
 
+`local` 模式下，直接 VLM 任务会自动把 `targetFps` 注入为 `param.videoReadFps`，
+让 demux 按分析频率取帧，避免 0.1fps 级别的大模型被源视频原生帧率持续推帧压爆。
+
 阈值合并顺序为：策略默认值 -> `thresholds.pass` -> `thresholds.taskTypes.<type>` 或 `thresholds.strategies.<type>` -> `thresholds.tasks.<taskId>`。因此可以在同一个 workload 内让 CV 和 VLM 使用不同规则。VLM 不会继承全局 `maxDetectorLatencyMs`、`maxCriticalPathLatencyMs`、`maxAvgNodeLatencyMs`，端到端延时需要在 `taskTypes.vlm` 或 `tasks.<taskId>` 下显式配置。
 
 ## 命令说明
@@ -278,7 +281,7 @@ node src/cli.js init-scenario --name <name> --template <algorithm-template.json>
 
 | 指标 | 聚合方式 |
 | --- | --- |
-| 处理 FPS | CV 任务取检测吞吐；直接 VLM 任务使用相邻采样累计完成数差分计算推理完成吞吐 |
+| 处理 FPS | CV 任务取检测吞吐；直接 VLM 任务使用稳定窗口累计完成数差分计算推理完成吞吐，避免低频任务被单个采样点 0 FPS 误判 |
 | 检测 FPS | 前置 CV 检测吞吐，仅作诊断参考，不作为 VLM 任务的处理吞吐 |
 | VLM 平均延时 | RunningDetail 中 Qwen3VL 节点的 `durationAvgUs`，换算为毫秒 |
 | 平均丢弃率 | 先计算每个通道稳定窗口平均丢弃率，再对通道取平均；报告 PASS/FAIL 使用该值 |

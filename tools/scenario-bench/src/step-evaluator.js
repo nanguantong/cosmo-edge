@@ -42,6 +42,7 @@ export function summarizeStep(step, samples, thresholds = {}, videoMode = 'local
           channelId: ch.channelId,
           targetFps: ch.targetFps ?? null,
           fps: [],
+          primaryTotals: [],
           pipelineMinFps: [],
           fpsRatio: [],
           discardRate: [],
@@ -58,6 +59,9 @@ export function summarizeStep(step, samples, thresholds = {}, videoMode = 'local
         continue;
       }
       if (typeof ch.measuredFps === 'number') stat.fps.push(ch.measuredFps);
+      if (typeof ch.primaryProcessTotal === 'number') {
+        stat.primaryTotals.push({ ts: tick.ts, value: ch.primaryProcessTotal });
+      }
       if (typeof ch.pipelineMinFps === 'number') stat.pipelineMinFps.push(ch.pipelineMinFps);
       if (typeof ch.fpsRatio === 'number') stat.fpsRatio.push(ch.fpsRatio);
       if (typeof ch.discardRate === 'number') stat.discardRate.push(ch.discardRate);
@@ -75,27 +79,7 @@ export function summarizeStep(step, samples, thresholds = {}, videoMode = 'local
     }
   }
 
-  const channelStats = [...byBinding.values()].map((stat) => ({
-    taskKey: stat.taskKey,
-    taskDisplayName: stat.taskDisplayName,
-    taskType: stat.taskType,
-    algorithmId: stat.algorithmId,
-    channelId: stat.channelId,
-    targetFps: stat.targetFps,
-    sampleCount: stat.sampleCount,
-    missingSamples: stat.missingSamples,
-    missingRate: stat.sampleCount ? round(stat.missingSamples / stat.sampleCount, 4) : null,
-    avgThroughputFps: stat.fps.length ? round(mean(stat.fps), 2) : null,
-    minThroughputFps: stat.fps.length ? round(Math.min(...stat.fps), 2) : null,
-    avgDetectorFps: stat.fps.length ? round(mean(stat.fps), 2) : null,
-    minDetectorFps: stat.fps.length ? round(Math.min(...stat.fps), 2) : null,
-    minFpsRatio: stat.fpsRatio.length ? round(Math.min(...stat.fpsRatio), 3) : null,
-    minPipelineFps: stat.pipelineMinFps.length ? round(Math.min(...stat.pipelineMinFps), 2) : null,
-    avgDiscardRate: stat.discardRate.length ? round(mean(stat.discardRate), 4) : null,
-    avgPrimaryLatencyMs: stat.primaryLat.length ? round(mean(stat.primaryLat), 1) : null,
-    avgDetectorLatencyMs: stat.primaryLat.length ? round(mean(stat.primaryLat), 1) : null,
-    avgCriticalPathLatencyMs: stat.criticalLat.length ? round(mean(stat.criticalLat), 1) : null,
-  }));
+  const channelStats = [...byBinding.values()].map(summarizeBinding);
 
   const allThroughputFps = channelStats
     .flatMap((stat) => [stat.avgThroughputFps, stat.minThroughputFps])
@@ -213,6 +197,47 @@ export function runtimeStepDecision(summary, {
     reasons.push(`meanDiscard ${summary.avgDiscard.toFixed(3)} > ${discardBottleneck}`);
   }
   return reasons.length ? { stop: true, reason: reasons.join('; '), reasons } : { stop: false, reasons: [] };
+}
+
+function summarizeBinding(stat) {
+  const isVlm = strategyForTaskType(stat.taskType).id === 'vlm';
+  const windowThroughputFps = isVlm ? counterWindowFps(stat.primaryTotals) : null;
+  const avgThroughputFps = windowThroughputFps ?? (stat.fps.length ? mean(stat.fps) : null);
+  const minThroughputFps = windowThroughputFps ?? (stat.fps.length ? Math.min(...stat.fps) : null);
+  const minFpsRatio = windowThroughputFps != null && stat.targetFps != null && stat.targetFps > 0
+    ? windowThroughputFps / stat.targetFps
+    : (stat.fpsRatio.length ? Math.min(...stat.fpsRatio) : null);
+
+  return {
+    taskKey: stat.taskKey,
+    taskDisplayName: stat.taskDisplayName,
+    taskType: stat.taskType,
+    algorithmId: stat.algorithmId,
+    channelId: stat.channelId,
+    targetFps: stat.targetFps,
+    sampleCount: stat.sampleCount,
+    missingSamples: stat.missingSamples,
+    missingRate: stat.sampleCount ? round(stat.missingSamples / stat.sampleCount, 4) : null,
+    avgThroughputFps: avgThroughputFps != null ? round(avgThroughputFps, 2) : null,
+    minThroughputFps: minThroughputFps != null ? round(minThroughputFps, 2) : null,
+    avgDetectorFps: avgThroughputFps != null ? round(avgThroughputFps, 2) : null,
+    minDetectorFps: minThroughputFps != null ? round(minThroughputFps, 2) : null,
+    windowThroughputFps: windowThroughputFps != null ? round(windowThroughputFps, 2) : null,
+    minFpsRatio: minFpsRatio != null ? round(minFpsRatio, 3) : null,
+    minPipelineFps: stat.pipelineMinFps.length ? round(Math.min(...stat.pipelineMinFps), 2) : null,
+    avgDiscardRate: stat.discardRate.length ? round(mean(stat.discardRate), 4) : null,
+    avgPrimaryLatencyMs: stat.primaryLat.length ? round(mean(stat.primaryLat), 1) : null,
+    avgDetectorLatencyMs: stat.primaryLat.length ? round(mean(stat.primaryLat), 1) : null,
+    avgCriticalPathLatencyMs: stat.criticalLat.length ? round(mean(stat.criticalLat), 1) : null,
+  };
+}
+
+function counterWindowFps(samples) {
+  if (!Array.isArray(samples) || samples.length < 2) return null;
+  const first = samples[0];
+  const last = samples[samples.length - 1];
+  if (last.ts <= first.ts || last.value < first.value) return null;
+  return ((last.value - first.value) * 1000) / (last.ts - first.ts);
 }
 
 function summarizeTasks(channelStats) {

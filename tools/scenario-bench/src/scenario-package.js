@@ -157,7 +157,9 @@ export class ScenarioPackage {
     const vlm = detectVlmMode(template);
     const type = vlm.direct ? 'vlm' : (spec.type ?? 'cv');
     const targetFps = spec.targetFps != null ? Number(spec.targetFps) : extractTargetFpsFromTemplate(template);
-    const taskConfig = buildTaskConfig(template, this.videoRepeatCount);
+    const normalizedType = normalizeTaskType(type);
+    const videoReadFps = this.videoMode === 'local' && normalizedType === 'vlm' ? targetFps : null;
+    const taskConfig = buildTaskConfig(template, this.videoRepeatCount, videoReadFps);
 
     return {
       id,
@@ -265,12 +267,16 @@ export class ScenarioPackage {
   }
 }
 
-function buildTaskConfig(template, videoRepeatCount) {
+function buildTaskConfig(template, videoRepeatCount, videoReadFps = null) {
   const base = template.taskConfig ?? { params: [], areas: [] };
   const params = Array.isArray(base.params) ? [...base.params] : [];
   const hasRepeat = params.some((p) => p?.key === 'param.videoRepeatCount');
   if (!hasRepeat) {
     params.push({ key: 'param.videoRepeatCount', value: String(videoRepeatCount) });
+  }
+  const hasReadFps = params.some((p) => p?.key === 'param.videoReadFps');
+  if (!hasReadFps && Number.isFinite(videoReadFps) && videoReadFps > 0) {
+    params.push({ key: 'param.videoReadFps', value: String(videoReadFps) });
   }
   return { ...base, params, areas: base.areas ?? [] };
 }

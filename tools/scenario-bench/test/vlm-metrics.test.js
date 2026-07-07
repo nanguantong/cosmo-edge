@@ -85,6 +85,7 @@ test('direct VLM throughput uses completed counter deltas instead of detector FP
     now += 2_000;
     const second = await sampler.sample(binding);
     assert.equal(second.channels[0].measuredFps, 1.5);
+    assert.equal(second.channels[0].primaryProcessTotal, 13);
     assert.equal(second.channels[0].telemetryMissing, false);
 
     includeVlm = false;

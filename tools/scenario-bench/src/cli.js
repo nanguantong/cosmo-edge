@@ -4,7 +4,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { CosmoClient } from './cosmo-client.js';
-import { ScenarioPackage } from './scenario-package.js';
+import {
+  DEFAULT_HOLD_SEC,
+  DEFAULT_VLM_HOLD_SEC,
+  ScenarioPackage,
+  detectVlmMode,
+} from './scenario-package.js';
 import { ChannelManager } from './channel-manager.js';
 import { TaskRunner } from './task-runner.js';
 import { MetricsSampler } from './metrics-sampler.js';
@@ -232,6 +237,9 @@ async function initScenario(args) {
   const algorithmId = String(args['algorithm-id'] ?? template.algorithmCode ?? template.algorithmId ?? template.id ?? '');
   if (!algorithmId) throw new Error('cannot derive algorithm id; pass --algorithm-id');
 
+  const isVlm = detectVlmMode(template).direct;
+  const taskType = isVlm ? 'vlm' : 'cv';
+  const defaultHoldSec = isVlm ? DEFAULT_VLM_HOLD_SEC : DEFAULT_HOLD_SEC;
   const displayName = args['display-name'] ?? `${name} (algorithm ${algorithmId}${args['target-fps'] ? `, fps${args['target-fps']}` : ''})`;
   const scheduleId = args['schedule-id'] ?? 'default-schedule';
   const videoPath = path.resolve(args.video);
@@ -260,22 +268,22 @@ channels:
 tasks:
   - id: ${yamlString(name)}
     displayName: ${yamlString(displayName)}
-    type: cv
+    type: ${taskType}
     algorithmId: "${algorithmId}"
     scheduleId: ${yamlString(scheduleId)}
     template: algorithm-template.json
 ${targetFpsLine}
 loadProfile:
   - channels: 1
-    holdSec: 30
+    holdSec: ${defaultHoldSec}
   - channels: 4
-    holdSec: 30
+    holdSec: ${defaultHoldSec}
   - channels: 8
-    holdSec: 30
+    holdSec: ${defaultHoldSec}
   - channels: 16
-    holdSec: 30
+    holdSec: ${defaultHoldSec}
   - channels: 24
-    holdSec: 30
+    holdSec: ${defaultHoldSec}
 
 thresholds:
   pass:

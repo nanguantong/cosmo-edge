@@ -134,7 +134,7 @@ thresholds:
     maxPacketDiscardRate: 0.01
 ```
 
-默认运行模式为 `--profile capacity`，工具会将 `loadProfile` 展开为连续路数扫描。以上配置表示最多扫描到 24 路，实际执行路数为 `1,2,3,...,24`。`holdSec` 使用相邻配置的保持时间；常规场景中保持各项一致即可。
+默认运行模式为 `--profile capacity`，工具会将 `loadProfile` 展开为连续路数扫描。以上配置表示最多扫描到 24 路，实际执行路数为 `1,2,3,...,24`。`holdSec` 使用相邻配置的保持时间；常规场景中保持各项一致即可。若某个 step 省略 `holdSec`，工具会按 workload 类型填默认值：纯 CV 场景 30s，包含 VLM 任务的场景 60s；显式配置始终优先。
 
 核心语义：
 
@@ -191,6 +191,7 @@ thresholds:
 
 `local` 模式下，直接 VLM 任务会自动把 `targetFps` 注入为 `param.videoReadFps`，
 让 demux 按分析频率取帧，避免 0.1fps 级别的大模型被源视频原生帧率持续推帧压爆。
+VLM 场景省略 `loadProfile[].holdSec` 时默认保持 60s，给模型加载、低频推理完成计数和稳定窗口统计留出足够观察时间；需要压长稳态时仍可显式写成 120s 或更长。
 
 阈值合并顺序为：策略默认值 -> `thresholds.pass` -> `thresholds.taskTypes.<type>` 或 `thresholds.strategies.<type>` -> `thresholds.tasks.<taskId>`。因此可以在同一个 workload 内让 CV 和 VLM 使用不同规则。VLM 不会继承全局 `maxDetectorLatencyMs`、`maxCriticalPathLatencyMs`、`maxAvgNodeLatencyMs`，端到端延时需要在 `taskTypes.vlm` 或 `tasks.<taskId>` 下显式配置。
 
@@ -251,6 +252,8 @@ node src/cli.js init-scenario --name <name> --template <algorithm-template.json>
 | `--algorithm-id <id>` | 算法 ID；不传时从模板推导 |
 | `--schedule-id <id>` | 调度 ID |
 | `--target-fps <n>` | 当模板无法暴露目标 FPS 时写入 `tasks[].targetFps` |
+
+`init-scenario` 会识别模板中的直接 VLM 节点（`DA_00003`/`PDA_00003`）：VLM 场景生成 `type: vlm`，默认阶梯保持 60s；其他 CV 场景默认 30s。
 
 ## 判定口径
 

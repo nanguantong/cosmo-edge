@@ -16,6 +16,8 @@ import { normalizeTaskType } from './task-strategies.js';
 const FPS_ACTION_ID = 'AA_00001';
 const VLM_ACTION_IDS = new Set(['DA_00003', 'PDA_00003']);
 const SUPPORTED_VIDEO_MODES = new Set(['local', 'rtsp-fidelity', 'rtsp-deterministic']);
+export const DEFAULT_HOLD_SEC = 30;
+export const DEFAULT_VLM_HOLD_SEC = 60;
 
 export class ScenarioPackage {
   /**
@@ -131,6 +133,7 @@ export class ScenarioPackage {
     });
 
     this.bindings = this._normalizeBindings(this.scenario.bindings);
+    this.scenario.loadProfile = this._normalizeLoadProfile(this.scenario.loadProfile);
   }
 
   _videosFromChannels(channels) {
@@ -192,6 +195,17 @@ export class ScenarioPackage {
     });
   }
 
+  _normalizeLoadProfile(loadProfile) {
+    if (!Array.isArray(loadProfile)) return loadProfile;
+
+    const defaultHoldSec = defaultHoldSecForTasks(this.tasks);
+    return loadProfile.map((step) => ({
+      ...step,
+      channels: Number(step.channels),
+      holdSec: step.holdSec == null ? defaultHoldSec : Number(step.holdSec),
+    }));
+  }
+
   // -- file helpers ---------------------------------------------------------
 
   _readText(name) {
@@ -221,7 +235,7 @@ export class ScenarioPackage {
 
   _validate() {
     if (!this.scenario?.name) throw new Error('scenario.yml: missing "name"');
-    if (!this.scenario?.loadProfile?.length) {
+    if (!Array.isArray(this.scenario?.loadProfile) || !this.scenario.loadProfile.length) {
       throw new Error('scenario.yml: loadProfile must have at least one step');
     }
     for (const [i, step] of this.scenario.loadProfile.entries()) {
@@ -279,6 +293,14 @@ function buildTaskConfig(template, videoRepeatCount, videoReadFps = null) {
     params.push({ key: 'param.videoReadFps', value: String(videoReadFps) });
   }
   return { ...base, params, areas: base.areas ?? [] };
+}
+
+export function defaultHoldSecForTasks(tasks) {
+  const hasVlm = (tasks ?? []).some((task) => {
+    const type = task && typeof task === 'object' ? task.type : task;
+    return normalizeTaskType(type) === 'vlm';
+  });
+  return hasVlm ? DEFAULT_VLM_HOLD_SEC : DEFAULT_HOLD_SEC;
 }
 
 function buildLayoutSavePayload(template) {

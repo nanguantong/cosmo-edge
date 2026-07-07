@@ -88,4 +88,83 @@ loadProfile:
   const params = pkg.taskConfig.params;
   assert.equal(params.find((param) => param.key === 'param.videoRepeatCount')?.value, '0');
   assert.equal(params.find((param) => param.key === 'param.videoReadFps')?.value, '0.1');
+  assert.equal(pkg.loadProfile[0].holdSec, 120);
 });
+
+test('defaults omitted VLM hold seconds to 60', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scenario-bench-vlm-default-hold-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  fs.writeFileSync(path.join(dir, 'scenario.yml'), `name: vlm-default-hold
+sampleIntervalSec: 5
+channels:
+  mode: local
+  repeatCount: 0
+  sources:
+    - name: vlm
+      filePath: /device/vlm.mp4
+      contentLength: 100
+tasks:
+  - id: vlm
+    displayName: VLM
+    algorithmId: "55009"
+    scheduleId: schedule
+    template: algorithm-template.json
+    targetFps: 0.1
+loadProfile:
+  - channels: 1
+  - channels: 2
+`, 'utf8');
+  writeTemplate(path.join(dir, 'algorithm-template.json'), {
+    actionId: 'DA_00003',
+    name: 'Qwen3VLWorker',
+    configObject: { params: [{ key: 'fps', value: '0.1' }] },
+  });
+
+  const pkg = new ScenarioPackage(dir).load();
+  assert.deepEqual(pkg.loadProfile.map((step) => step.holdSec), [60, 60]);
+});
+
+test('defaults omitted CV hold seconds to 30', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scenario-bench-cv-default-hold-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  fs.writeFileSync(path.join(dir, 'scenario.yml'), `name: cv-default-hold
+sampleIntervalSec: 5
+channels:
+  mode: local
+  repeatCount: 0
+  sources:
+    - name: cv
+      filePath: /device/cv.mp4
+      contentLength: 100
+tasks:
+  - id: cv
+    displayName: CV
+    type: cv
+    algorithmId: "99898"
+    scheduleId: schedule
+    template: algorithm-template.json
+loadProfile:
+  - channels: 1
+  - channels: 4
+`, 'utf8');
+  writeTemplate(path.join(dir, 'algorithm-template.json'), {
+    actionId: 'AA_00001',
+    name: 'AIDetector',
+    configObject: { params: [{ key: 'fps', value: '5' }] },
+  });
+
+  const pkg = new ScenarioPackage(dir).load();
+  assert.deepEqual(pkg.loadProfile.map((step) => step.holdSec), [30, 30]);
+});
+
+function writeTemplate(file, processNode) {
+  fs.writeFileSync(file, JSON.stringify({
+    algorithmId: '55009',
+    algorithmCode: '55009',
+    algorithmName: 'Template',
+    taskConfig: { params: [], areas: [] },
+    algorithmProcessdata: JSON.stringify([processNode]),
+  }), 'utf8');
+}

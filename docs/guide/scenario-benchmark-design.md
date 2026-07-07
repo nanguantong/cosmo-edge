@@ -145,6 +145,7 @@ thresholds:
 
 - 对 CV 任务，`targetFps`（编排设定值）仍作为 `minFpsRatio` 的分母，但其语义在 local 模式下是**下限基准**（实测 fps 必然远大于它，ratio 通常 ≫ 1，该阈值恒 PASS，仅用于兜底发现"完全跑不动"的情况）。
 - 对直接 VLM 任务，工具会把 `targetFps` 注入为 `param.videoReadFps`（`Keys.h` 的 `CHANNEL_SOURCE_FPS`），让 demux 按分析频率取帧，避免 0.1fps 级别任务被源视频原生帧率压爆。
+- 对包含 VLM 的 workload，`loadProfile[].holdSec` 省略时默认 60s；纯 CV workload 仍默认 30s。显式配置始终优先，例如需要长一点的稳态窗口时可写 120s。
 - CV 容量判断仍主要看**并发路数上去后实测 fps 是否被压低、丢弃率是否上升**；VLM 容量判断看稳定窗口内的推理完成吞吐、采样缺失率和可选端到端延时。
 :::
 
@@ -549,6 +550,7 @@ node tools/scenario-bench/src/cli.js run \
 - 视频样本必须固定，避免输入源差异导致误判性能波动。`local` 模式的可复现性最强，应作为短时跨版本/跨设备对比的基准模式。
 - `local` 模式已支持循环播放（`param.videoRepeatCount=0`），但 local 视频任务**不能 OFF 后再 ON**（demux 不会重启本地文件）。因此压测采用增量绑定、全程不关任务，仅最终 teardown 全关。同一短片段反复播放画面复杂度恒定、事件在每一轮同一时刻触发、`packetDiscardUtilization` 恒为 0，只适合容量隔离测试，不能模拟真实部署的忙闲波动。
 - `local` 模式下 CV 默认仍以**源视频原生帧率全速推帧**（实测 ~42fps，编排设定 fps=3 未在 demux 层生效）。直接 VLM 任务会自动注入 `param.videoReadFps=targetFps`，否则低频大模型会被全速输入压出不符合手工测试的高延时。
+- VLM 的默认阶梯保持时间为 60s，避免 30s 窗口被模型加载、低频完成计数和采样边界放大；需要压长稳态时仍应在场景包中显式写更长时间。
 - `rtsp-*` 模式下控制 PC 推流压力需要监控，避免视频源自身成为瓶颈。
 - 长稳测试应记录设备重启、服务重启和 API 超时情况。
 - 第一版不要开放过多业务参数，避免压测工具演变成另一个配置系统。

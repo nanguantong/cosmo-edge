@@ -31,3 +31,52 @@ test('capacity conclusion uses bottleneck step when an earlier step has a report
   assert.match(summary.conclusion, /第 7 阶段/);
   assert.doesNotMatch(summary.conclusion, /1 路开始/);
 });
+
+test('HTML rendering formats task percentage fields', () => {
+  const writer = new ReportWriter('.');
+  const html = writer._renderHtml({
+    scenarioName: 'vlm',
+    tasks: [{ id: 'vlm', type: 'vlm', algorithmId: '77175', targetFps: 0.1 }],
+    videoMode: 'local',
+    status: 'completed',
+    thresholds: { pass: {} },
+    samples: [{ ts: 0 }, { ts: 3000 }],
+  }, [{
+    step: { index: 0 },
+    channels: 1,
+    holdSec: 60,
+    targetFps: 0.1,
+    minFpsAcross: 0.1,
+    criticalPathLatencyMs: 1200,
+    detectorLatencyMs: 1200,
+    avgDiscard: 0,
+    maxDiscard: 0,
+    maxNpu: 90,
+    maxCpu: 3,
+    maxMem: 55,
+    pass: true,
+    reasons: [],
+    perThreshold: [],
+    taskStats: [{
+      taskKey: 'vlm',
+      taskDisplayName: 'vlm',
+      strategy: 'vlm',
+      algorithmId: '77175',
+      bindingCount: 1,
+      minThroughputFps: 0.1,
+      minFpsRatio: 1,
+      maxMissingRate: 0,
+      avgDiscardRate: 0,
+      maxPrimaryLatencyMs: 1200,
+      maxCriticalPathLatencyMs: 1200,
+    }],
+  }], {
+    overallPass: true,
+    hasBottleneck: false,
+    maxStableChannelsExact: true,
+    conclusion: 'ok',
+  });
+
+  assert.match(html, /100%/);
+  assert.match(html, /0%/);
+});

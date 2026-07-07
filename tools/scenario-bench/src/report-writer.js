@@ -313,3 +313,8 @@ function isContinuousChannelProfile(stepSummaries) {
 function formatPercent(v) {
   return `${round(Number(v) * 100, 2)}%`;
 }
+
+function round(v, digits) {
+  const f = 10 ** digits;
+  return Math.round(v * f) / f;
+}

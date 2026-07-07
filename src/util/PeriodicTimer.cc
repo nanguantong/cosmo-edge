@@ -12,16 +12,15 @@ namespace cosmo {
 PeriodicTimer::PeriodicTimer(std::string name) : name_(std::move(name)) {}
 
 PeriodicTimer::~PeriodicTimer() {
-    if (!stop_) {
-        Destroy();
-    }
+    Destroy();
 }
 
 void PeriodicTimer::Start() {
+    std::lock_guard<std::mutex> lck(mtx_);
     if (thread_.joinable()) {
         return;
     }
-    stop_.store(false);
+    stop_   = false;
     thread_ = std::thread(&PeriodicTimer::Run, this);
 }
 
@@ -44,7 +43,10 @@ void PeriodicTimer::Cancel(TaskId id) {
 }
 
 void PeriodicTimer::Destroy() {
-    stop_.store(true);
+    {
+        std::lock_guard<std::mutex> lck(mtx_);
+        stop_ = true;
+    }
     cv_.notify_all();
     if (thread_.joinable()) {
         thread_.join();
@@ -55,10 +57,10 @@ void PeriodicTimer::Destroy() {
 
 void PeriodicTimer::Run() {
     std::unique_lock<std::mutex> lck(mtx_);
-    while (!stop_.load()) {
+    while (!stop_) {
         if (tasks_.empty()) {
-            cv_.wait(lck, [this]() { return stop_.load() || !tasks_.empty(); });
-            if (stop_.load())
+            cv_.wait(lck, [this]() { return stop_ || !tasks_.empty(); });
+            if (stop_)
                 break;
         }
 

@@ -60,7 +60,7 @@ protected:
     void Run();
 
 private:
-    std::atomic<bool> stop_{false};
+    bool stop_{false};
     std::atomic<TaskId> next_id_{1};
     std::string name_;
     TimerTaskMap tasks_;

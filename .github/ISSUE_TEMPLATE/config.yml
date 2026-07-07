@@ -7,5 +7,5 @@ contact_links:
     url: mailto:hello@cosmowander.ai
     about: Please report security issues privately instead of opening a public issue.
   - name: Documentation
-    url: https://cosmo-wander-ai.github.io/cosmo-edge/
+    url: https://www.cosmowander.ai/docs/
     about: Read the documentation before opening an issue.

@@ -80,3 +80,29 @@ test('HTML rendering formats task percentage fields', () => {
   assert.match(html, /100%/);
   assert.match(html, /0%/);
 });
+
+test('HTML rendering estimates sampling interval from stable in-step samples', () => {
+  const writer = new ReportWriter('.');
+  const html = writer._renderHtml({
+    scenarioName: 'vlm',
+    tasks: [{ id: 'vlm', type: 'vlm', algorithmId: '77175', targetFps: 0.1 }],
+    videoMode: 'local',
+    status: 'completed',
+    thresholds: { pass: {} },
+    samples: [
+      { stepIndex: 0, ts: 0 },
+      { stepIndex: 0, ts: 33000 },
+      { stepIndex: 0, ts: 36000 },
+      { stepIndex: 0, ts: 39000 },
+      { stepIndex: 1, ts: 70000 },
+      { stepIndex: 1, ts: 73000 },
+    ],
+  }, [], {
+    overallPass: true,
+    hasBottleneck: false,
+    maxStableChannelsExact: true,
+    conclusion: 'ok',
+  });
+
+  assert.match(html, /约每 3s 采样一次/);
+});

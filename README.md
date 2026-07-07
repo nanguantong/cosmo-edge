@@ -254,7 +254,7 @@ A scenario task (pipeline) bundles model, scheduling, and rule logic; at deploym
 
 ### Performance Benchmarks
 
-The results below are reproducible ScenarioBench v1.0 release benchmarks. The repository keeps sanitized summaries and human-readable reports under [docs/benchmarks/scenario-bench/v1.0](docs/benchmarks/scenario-bench/v1.0/README.md); full raw `metrics.json` traces are distributed with the v1.0 release assets.
+The results below are reproducible ScenarioBench benchmarks. CV and x86 reports are kept under the [v1.0 benchmark set](docs/benchmarks/scenario-bench/v1.0/README.md); the VLM row points to the current refreshed VLM methodology report. Full raw `metrics.json` traces are distributed separately from the repository.
 
 A video channel means one decoded input stream. A scenario task is one algorithm pipeline bound to a channel, so mixed scenarios can run more tasks than video channels. The table reports the maximum verified stable channel count within the published benchmark range.
 
@@ -263,10 +263,10 @@ A video channel means one decoded input stream. A scenario task is one algorithm
 | No Safety Helmet | YY-16T01-Preview / NPU | 16 | 16 | 3/channel | PASS | [report](docs/benchmarks/scenario-bench/v1.0/helmet-7463-npu/report.html) |
 | Pedestrian Detection | YY-16T01-Preview / NPU | 16 | 16 | 5/channel | PASS | [report](docs/benchmarks/scenario-bench/v1.0/pedestrian-45626-npu/report.html) |
 | Pedestrian + No Safety Helmet | YY-16T01-Preview / NPU | 16 | 32 | 3/channel/task | PASS | [report](docs/benchmarks/scenario-bench/v1.0/pedestrian-helmet-mixed-npu/report.html) |
-| VLM Review | YY-16T01-Preview / NPU | 8 | 8 | 0.1/channel | PASS | [report](docs/benchmarks/scenario-bench/v1.0/vlm-55009-npu/report.html) |
+| VLM Review | YY-16T01-Preview / NPU | 8 | 8 | 0.1/channel | PASS | [report](docs/benchmarks/scenario-bench/current/vlm-77175-npu/report.html) |
 | No Safety Helmet x86 baseline | X86 CPU baseline | 7 | 7 | 3/channel | LIMITED; 8 channels exceeded latency thresholds | [report](docs/benchmarks/scenario-bench/v1.0/helmet-7463-x86/report.html) |
 
-See the bilingual [benchmark manifest](docs/benchmarks/scenario-bench/v1.0/manifest.json) and [environment notes](docs/benchmarks/scenario-bench/v1.0/environment.md) for hardware profiles, model inputs, and publication policy. The x86 row is a CPU-only comparison baseline, not the v1.0 NPU device capacity target.
+See the bilingual [v1.0 benchmark manifest](docs/benchmarks/scenario-bench/v1.0/manifest.json), [environment notes](docs/benchmarks/scenario-bench/v1.0/environment.md), and [current benchmark refresh notes](docs/benchmarks/scenario-bench/current/README.md) for hardware profiles, model inputs, and publication policy. The x86 row is a CPU-only comparison baseline, not the v1.0 NPU device capacity target.
 
 ## Architecture
 

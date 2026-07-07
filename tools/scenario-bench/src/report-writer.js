@@ -134,7 +134,7 @@ export class ReportWriter {
   _renderHtml(r, stepSummaries, summary) {
     const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     const pass = r.thresholds?.pass ?? {};
-    const sampleInterval = Number(r.samples?.[1]?.ts && r.samples?.[0]?.ts ? ((r.samples[1].ts - r.samples[0].ts) / 1000).toFixed(1) : NaN);
+    const sampleInterval = estimateSampleIntervalSec(r.samples ?? []);
     const samplingText = Number.isFinite(sampleInterval)
       ? `约每 ${Math.round(sampleInterval)}s 采样一次；阶梯汇总使用该阶梯后半段采样点作为稳定窗口。`
       : '阶梯汇总使用该阶梯后半段采样点作为稳定窗口。';
@@ -317,4 +317,20 @@ function formatPercent(v) {
 function round(v, digits) {
   const f = 10 ** digits;
   return Math.round(v * f) / f;
+}
+
+function estimateSampleIntervalSec(samples) {
+  const deltas = [];
+  for (let i = 1; i < samples.length; i++) {
+    const prev = samples[i - 1];
+    const curr = samples[i];
+    if (prev?.stepIndex !== curr?.stepIndex) continue;
+    const delta = Number(curr?.ts) - Number(prev?.ts);
+    if (Number.isFinite(delta) && delta > 0) deltas.push(delta / 1000);
+  }
+  if (!deltas.length) return NaN;
+
+  deltas.sort((a, b) => a - b);
+  const mid = Math.floor(deltas.length / 2);
+  return deltas.length % 2 ? deltas[mid] : (deltas[mid - 1] + deltas[mid]) / 2;
 }

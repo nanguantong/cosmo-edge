@@ -19,3 +19,5 @@
 - 每个场景目录包含 `summary.json`、英文 `report.html` 和中文原始 `report.zh-CN.html`。
 
 完整 `metrics.json` 不提交到仓库，继续随 v1.0 release asset 发布。
+
+最新 VLM benchmark 口径和本地刷新报告见 [current/vlm-77175-npu](../current/vlm-77175-npu/report.zh-CN.html)。

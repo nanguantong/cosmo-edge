@@ -5,7 +5,7 @@ on:
   schedule:
     - cron: '12 18 * * *'
   # Allow manual trigger for testing purposes
-  workflow_dispatch: 
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,7 +14,7 @@ jobs:
   build-sophon:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    
+
     # Specify the public container image for the build environment
     container:
       image: ghcr.io/cosmo-wander-ai/cosmo_edge-build-env_sophon:v1
@@ -55,8 +55,15 @@ jobs:
   test-sophon:
     needs: build-sophon
     runs-on: [self-hosted, hosted-sophon-device]
-    timeout-minutes: 30   # self-hosted 无默认超时，防挂死占用设备
-    
+    timeout-minutes: 45   # self-hosted 无默认超时，防挂死占用设备（分片+二分；绿跑仅数分钟，45min 是坏夜二分余量）
+    env:
+      COSMO_TEST_CASE_TIMEOUT_SECONDS: 120
+      COSMO_CATCH2_SHARDS: 12
+      COSMO_CATCH2_SHARD_TIMEOUT_SECONDS: 120
+      COSMO_CATCH2_RESULTS_DIR: test-results/catch2
+      COSMO_CATCH2_REPORTER: compact
+      COSMO_SOPHON_LD_LIBRARY_PATH: /appfs/cosmo_wander/cwai_data/lib:/data:/usr/lib
+
     steps:
       - name: Download Test Binary
         uses: actions/download-artifact@v8
@@ -69,5 +76,190 @@ jobs:
 
       - name: Run Catch2 Tests
         run: |
-          export LD_LIBRARY_PATH=/appfs/cosmo_wander/cwai_data/lib:/data:/usr/lib:$LD_LIBRARY_PATH
-          ./cosmo-tests --reporter compact
+          set +e
+          set -uo pipefail
+
+          export LD_LIBRARY_PATH="$COSMO_SOPHON_LD_LIBRARY_PATH:${LD_LIBRARY_PATH:-}"
+
+          shard_count="$COSMO_CATCH2_SHARDS"
+          shard_timeout_seconds="$COSMO_CATCH2_SHARD_TIMEOUT_SECONDS"
+          case_timeout_seconds="$COSMO_TEST_CASE_TIMEOUT_SECONDS"
+          reporter="$COSMO_CATCH2_REPORTER"
+          results_dir="$COSMO_CATCH2_RESULTS_DIR"
+          shards_dir="$results_dir/shards"
+          bisect_dir="$results_dir/bisect"
+          summary_file="$results_dir/summary.txt"
+
+          # Validate numeric knobs: a non-positive shard_count would skip every loop and
+          # the verdict below would pass 0/0 → green with zero tests run.
+          require_pos_int() {
+            case "$2" in
+              ''|*[!0-9]*) echo "error: $1 must be a positive integer (got '$2')" >&2; exit 2 ;;
+            esac
+            [ "$2" -ge 1 ] || { echo "error: $1 must be >= 1 (got '$2')" >&2; exit 2; }
+          }
+          require_pos_int COSMO_CATCH2_SHARDS                "$shard_count"
+          require_pos_int COSMO_CATCH2_SHARD_TIMEOUT_SECONDS "$shard_timeout_seconds"
+          require_pos_int COSMO_TEST_CASE_TIMEOUT_SECONDS    "$case_timeout_seconds"
+
+          mkdir -p "$shards_dir" "$bisect_dir"
+          : > "$summary_file"
+
+          if ! command -v timeout >/dev/null 2>&1; then
+            echo "Required command is missing: timeout" >&2
+            exit 2
+          fi
+
+          # 1) Enumerate all test cases. `--verbosity quiet` makes --list-tests print one
+          #    plain name per line (Catch2's listTestNamesOnly), which round-trips through
+          #    --input-file. Wrap in timeout in case the binary deadlocks while loading.
+          list_file="$results_dir/test-list.txt"
+          timeout 120s ./cosmo-tests --list-tests --verbosity quiet > "$list_file" 2>&1
+          list_status=$?
+          if [ "$list_status" -ne 0 ]; then
+            echo "Failed to list Catch2 test cases, exit code: $list_status" >&2
+            cat "$list_file"
+            exit "$list_status"
+          fi
+
+          mapfile -t all_tests < "$list_file"
+          total=${#all_tests[@]}
+          if [ "$total" -eq 0 ]; then
+            echo "No Catch2 test cases found." >&2
+            exit 1
+          fi
+
+          # Don't create more shards than tests.
+          if [ "$total" -lt "$shard_count" ]; then
+            shard_count="$total"
+          fi
+
+          echo "Listed $total Catch2 test cases; splitting into $shard_count shards (${shard_timeout_seconds}s budget/shard, ${case_timeout_seconds}s/case on bisection)."
+
+          # 2) Round-robin each test name into its shard's --input-file.
+          shard_input=()
+          for ((s = 0; s < shard_count; s++)); do
+            shard_input[$s]="$(printf '%s/shards/%02d.input' "$results_dir" "$((s + 1))")"
+            : > "${shard_input[$s]}"
+          done
+          for i in "${!all_tests[@]}"; do
+            name="${all_tests[$i]}"
+            [ -n "$name" ] || continue
+            s=$((i % shard_count))
+            printf '%s\n' "$name" >> "${shard_input[$s]}"
+          done
+
+          # 3) Run each shard in its own process. Per-shard timeout bounds a hung test to
+          #    the shard budget instead of the whole job; --warn UnmatchedTestSpec turns a
+          #    partial spec match (shouldn't happen, but defensive) into a non-zero exit.
+          shards_run=0
+          shards_passed=0
+          problem_shards=0
+          bisect_targets=()
+
+          for ((s = 0; s < shard_count; s++)); do
+            input="${shard_input[$s]}"
+            # An empty --input-file means "no filter" and would run the WHOLE suite.
+            [ -s "$input" ] || continue
+
+            idx="$(printf '%02d' "$((s + 1))")"
+            log="$shards_dir/$idx.log"
+            mapfile -t shard_tests < "$input"
+            n=${#shard_tests[@]}
+            shards_run=$((shards_run + 1))
+
+            echo
+            echo "[$idx] shard with $n tests"
+
+            start_seconds="$(date +%s)"
+            timeout --kill-after=10s "${shard_timeout_seconds}s" \
+              ./cosmo-tests --input-file "$input" --reporter "$reporter" \
+                            --warn UnmatchedTestSpec \
+              > "$log" 2>&1
+            status=$?
+            elapsed_seconds=$(( $(date +%s) - start_seconds ))
+
+            if [ "$status" -eq 0 ]; then
+              echo "SHARD PASS in ${elapsed_seconds}s: #$idx ($n tests)"
+              printf 'SHARD\tPASS\telapsed_seconds=%s\ttests=%s\tshard=%s\n' "$elapsed_seconds" "$n" "$idx" >> "$summary_file"
+              shards_passed=$((shards_passed + 1))
+            elif [ "$status" -eq 42 ]; then
+              # TestFailureExitCode: an assertion already failed and Catch2 named it.
+              echo "SHARD FAIL in ${elapsed_seconds}s: #$idx (assertion failure; last 40 log lines:)"
+              tail -n 40 "$log"
+              printf 'SHARD\tFAIL\telapsed_seconds=%s\ttests=%s\tshard=%s\n' "$elapsed_seconds" "$n" "$idx" >> "$summary_file"
+              problem_shards=$((problem_shards + 1))
+            elif [ "$status" -eq 124 ] || [ "$status" -eq 137 ]; then
+              echo "SHARD TIMEOUT after ${elapsed_seconds}s: #$idx (will bisect per-test)"
+              printf 'SHARD\tTIMEOUT\telapsed_seconds=%s\ttests=%s\tshard=%s\n' "$elapsed_seconds" "$n" "$idx" >> "$summary_file"
+              bisect_targets+=("$s")
+              problem_shards=$((problem_shards + 1))
+            else
+              echo "SHARD CRASH($status) in ${elapsed_seconds}s: #$idx (will bisect per-test)"
+              printf 'SHARD\tCRASH(%s)\telapsed_seconds=%s\ttests=%s\tshard=%s\n' "$status" "$elapsed_seconds" "$n" "$idx" >> "$summary_file"
+              bisect_targets+=("$s")
+              problem_shards=$((problem_shards + 1))
+            fi
+          done
+
+          # 4) For any shard that timed out or crashed, re-run its tests one-per-process to
+          #    pinpoint the culprit. Single-spec here, so NoTestsRunExitCode=2 already
+          #    catches a no-match; --warn UnmatchedTestSpec kept for parity.
+          if [ "${#bisect_targets[@]}" -gt 0 ]; then
+            echo
+            echo "Bisecting ${#bisect_targets[@]} shard(s) per-test (${case_timeout_seconds}s/case)."
+            for s in "${bisect_targets[@]}"; do
+              idx="$(printf '%02d' "$((s + 1))")"
+              mapfile -t shard_tests < "${shard_input[$s]}"
+              echo
+              echo "[bisect #$idx] ${#shard_tests[@]} tests"
+              for j in "${!shard_tests[@]}"; do
+                name="${shard_tests[$j]}"
+                [ -n "$name" ] || continue
+                number=$((j + 1))
+                safe_name="$(printf '%s' "$name" | tr -cs '[:alnum:]_.-' '_' | cut -c1-120)"
+                safe_name="${safe_name:-test}"
+                log_file="$bisect_dir/${idx}_$(printf '%03d' "$number")_${safe_name}.log"
+                filter_file="$bisect_dir/${idx}_$(printf '%03d' "$number")_${safe_name}.filter"
+                printf '%s\n' "$name" > "$filter_file"
+
+                echo "[bisect #$idx $number/${#shard_tests[@]}] $name"
+                start_seconds="$(date +%s)"
+                timeout --kill-after=10s "${case_timeout_seconds}s" \
+                  ./cosmo-tests --input-file "$filter_file" --reporter "$reporter" \
+                                --warn UnmatchedTestSpec \
+                  > "$log_file" 2>&1
+                status=$?
+                elapsed_seconds=$(( $(date +%s) - start_seconds ))
+
+                if [ "$status" -eq 0 ]; then
+                  printf 'BISECT\tPASS\tshard=%s\telapsed_seconds=%s\t%s\n' "$idx" "$elapsed_seconds" "$name" >> "$summary_file"
+                elif [ "$status" -eq 124 ] || [ "$status" -eq 137 ]; then
+                  echo "  -> TIMEOUT after ${elapsed_seconds}s: $name"
+                  printf 'BISECT\tTIMEOUT\tshard=%s\telapsed_seconds=%s\t%s\n' "$idx" "$elapsed_seconds" "$name" >> "$summary_file"
+                else
+                  echo "  -> FAIL($status) in ${elapsed_seconds}s: $name"
+                  printf 'BISECT\tFAIL(%s)\tshard=%s\telapsed_seconds=%s\t%s\n' "$status" "$idx" "$elapsed_seconds" "$name" >> "$summary_file"
+                fi
+              done
+            done
+          fi
+
+          # 5) Verdict.
+          echo
+          echo "Catch2 summary: shards_passed=$shards_passed/$shards_run problem_shards=$problem_shards total_tests=$total"
+          echo "Per-shard logs: $shards_dir ; bisect logs: $bisect_dir ; summary: $summary_file"
+
+          # Fail on any problem shard, OR if we somehow ran zero shards (e.g. bad
+          # config): a vacuous 0/0 must never pass as green.
+          if [ "$problem_shards" -ne 0 ] || [ "$shards_passed" -ne "$shards_run" ] || [ "$shards_run" -eq 0 ]; then
+            exit 1
+          fi
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: sophon-catch2-test-results
+          path: test-results/catch2/
+          retention-days: 3

@@ -119,6 +119,7 @@ export class MetricsSampler {
     let pipelineMinFps = Infinity;
     let primaryFps = null;
     let primaryAction = null;
+    let primaryProcessTotal = null;
     let maxDiscardRate = 0;
     const actionSummaries = [];
 
@@ -142,7 +143,10 @@ export class MetricsSampler {
       const actionName = String(a.name ?? '');
       const actionId = String(a.actionId ?? '');
       const primaryThroughputAction = isPrimaryThroughputAction(actionName, actionId, taskType);
-      if (primaryAction == null && primaryThroughputAction) primaryAction = a;
+      if (primaryAction == null && primaryThroughputAction) {
+        primaryAction = a;
+        primaryProcessTotal = num(a.processCount);
+      }
       actionSummaries.push({
         actionId,
         name: actionName,
@@ -192,6 +196,7 @@ export class MetricsSampler {
       measuredFps: measuredFps != null ? round(measuredFps, 2) : null,
       throughputFps: measuredFps != null ? round(measuredFps, 2) : null,
       telemetryMissing: isVlm && primaryAction == null,
+      primaryProcessTotal,
       pipelineMinFps: round(minPipelineFps, 2),
       targetFps,
       fpsRatio: fpsRatio != null ? round(fpsRatio, 3) : null,

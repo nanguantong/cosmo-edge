@@ -1,17 +1,12 @@
 // scenario-package.js - Parse a scenario directory into a normalized workload.
 //
-// v1 packages remain supported:
-//   algorithm-template.json + scenario.yml + thresholds.yml + videos.yml
+// Canonical scenario.yml shape:
+//   channels: { mode, repeatCount, sources: [...] }
+//   tasks: [{ id, type, algorithmId, scheduleId, template }]
+//   bindings: [{ task, channels }]        // optional, defaults to all tasks/all channels
+//   thresholds: { pass, taskTypes, tasks } // optional
 //
-// v2 packages model the generic case directly:
-//   scenario.yml:
-//     version: 2
-//     channels: { mode, repeatCount, sources: [...] }
-//     tasks: [{ id, type, algorithmId, scheduleId, template }]
-//     bindings: [{ task, channels }]
-//
-// Internally both forms become:
-//   tasks[] + bindings[] + videos + thresholds + loadProfile.
+// A single-task benchmark is just tasks[] with one entry.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -21,6 +16,8 @@ import { normalizeTaskType } from './task-strategies.js';
 const FPS_ACTION_ID = 'AA_00001';
 const VLM_ACTION_IDS = new Set(['DA_00003', 'PDA_00003']);
 const SUPPORTED_VIDEO_MODES = new Set(['local', 'rtsp-fidelity', 'rtsp-deterministic']);
+export const DEFAULT_HOLD_SEC = 30;
+export const DEFAULT_VLM_HOLD_SEC = 60;
 
 export class ScenarioPackage {
   /**
@@ -34,9 +31,8 @@ export class ScenarioPackage {
     this.channelConfig = null;
     this.tasks = [];
     this.bindings = [];
-    this.version = 1;
 
-    // Legacy accessors keep old callers and reports working.
+    // Primary-task accessors keep report metadata compact for single-task runs.
     this.template = null;
     this.targetFps = null;
   }
@@ -44,14 +40,8 @@ export class ScenarioPackage {
   /** Load and validate the package. Returns this for chaining. */
   load() {
     this.scenario = parseYaml(this._readText('scenario.yml')) ?? {};
-    this.version = Number(this.scenario.version ?? (Array.isArray(this.scenario.tasks) ? 2 : 1));
-    this.thresholds = this._readOptionalYaml('thresholds.yml') ?? this.scenario.thresholds ?? {};
-
-    if (this.version >= 2 || Array.isArray(this.scenario.tasks)) {
-      this._loadWorkloadV2();
-    } else {
-      this._loadLegacyV1();
-    }
+    this.thresholds = this.scenario.thresholds ?? {};
+    this._loadWorkload();
 
     this._resolveVideoPaths();
     this._validate();
@@ -67,7 +57,7 @@ export class ScenarioPackage {
     return this.tasks[0] ?? null;
   }
 
-  /** algorithmId as a string (legacy single-task accessor). */
+  /** algorithmId as a string for the primary task. */
   get algorithmId() {
     return this.primaryTask?.algorithmId ?? '';
   }
@@ -87,13 +77,9 @@ export class ScenarioPackage {
   get videoMode() {
     const m = this.videos?.mode;
     if (!SUPPORTED_VIDEO_MODES.has(m)) {
-      throw new Error(`videos/channels: unsupported mode "${m}"`);
+      throw new Error(`scenario.yml channels: unsupported mode "${m}"`);
     }
     return m;
-  }
-
-  get features() {
-    return this.scenario.features ?? {};
   }
 
   /**
@@ -101,17 +87,17 @@ export class ScenarioPackage {
    * video_repeat_count_ <= 0 as unlimited), 1 = play once then stop.
    */
   get videoRepeatCount() {
-    const v = this.channelConfig?.repeatCount ?? this.scenario.videoRepeatCount;
+    const v = this.channelConfig?.repeatCount;
     if (v == null) return this.videoMode === 'local' ? 0 : 1;
     return Number(v);
   }
 
-  /** Legacy single-task taskConfig accessor. */
+  /** Primary-task taskConfig accessor. */
   get taskConfig() {
     return this.primaryTask?.taskConfig ?? { params: [], areas: [] };
   }
 
-  /** Legacy single-task layout save payload accessor. */
+  /** Primary-task layout save payload accessor. */
   get layoutSavePayload() {
     if (!this.primaryTask) throw new Error('workload: no tasks defined');
     return this.primaryTask.layoutSavePayload;
@@ -129,49 +115,25 @@ export class ScenarioPackage {
 
   // -- loaders --------------------------------------------------------------
 
-  _loadLegacyV1() {
-    const templateFile = 'algorithm-template.json';
-    const template = this._readJson(templateFile);
-    this.videos = parseYaml(this._readText('videos.yml')) ?? {};
-    this.channelConfig = { mode: this.videos.mode, repeatCount: this.scenario.videoRepeatCount };
-
-    const task = this._normalizeTask({
-      id: 'default',
-      displayName: this.scenario.displayName ?? this.scenario.name,
-      type: this.scenario.taskType ?? 'cv',
-      algorithmId: this.scenario.algorithmId,
-      algorithmCode: this.scenario.algorithmCode,
-      scheduleId: this.scenario.scheduleId,
-      template: templateFile,
-    }, template, 0);
-
-    this.tasks = [task];
-    this.bindings = [{ taskId: task.id, channels: 'all' }];
-  }
-
-  _loadWorkloadV2() {
-    if (this.scenario.channels) {
-      this.channelConfig = this.scenario.channels;
-      this.videos = this._videosFromChannels(this.scenario.channels);
-    } else {
-      this.videos = parseYaml(this._readText('videos.yml')) ?? {};
-      this.channelConfig = { mode: this.videos.mode, repeatCount: this.scenario.videoRepeatCount };
+  _loadWorkload() {
+    if (!this.scenario.channels) {
+      throw new Error('scenario.yml: missing channels');
     }
-
+    this.channelConfig = this.scenario.channels;
+    this.videos = this._videosFromChannels(this.scenario.channels);
     if (!Array.isArray(this.scenario.tasks) || !this.scenario.tasks.length) {
-      throw new Error('scenario.yml: version 2 workload must define tasks[]');
+      throw new Error('scenario.yml: workload must define tasks[]');
     }
 
     this.tasks = this.scenario.tasks.map((taskSpec, index) => {
-      const templateFile = taskSpec.template ?? (index === 0 ? 'algorithm-template.json' : null);
-      if (!templateFile) {
-        throw new Error(`scenario.yml: tasks[${index}].template is required`);
-      }
+      const templateFile = taskSpec.template ?? (this.scenario.tasks.length === 1 ? 'algorithm-template.json' : null);
+      if (!templateFile) throw new Error(`scenario.yml: tasks[${index}].template is required`);
       const template = this._readJson(templateFile);
-      return this._normalizeTask(taskSpec, template, index);
+      return this._normalizeTask({ ...taskSpec, template: templateFile }, template, index);
     });
 
     this.bindings = this._normalizeBindings(this.scenario.bindings);
+    this.scenario.loadProfile = this._normalizeLoadProfile(this.scenario.loadProfile);
   }
 
   _videosFromChannels(channels) {
@@ -194,11 +156,13 @@ export class ScenarioPackage {
 
     const id = String(spec.id ?? spec.name ?? `task-${index + 1}`);
     const algorithmCode = String(spec.algorithmCode ?? template.algorithmCode ?? template.algorithmId ?? algorithmId);
-    const scheduleId = spec.scheduleId ?? this.scenario.scheduleId ?? '';
+    const scheduleId = spec.scheduleId ?? '';
     const vlm = detectVlmMode(template);
     const type = vlm.direct ? 'vlm' : (spec.type ?? 'cv');
     const targetFps = spec.targetFps != null ? Number(spec.targetFps) : extractTargetFpsFromTemplate(template);
-    const taskConfig = buildTaskConfig(template, this.videoRepeatCount);
+    const normalizedType = normalizeTaskType(type);
+    const videoReadFps = this.videoMode === 'local' && normalizedType === 'vlm' ? targetFps : null;
+    const taskConfig = buildTaskConfig(template, this.videoRepeatCount, videoReadFps);
 
     return {
       id,
@@ -231,6 +195,17 @@ export class ScenarioPackage {
     });
   }
 
+  _normalizeLoadProfile(loadProfile) {
+    if (!Array.isArray(loadProfile)) return loadProfile;
+
+    const defaultHoldSec = defaultHoldSecForTasks(this.tasks);
+    return loadProfile.map((step) => ({
+      ...step,
+      channels: Number(step.channels),
+      holdSec: step.holdSec == null ? defaultHoldSec : Number(step.holdSec),
+    }));
+  }
+
   // -- file helpers ---------------------------------------------------------
 
   _readText(name) {
@@ -243,12 +218,6 @@ export class ScenarioPackage {
 
   _readJson(name) {
     return JSON.parse(this._readText(name));
-  }
-
-  _readOptionalYaml(name) {
-    const p = path.join(this.dir, name);
-    if (!fs.existsSync(p)) return null;
-    return parseYaml(fs.readFileSync(p, 'utf8')) ?? {};
   }
 
   /**
@@ -266,7 +235,7 @@ export class ScenarioPackage {
 
   _validate() {
     if (!this.scenario?.name) throw new Error('scenario.yml: missing "name"');
-    if (!this.scenario?.loadProfile?.length) {
+    if (!Array.isArray(this.scenario?.loadProfile) || !this.scenario.loadProfile.length) {
       throw new Error('scenario.yml: loadProfile must have at least one step');
     }
     for (const [i, step] of this.scenario.loadProfile.entries()) {
@@ -277,13 +246,13 @@ export class ScenarioPackage {
         throw new Error(`scenario.yml: loadProfile[${i}].holdSec must be > 0`);
       }
     }
-    if (!this.videos?.mode) throw new Error('videos/channels: missing "mode"');
+    if (!this.videos?.mode) throw new Error('scenario.yml channels: missing "mode"');
     this.videoMode; // re-trigger mode validation
     if (this.videoMode === 'local' && !this.videos.local?.length) {
-      throw new Error('videos/channels: local mode requires at least one source');
+      throw new Error('scenario.yml channels: local mode requires at least one source');
     }
     if (this.videoMode !== 'local' && !this.videos.rtsp?.length) {
-      throw new Error('videos/channels: rtsp mode requires at least one source');
+      throw new Error('scenario.yml channels: rtsp mode requires at least one source');
     }
 
     if (!this.tasks.length) throw new Error('scenario.yml: at least one task is required');
@@ -312,14 +281,26 @@ export class ScenarioPackage {
   }
 }
 
-function buildTaskConfig(template, videoRepeatCount) {
+function buildTaskConfig(template, videoRepeatCount, videoReadFps = null) {
   const base = template.taskConfig ?? { params: [], areas: [] };
   const params = Array.isArray(base.params) ? [...base.params] : [];
   const hasRepeat = params.some((p) => p?.key === 'param.videoRepeatCount');
   if (!hasRepeat) {
     params.push({ key: 'param.videoRepeatCount', value: String(videoRepeatCount) });
   }
+  const hasReadFps = params.some((p) => p?.key === 'param.videoReadFps');
+  if (!hasReadFps && Number.isFinite(videoReadFps) && videoReadFps > 0) {
+    params.push({ key: 'param.videoReadFps', value: String(videoReadFps) });
+  }
   return { ...base, params, areas: base.areas ?? [] };
+}
+
+export function defaultHoldSecForTasks(tasks) {
+  const hasVlm = (tasks ?? []).some((task) => {
+    const type = task && typeof task === 'object' ? task.type : task;
+    return normalizeTaskType(type) === 'vlm';
+  });
+  return hasVlm ? DEFAULT_VLM_HOLD_SEC : DEFAULT_HOLD_SEC;
 }
 
 function buildLayoutSavePayload(template) {

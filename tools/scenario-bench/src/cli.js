@@ -4,13 +4,19 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { CosmoClient } from './cosmo-client.js';
-import { ScenarioPackage } from './scenario-package.js';
+import {
+  DEFAULT_HOLD_SEC,
+  DEFAULT_VLM_HOLD_SEC,
+  ScenarioPackage,
+  detectVlmMode,
+} from './scenario-package.js';
 import { ChannelManager } from './channel-manager.js';
 import { TaskRunner } from './task-runner.js';
 import { MetricsSampler } from './metrics-sampler.js';
 import { ReportWriter } from './report-writer.js';
 import { Logger } from './logger.js';
-import { normalizeTaskType, resolveTaskThresholds, strategyForTaskType } from './task-strategies.js';
+import { summarizeStep, runtimeStepDecision } from './step-evaluator.js';
+import { strategyForTaskType } from './task-strategies.js';
 
 function parseArgs(argv) {
   const args = {};
@@ -48,8 +54,7 @@ run required:
   --output <dir>       Report output directory
 
 scenario package:
-  v1                    algorithm-template.json + videos.yml (single task)
-  v2                    scenario.yml version:2 with channels/tasks/bindings
+  scenario.yml          channels + tasks + loadProfile + optional bindings/thresholds
 
 run options:
   --cleanup            Delete created channels after the run
@@ -66,7 +71,7 @@ init-scenario options:
   --display-name <s>   Display name in the report
   --algorithm-id <id>  Defaults to algorithmCode/algorithmId from the template
   --schedule-id <id>   Defaults to default-schedule
-  --target-fps <n>     Only used in the default display name; runtime extracts FPS from the template
+  --target-fps <n>     Writes tasks[].targetFps when the template cannot expose it
 `);
 }
 
@@ -104,7 +109,6 @@ async function runDoctor(args) {
   try {
     pkg = new ScenarioPackage(args.scenario).load();
     checkLine(true, 'scenario package loaded', path.resolve(args.scenario));
-    checkLine(true, 'workload version', pkg.version);
     checkLine(true, 'tasks', pkg.tasks.map((t) => `${t.id}:${t.algorithmId}(${t.type})`).join(', '));
     checkLine(true, 'task strategies', pkg.tasks.map((t) => `${t.id}=${strategyForTaskType(t.type).id}`).join(', '));
     checkLine(true, 'target FPS', pkg.tasks.map((t) => `${t.id}=${t.targetFps ?? 'N/A'}`).join(', '));
@@ -233,54 +237,60 @@ async function initScenario(args) {
   const algorithmId = String(args['algorithm-id'] ?? template.algorithmCode ?? template.algorithmId ?? template.id ?? '');
   if (!algorithmId) throw new Error('cannot derive algorithm id; pass --algorithm-id');
 
+  const isVlm = detectVlmMode(template).direct;
+  const taskType = isVlm ? 'vlm' : 'cv';
+  const defaultHoldSec = isVlm ? DEFAULT_VLM_HOLD_SEC : DEFAULT_HOLD_SEC;
   const displayName = args['display-name'] ?? `${name} (algorithm ${algorithmId}${args['target-fps'] ? `, fps${args['target-fps']}` : ''})`;
   const scheduleId = args['schedule-id'] ?? 'default-schedule';
   const videoPath = path.resolve(args.video);
   const videoName = path.basename(videoPath);
+  const targetFps = args['target-fps'] == null ? null : Number(args['target-fps']);
+  if (args['target-fps'] != null && (!Number.isFinite(targetFps) || targetFps <= 0)) {
+    throw new Error('--target-fps must be a positive number');
+  }
 
   copyFileRequired(templatePath, path.join(outDir, 'algorithm-template.json'));
   copyFileRequired(videoPath, path.join(outDir, videoName));
 
+  const targetFpsLine = targetFps == null ? '' : `    targetFps: ${targetFps}\n`;
+
   writeNewFile(path.join(outDir, 'scenario.yml'), `name: ${yamlString(name)}
 displayName: ${yamlString(displayName)}
-algorithmId: "${algorithmId}"
-scheduleId: ${yamlString(scheduleId)}
 sampleIntervalSec: 3
-videoRepeatCount: 0
+
+channels:
+  mode: local
+  repeatCount: 0
+  sources:
+    - name: ${yamlString(path.parse(videoName).name)}
+      file: ${yamlString(videoName)}
+
+tasks:
+  - id: ${yamlString(name)}
+    displayName: ${yamlString(displayName)}
+    type: ${taskType}
+    algorithmId: "${algorithmId}"
+    scheduleId: ${yamlString(scheduleId)}
+    template: algorithm-template.json
+${targetFpsLine}
 loadProfile:
   - channels: 1
-    holdSec: 30
+    holdSec: ${defaultHoldSec}
   - channels: 4
-    holdSec: 30
+    holdSec: ${defaultHoldSec}
   - channels: 8
-    holdSec: 30
+    holdSec: ${defaultHoldSec}
   - channels: 16
-    holdSec: 30
+    holdSec: ${defaultHoldSec}
   - channels: 24
-    holdSec: 30
+    holdSec: ${defaultHoldSec}
 
-features:
-  enableEventCheck: false
-  enableMqttCheck: false
-  enableHttpPushCheck: false
-`);
-
-  writeNewFile(path.join(outDir, 'thresholds.yml'), `pass:
-  maxCriticalPathLatencyMs: 200
-  maxDetectorLatencyMs: 150
-  avgDiscardRate: 0.02
-  maxDiscardRate: 0.02
-  maxPacketDiscardRate: 0.01
-  maxMemoryGrowthMbPerHour: 100
-  maxCrashCount: 0
-  minEventCount: 1
-`);
-
-  writeNewFile(path.join(outDir, 'videos.yml'), `mode: local
-
-local:
-  - name: ${yamlString(path.parse(videoName).name)}
-    file: ${yamlString(videoName)}
+thresholds:
+  pass:
+    maxCriticalPathLatencyMs: 200
+    maxDetectorLatencyMs: 150
+    avgDiscardRate: 0.02
+    maxPacketDiscardRate: 0.01
 `);
 
   console.log(`Scenario created: ${outDir}`);
@@ -308,7 +318,6 @@ async function runBenchmark(args) {
 
   const buildResult = (status = runError ? 'aborted' : 'completed') => ({
     scenarioName: pkg?.scenario?.displayName ?? pkg?.scenario?.name,
-    workloadVersion: pkg?.version,
     tasks: pkg?.tasks?.map((task) => ({
       id: task.id,
       displayName: task.displayName,
@@ -412,65 +421,8 @@ async function runBenchmark(args) {
 
     const sampler = new MetricsSampler(client, log);
     const activeEntries = () => runner.expectedTaskEntries(runner.allChannelIds.slice(0, currentChannels));
-    const taskById = new Map(pkg.tasks.map((task) => [task.id, task]));
-
     const FPS_HALVE_RATIO = 0.5;
     const DISCARD_BOTTLENECK = 0.05;
-
-    const summarizeSamples = (stepIdx) => {
-      const all = samples.filter((s) => s.stepIndex === stepIdx && !s.channels.every((c) => c.missing));
-      if (!all.length) return { minFps: null, meanDiscard: null, maxNpu: null, maxCpu: null, taskStats: [] };
-      const steady = all.slice(Math.floor(all.length / 2));
-      let minFps = Infinity, maxNpu = -Infinity, maxCpu = -Infinity;
-      const discardValues = [];
-      const byTask = new Map();
-      for (const t of steady) {
-        const npu = t.hardware?.npuUtilization?.usedPercent;
-        const cpu = t.hardware?.cpuUtilization?.usedPercent;
-        if (typeof npu === 'number' && npu > maxNpu) maxNpu = npu;
-        if (typeof cpu === 'number' && cpu > maxCpu) maxCpu = cpu;
-        for (const ch of t.channels) {
-          if (ch.missing) continue;
-          const taskKey = ch.taskKey ?? 'default';
-          if (!byTask.has(taskKey)) {
-            const task = taskById.get(taskKey) ?? {};
-            byTask.set(taskKey, {
-              taskKey,
-              taskDisplayName: ch.taskDisplayName ?? task.displayName ?? taskKey,
-              taskType: normalizeTaskType(ch.taskType ?? task.type),
-              targetFps: ch.targetFps ?? task.targetFps ?? null,
-              fps: [],
-              fpsRatio: [],
-              discard: [],
-            });
-          }
-          const stat = byTask.get(taskKey);
-          if (typeof ch.measuredFps === 'number' && ch.measuredFps < minFps) minFps = ch.measuredFps;
-          if (typeof ch.measuredFps === 'number') stat.fps.push(ch.measuredFps);
-          if (typeof ch.fpsRatio === 'number') stat.fpsRatio.push(ch.fpsRatio);
-          if (typeof ch.discardRate === 'number') {
-            discardValues.push(ch.discardRate);
-            stat.discard.push(ch.discardRate);
-          }
-        }
-      }
-      const taskStats = [...byTask.values()].map((stat) => ({
-        taskKey: stat.taskKey,
-        taskDisplayName: stat.taskDisplayName,
-        taskType: stat.taskType,
-        targetFps: stat.targetFps,
-        minFps: stat.fps.length ? Math.min(...stat.fps) : null,
-        minFpsRatio: stat.fpsRatio.length ? Math.min(...stat.fpsRatio) : null,
-        meanDiscard: stat.discard.length ? stat.discard.reduce((a, b) => a + b, 0) / stat.discard.length : null,
-      }));
-      return {
-        minFps: minFps === Infinity ? null : minFps,
-        meanDiscard: discardValues.length ? discardValues.reduce((a, b) => a + b, 0) / discardValues.length : null,
-        maxNpu: maxNpu === -Infinity ? null : maxNpu,
-        maxCpu: maxCpu === -Infinity ? null : maxCpu,
-        taskStats,
-      };
-    };
 
     const captureSample = async () => {
       const sample = await sampler.sample(activeEntries());
@@ -535,58 +487,44 @@ async function runBenchmark(args) {
       onStepStart: async (step, active) => {
         currentChannels = active.length;
         currentStepIndex = step.index;
-        
-        const hasVLM = activeEntries().some(e => e.taskType === 'vlm');
+
+        const hasVLM = activeEntries().some((e) => e.taskType === 'vlm');
         if (hasVLM && step.index === 0) {
           log.info(`[warmup] VLM detected in first step, waiting 30 seconds for model loading before sampling...`);
-          await new Promise(r => setTimeout(r, 30000));
+          await new Promise((resolve) => setTimeout(resolve, 30000));
         }
       },
       onSample: async () => {
         await captureSample();
       },
       onStepEnd: async (step) => {
-        const { minFps, meanDiscard, maxNpu, maxCpu, taskStats } = summarizeSamples(step.index);
+        const summary = summarizeStep(step, samples, pkg.thresholds, pkg.videoMode);
+        const minFps = summary.minFpsAcross;
+        const meanDiscard = summary.avgDiscard;
+        const maxNpu = summary.maxNpu;
+        const maxCpu = summary.maxCpu;
+        const taskStats = summary.taskStats ?? [];
         const sat = `npu=${maxNpu ?? '-'}% cpu=${maxCpu ?? '-'}%`;
         if (step.index === 0) {
           baselineFps = minFps ?? null;
           for (const stat of taskStats) {
-            baselineByTask[stat.taskKey] = stat.minFps;
+            baselineByTask[stat.taskKey] = stat.minThroughputFps;
           }
           const baselineText = taskStats
-            .map((stat) => `${stat.taskKey}=${stat.minFps == null ? '-' : stat.minFps.toFixed(2)}fps`)
+            .map((stat) => `${stat.taskKey}=${stat.minThroughputFps == null ? '-' : stat.minThroughputFps.toFixed(2)}fps`)
             .join(', ');
           log.info(`[baseline] step 1 steady minFps=${baselineFps} fps (${sat}) tasks=[${baselineText}] -> strategy gates active`);
           return;
         }
-        const reasons = [];
-        for (const stat of taskStats) {
-          const strategy = strategyForTaskType(stat.taskType);
-          const taskThresholds = resolveTaskThresholds(pkg.thresholds, {
-            taskKey: stat.taskKey,
-            taskType: stat.taskType,
-          });
-          if (strategy.useBaselineFpsFuse) {
-            const taskBaseline = baselineByTask[stat.taskKey];
-            if (taskBaseline != null && stat.minFps != null && stat.minFps < taskBaseline * FPS_HALVE_RATIO) {
-              reasons.push(`${stat.taskKey} fps ${stat.minFps.toFixed(1)} < baseline ${taskBaseline.toFixed(1)}*${FPS_HALVE_RATIO} (${(taskBaseline * FPS_HALVE_RATIO).toFixed(1)})`);
-            }
-          } else if (taskThresholds.minFpsRatio != null && stat.minFpsRatio != null && stat.minFpsRatio < taskThresholds.minFpsRatio) {
-            reasons.push(`${stat.taskKey} fpsRatio ${stat.minFpsRatio.toFixed(3)} < ${taskThresholds.minFpsRatio}`);
-          } else if (taskThresholds.minThroughputFps != null && stat.minFps != null && stat.minFps < taskThresholds.minThroughputFps) {
-            reasons.push(`${stat.taskKey} fps ${stat.minFps.toFixed(2)} < ${taskThresholds.minThroughputFps}`);
-          }
-          const discardLimit = taskThresholds.avgDiscardRate ?? taskThresholds.maxDiscardRate ?? DISCARD_BOTTLENECK;
-          if (stat.meanDiscard != null && stat.meanDiscard > discardLimit) {
-            reasons.push(`${stat.taskKey} meanDiscard ${stat.meanDiscard.toFixed(3)} > ${discardLimit}`);
-          }
-        }
-        if (meanDiscard != null && meanDiscard > DISCARD_BOTTLENECK) {
-          reasons.push(`meanDiscard ${meanDiscard.toFixed(3)} > ${DISCARD_BOTTLENECK}`);
-        }
-        const satNote = (maxNpu >= 90 || maxCpu >= 90) ? ' [resource near saturation]' : '';
-        log.info(`[step ${step.index + 1}] steady minFps=${minFps?.toFixed(1) ?? '-'} meanDiscard=${meanDiscard?.toFixed(3) ?? '-'} ${sat}${satNote} ${reasons.length ? '-> BOTTLENECK (' + reasons.join('; ') + ')' : '-> ok, continuing'}`);
-        return reasons.length ? { stop: true, reason: reasons.join('; ') } : { stop: false };
+        const decision = runtimeStepDecision(summary, {
+          thresholds: pkg.thresholds,
+          baselineByTask,
+          fpsHalveRatio: FPS_HALVE_RATIO,
+          discardBottleneck: DISCARD_BOTTLENECK,
+        });
+        const satNote = ((maxNpu ?? 0) >= 90 || (maxCpu ?? 0) >= 90) ? ' [resource near saturation]' : '';
+        log.info(`[step ${step.index + 1}] steady minFps=${minFps?.toFixed(1) ?? '-'} meanDiscard=${meanDiscard?.toFixed(3) ?? '-'} ${sat}${satNote} ${decision.stop ? '-> BOTTLENECK (' + decision.reason + ')' : '-> ok, continuing'}`);
+        return decision.stop ? { stop: true, reason: decision.reason } : { stop: false };
       },
     }, pkg.sampleIntervalSec);
     bottleneckStep = staircaseResult?.bottleneckStep ?? null;

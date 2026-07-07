@@ -2,9 +2,8 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { summarizeStep } from './step-evaluator.js';
 import {
-  evaluateTaskStat,
-  latencyMetricsForNodes,
   strategyForTask,
   strategyForTaskType,
   thresholdLabel,
@@ -47,177 +46,7 @@ export class ReportWriter {
   }
 
   _summarizeStep(step, samples, thresholds, videoMode) {
-    const allTicks = samples.filter((s) => s.stepIndex === step.index);
-    const ticks = allTicks.slice(Math.floor(allTicks.length / 2));
-    if (!allTicks.length) {
-      return {
-        step,
-        channels: step.channels,
-        holdSec: step.holdSec,
-        targetFps: null,
-        minFpsAcross: null,
-        maxDiscard: null,
-        avgDiscard: null,
-        detectorLatencyMs: null,
-        criticalPathLatencyMs: null,
-        channelStats: [],
-        taskStats: [],
-        perThreshold: [],
-        pass: null,
-        reasons: ['未执行，瓶颈提前停止'],
-        skipped: true,
-      };
-    }
-
-    const byBinding = new Map();
-    for (const t of ticks) {
-      for (const ch of t.channels ?? []) {
-        const taskKey = ch.taskKey ?? 'default';
-        const key = `${taskKey}::${ch.channelId}`;
-        if (!byBinding.has(key)) {
-          byBinding.set(key, {
-            taskKey,
-            taskDisplayName: ch.taskDisplayName ?? taskKey,
-            taskType: ch.taskType ?? 'cv',
-            algorithmId: ch.algorithmId ?? null,
-            channelId: ch.channelId,
-            targetFps: ch.targetFps ?? null,
-            fps: [],
-            pipelineMinFps: [],
-            fpsRatio: [],
-            discardRate: [],
-            primaryLat: [],
-            criticalLat: [],
-            sampleCount: 0,
-            missingSamples: 0,
-          });
-        }
-        const s = byBinding.get(key);
-        s.sampleCount++;
-        if (ch.missing) {
-          s.missingSamples++;
-          continue;
-        }
-        if (typeof ch.measuredFps === 'number') s.fps.push(ch.measuredFps);
-        if (typeof ch.pipelineMinFps === 'number') s.pipelineMinFps.push(ch.pipelineMinFps);
-        if (typeof ch.fpsRatio === 'number') s.fpsRatio.push(ch.fpsRatio);
-        if (typeof ch.discardRate === 'number') s.discardRate.push(ch.discardRate);
-
-        const { primaryLatencyMs, criticalPathLatencyMs } = latencyMetricsForNodes(
-          ch.nodeDurationInfos ?? [],
-          s.taskType,
-        );
-        if (ch.telemetryMissing
-            || (strategyForTaskType(s.taskType).id === 'vlm' && primaryLatencyMs == null)) {
-          s.missingSamples++;
-        }
-        if (primaryLatencyMs != null) s.primaryLat.push(primaryLatencyMs);
-        if (criticalPathLatencyMs != null) s.criticalLat.push(criticalPathLatencyMs);
-      }
-    }
-
-    const channelStats = [...byBinding.values()].map((s) => ({
-      taskKey: s.taskKey,
-      taskDisplayName: s.taskDisplayName,
-      taskType: s.taskType,
-      algorithmId: s.algorithmId,
-      channelId: s.channelId,
-      targetFps: s.targetFps,
-      sampleCount: s.sampleCount,
-      missingSamples: s.missingSamples,
-      missingRate: s.sampleCount ? round(s.missingSamples / s.sampleCount, 4) : null,
-      avgThroughputFps: s.fps.length ? round(mean(s.fps), 2) : null,
-      minThroughputFps: s.fps.length ? round(Math.min(...s.fps), 2) : null,
-      avgDetectorFps: s.fps.length ? round(mean(s.fps), 2) : null,
-      minDetectorFps: s.fps.length ? round(Math.min(...s.fps), 2) : null,
-      minFpsRatio: s.fpsRatio.length ? round(Math.min(...s.fpsRatio), 3) : null,
-      minPipelineFps: s.pipelineMinFps.length ? round(Math.min(...s.pipelineMinFps), 2) : null,
-      avgDiscardRate: s.discardRate.length ? round(mean(s.discardRate), 4) : null,
-      avgPrimaryLatencyMs: s.primaryLat.length ? round(mean(s.primaryLat), 1) : null,
-      avgDetectorLatencyMs: s.primaryLat.length ? round(mean(s.primaryLat), 1) : null,
-      avgCriticalPathLatencyMs: s.criticalLat.length ? round(mean(s.criticalLat), 1) : null,
-    }));
-
-    const allThroughputFps = channelStats
-      .flatMap((c) => [c.avgThroughputFps, c.minThroughputFps])
-      .filter((v) => v != null);
-    const allDiscard = channelStats.map((c) => c.avgDiscardRate).filter((v) => v != null);
-    const allPrimaryLat = channelStats.map((c) => c.avgPrimaryLatencyMs).filter((v) => v != null);
-    const allCriticalLat = channelStats.map((c) => c.avgCriticalPathLatencyMs).filter((v) => v != null);
-
-    const targetFpsValues = [...new Set(channelStats.map((c) => c.targetFps).filter((v) => v != null))];
-    const targetFps = targetFpsValues.length <= 1 ? (targetFpsValues[0] ?? null) : targetFpsValues.join(' / ');
-    const minFpsAcross = allThroughputFps.length ? Math.min(...allThroughputFps) : null;
-    const maxDiscard = allDiscard.length ? Math.max(...allDiscard) : null;
-    const avgDiscard = allDiscard.length ? round(mean(allDiscard), 4) : null;
-    const maxPrimaryLat = allPrimaryLat.length ? Math.max(...allPrimaryLat) : null;
-    const maxCriticalLat = allCriticalLat.length ? Math.max(...allCriticalLat) : null;
-
-    const pktDiscard = ticks
-      .map((t) => t.hardware?.packetDiscardUtilization?.usedPercent ?? null)
-      .filter((v) => v != null);
-    const maxPktDiscard = pktDiscard.length ? Math.max(...pktDiscard) / 100 : null;
-
-    const steady = ticks.slice(Math.floor(ticks.length / 2));
-    const peak = (sel) => {
-      const vals = steady.map(sel).filter((v) => typeof v === 'number');
-      return vals.length ? Math.max(...vals) : null;
-    };
-    const maxNpu = peak((t) => t.hardware?.npuUtilization?.usedPercent);
-    const maxCpu = peak((t) => t.hardware?.cpuUtilization?.usedPercent);
-    const maxMem = peak((t) => t.hardware?.generalMemoryUtilization?.usedPercent);
-    const taskStats = summarizeTasks(channelStats);
-
-    const perThreshold = [];
-    const overall = { pass: true, reasons: [] };
-    for (const stat of taskStats) {
-      const verdict = evaluateTaskStat(stat, thresholds);
-      perThreshold.push(...verdict.checks);
-      if (!verdict.pass) {
-        overall.pass = false;
-        overall.reasons.push(...verdict.reasons);
-      }
-    }
-    if (videoMode !== 'local') {
-      const pass = thresholds.pass ?? {};
-      const limit = pass.maxPacketDiscardRate;
-      const ok = maxPktDiscard == null || limit == null || maxPktDiscard <= limit;
-      perThreshold.push({
-        taskKey: '*',
-        taskDisplayName: 'network',
-        taskType: 'input',
-        strategy: 'input',
-        name: 'maxPacketDiscardRate',
-        threshold: limit,
-        actual: maxPktDiscard,
-        result: maxPktDiscard == null || limit == null ? 'N/A' : (ok ? 'PASS' : 'FAIL'),
-      });
-      if (!ok) {
-        overall.pass = false;
-        overall.reasons.push(`网络丢包率 ${formatPercent(maxPktDiscard)}，阈值 ${formatPercent(limit)}`);
-      }
-    }
-
-    return {
-      step,
-      channels: step.channels,
-      holdSec: step.holdSec,
-      targetFps,
-      minFpsAcross,
-      maxDiscard,
-      avgDiscard,
-      detectorLatencyMs: maxPrimaryLat,
-      primaryLatencyMs: maxPrimaryLat,
-      criticalPathLatencyMs: maxCriticalLat,
-      maxNpu,
-      maxCpu,
-      maxMem,
-      channelStats,
-      taskStats,
-      perThreshold,
-      pass: overall.pass,
-      reasons: overall.reasons,
-    };
+    return summarizeStep(step, samples, thresholds, videoMode);
   }
 
   _buildSummary(r, stepSummaries) {
@@ -252,10 +81,9 @@ export class ReportWriter {
       conclusion = `压测中断：运行到 ${r.error?.atChannels ?? '?'} 路时停止，原因：${r.error?.message ?? '未知错误'}`;
     } else if (bottleneck) {
       if (continuousProfile) {
-        const failChannels = firstFailed?.channels ?? bottleneck.channels;
-        conclusion = `容量上限：${maxStableChannels ?? 0} 路；${failChannels} 路开始不满足通过条件，原因：${(firstFailed?.reasons?.join('; ') || bottleneck.reason)}`;
+        conclusion = `容量上限：${maxStableChannels ?? 0} 路；第 ${bottleneck.stepNumber} 阶段（${bottleneck.channels} 路）触发失败/停止，原因：${bottleneck.reason}`;
       } else {
-        const upper = firstFailed?.channels ?? bottleneck.channels;
+        const upper = bottleneck.channels;
         conclusion = `已验证通过阶梯：${maxVerifiedPassedChannels ?? 0} 路；连续最大稳定路数未精确测定，已知 >= ${maxVerifiedPassedChannels ?? 0} 路且 < ${upper} 路；第 ${bottleneck.stepNumber} 阶段 ${bottleneck.channels} 路触发失败/停止，原因：${bottleneck.reason}`;
       }
     } else if (overallPass) {
@@ -289,9 +117,9 @@ export class ReportWriter {
         channels: firstFailed.channels,
         reasons: firstFailed.reasons,
       } : null,
-      capacityBound: !continuousProfile && firstFailed ? {
+      capacityBound: !continuousProfile && bottleneck ? {
         lowerInclusive: maxVerifiedPassedChannels,
-        upperExclusive: firstFailed.channels,
+        upperExclusive: bottleneck.channels,
       } : null,
       bottleneck,
       baselineFps: r.baselineFps,
@@ -306,7 +134,7 @@ export class ReportWriter {
   _renderHtml(r, stepSummaries, summary) {
     const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     const pass = r.thresholds?.pass ?? {};
-    const sampleInterval = Number(r.samples?.[1]?.ts && r.samples?.[0]?.ts ? ((r.samples[1].ts - r.samples[0].ts) / 1000).toFixed(1) : NaN);
+    const sampleInterval = estimateSampleIntervalSec(r.samples ?? []);
     const samplingText = Number.isFinite(sampleInterval)
       ? `约每 ${Math.round(sampleInterval)}s 采样一次；阶梯汇总使用该阶梯后半段采样点作为稳定窗口。`
       : '阶梯汇总使用该阶梯后半段采样点作为稳定窗口。';
@@ -447,60 +275,6 @@ ${bottleneckBanner}
   }
 }
 
-function mean(arr) { return arr.reduce((a, b) => a + b, 0) / arr.length; }
-function round(v, d) { const f = 10 ** d; return Math.round(v * f) / f; }
-
-function summarizeTasks(channelStats) {
-  const byTask = new Map();
-  for (const stat of channelStats) {
-    const key = stat.taskKey ?? 'default';
-    if (!byTask.has(key)) {
-      byTask.set(key, {
-        taskKey: key,
-        taskDisplayName: stat.taskDisplayName ?? key,
-        taskType: stat.taskType ?? 'cv',
-        strategy: strategyForTaskType(stat.taskType).id,
-        algorithmId: stat.algorithmId ?? null,
-        targetFps: stat.targetFps ?? null,
-        fps: [],
-        fpsRatio: [],
-        missing: [],
-        discard: [],
-        primaryLat: [],
-        criticalLat: [],
-        bindingCount: 0,
-      });
-    }
-    const task = byTask.get(key);
-    task.bindingCount++;
-    if (stat.minThroughputFps != null) task.fps.push(stat.minThroughputFps);
-    if (stat.minFpsRatio != null) task.fpsRatio.push(stat.minFpsRatio);
-    if (stat.missingRate != null) task.missing.push(stat.missingRate);
-    if (stat.avgDiscardRate != null) task.discard.push(stat.avgDiscardRate);
-    if (stat.avgPrimaryLatencyMs != null) task.primaryLat.push(stat.avgPrimaryLatencyMs);
-    if (stat.avgCriticalPathLatencyMs != null) task.criticalLat.push(stat.avgCriticalPathLatencyMs);
-  }
-
-  return [...byTask.values()].map((task) => ({
-    taskKey: task.taskKey,
-    taskDisplayName: task.taskDisplayName,
-    taskType: task.taskType,
-    strategy: task.strategy,
-    algorithmId: task.algorithmId,
-    targetFps: task.targetFps,
-    bindingCount: task.bindingCount,
-    minThroughputFps: task.fps.length ? round(Math.min(...task.fps), 2) : null,
-    minDetectorFps: task.fps.length ? round(Math.min(...task.fps), 2) : null,
-    minFpsRatio: task.fpsRatio.length ? round(Math.min(...task.fpsRatio), 3) : null,
-    avgMissingRate: task.missing.length ? round(mean(task.missing), 4) : null,
-    maxMissingRate: task.missing.length ? round(Math.max(...task.missing), 4) : null,
-    avgDiscardRate: task.discard.length ? round(mean(task.discard), 4) : null,
-    maxPrimaryLatencyMs: task.primaryLat.length ? round(Math.max(...task.primaryLat), 1) : null,
-    maxDetectorLatencyMs: task.primaryLat.length ? round(Math.max(...task.primaryLat), 1) : null,
-    maxCriticalPathLatencyMs: task.criticalLat.length ? round(Math.max(...task.criticalLat), 1) : null,
-  }));
-}
-
 function formatTaskList(tasks, legacyAlgorithmId, legacyAlgorithmName) {
   if (!Array.isArray(tasks) || !tasks.length) {
     return `${legacyAlgorithmId ?? '-'} (${legacyAlgorithmName ?? '-'})`;
@@ -538,4 +312,25 @@ function isContinuousChannelProfile(stepSummaries) {
 
 function formatPercent(v) {
   return `${round(Number(v) * 100, 2)}%`;
+}
+
+function round(v, digits) {
+  const f = 10 ** digits;
+  return Math.round(v * f) / f;
+}
+
+function estimateSampleIntervalSec(samples) {
+  const deltas = [];
+  for (let i = 1; i < samples.length; i++) {
+    const prev = samples[i - 1];
+    const curr = samples[i];
+    if (prev?.stepIndex !== curr?.stepIndex) continue;
+    const delta = Number(curr?.ts) - Number(prev?.ts);
+    if (Number.isFinite(delta) && delta > 0) deltas.push(delta / 1000);
+  }
+  if (!deltas.length) return NaN;
+
+  deltas.sort((a, b) => a - b);
+  const mid = Math.floor(deltas.length / 2);
+  return deltas.length % 2 ? deltas[mid] : (deltas[mid - 1] + deltas[mid]) / 2;
 }

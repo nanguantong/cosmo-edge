@@ -19,3 +19,5 @@ This directory contains the sanitized ScenarioBench benchmark data referenced by
 - Each scenario directory contains `summary.json`, English `report.html`, and original Chinese `report.zh-CN.html`.
 
 Raw `metrics.json` files are intentionally kept out of the repository. Publish them with the v1.0 release assets when full sampling traces are required.
+
+For the latest VLM benchmark methodology and refreshed local report, see [current/vlm-77175-npu](../current/vlm-77175-npu/report.html).

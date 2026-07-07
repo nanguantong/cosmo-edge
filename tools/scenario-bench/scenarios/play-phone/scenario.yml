@@ -1,8 +1,23 @@
 name: play-phone
 displayName: 玩手机检测
-algorithmId: "22"
-scheduleId: "e89c6c6385e5454b35cde0d1653vg"   # platform default 24/7 schedule
 sampleIntervalSec: 5
+
+channels:
+  mode: local
+  repeatCount: 0
+  sources:
+    - name: play-phone-01
+      filePath: /opt/cosmo/video/play-phone.mp4
+      fileName: play-phone.mp4
+      contentLength: "20049063"
+
+tasks:
+  - id: play-phone
+    displayName: 玩手机检测
+    type: cv
+    algorithmId: "22"
+    scheduleId: "e89c6c6385e5454b35cde0d1653vg"   # platform default 24/7 schedule
+    template: algorithm-template.json
 
 loadProfile:
   - channels: 1
@@ -14,7 +29,8 @@ loadProfile:
   - channels: 16
     holdSec: 600
 
-features:
-  enableEventCheck: false      # phase 2: requires push-test-service /stats endpoint
-  enableMqttCheck: false
-  enableHttpPushCheck: false
+thresholds:
+  pass:
+    maxCriticalPathLatencyMs: 80
+    avgDiscardRate: 0.02
+    maxPacketDiscardRate: 0.01

@@ -103,6 +103,9 @@ jobs:
           require_pos_int COSMO_CATCH2_SHARD_TIMEOUT_SECONDS "$shard_timeout_seconds"
           require_pos_int COSMO_TEST_CASE_TIMEOUT_SECONDS    "$case_timeout_seconds"
 
+          # self-hosted runner 工作目录跨 run 复用,历史 run 的 bisect/shards 文件会累积,
+          # 被 Upload step 整个目录打包上传,新旧混杂干扰诊断。每次 run 开始清空这两个目录。
+          rm -rf "$shards_dir" "$bisect_dir"
           mkdir -p "$shards_dir" "$bisect_dir" "$gcov_dir"
           : > "$summary_file"
 

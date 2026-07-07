@@ -189,7 +189,7 @@ TEST_CASE("CameraServiceImpl: concurrent Query calls are safe", "[CameraService]
 // 生命周期完整测试 (依赖 DI 注入)
 // ============================================================
 
-TEST_CASE("CameraServiceImpl: Full lifecycle (Add, Query, Update, Delete)", "[CameraService]") {
+TEST_CASE("CameraServiceImpl: Full lifecycle (Add Query Update Delete)", "[CameraService]") {
     std::string testBaseDir = "/tmp/cosmo_camera_test_" +
                               std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
     std::filesystem::create_directories(testBaseDir);

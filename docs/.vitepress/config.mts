@@ -80,7 +80,7 @@ export default defineConfig({
   // Benchmark reports are checked in as static HTML files next to their
   // Markdown indexes. VitePress dead-link checking treats them as page routes.
   ignoreDeadLinks: [
-    /^(?:\.\/)?(vlm-55009-npu|helmet-7463-npu|pedestrian-45626-npu|pedestrian-helmet-mixed-npu|helmet-7463-x86)\/report(?:\.zh-CN)?$/
+    /^(?:\.\/)?(?:(?:\.\.\/)?current\/)?(vlm-77175-npu|vlm-55009-npu|helmet-7463-npu|pedestrian-45626-npu|pedestrian-helmet-mixed-npu|helmet-7463-x86)\/report(?:\.zh-CN)?$/
   ],
 
   locales: {

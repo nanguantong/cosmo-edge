@@ -246,11 +246,12 @@
 
     <detail-dialog v-model:visible="detailDialogVisible" :detailData="detailData" />
     <capture-dialog v-model:visible="captureDialogVisible" :detailData="detailData" />
-    <audio ref="audio" src="@/assets/beep.ogg"></audio>
+    <audio ref="audio" :src="beepOgg"></audio>
   </div>
 </template>
 <script setup>
 import { ref, watch, onMounted, onBeforeUnmount, nextTick, getCurrentInstance } from 'vue'
+import beepOgg from '@/assets/beep.ogg'
 import { Search } from '@element-plus/icons-vue'
 import flv from '../components/flvVideo.vue'
 import DetailDialog from '../components/detailDialog.vue'

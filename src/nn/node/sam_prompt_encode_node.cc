@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <vector>
 
 #include "nn/node/node_type_utils.h"
 #include "nn/utils/data_type_utils.h"
@@ -131,20 +132,20 @@ Status SAMPromptEncodeNode::Forward(std::vector<std::shared_ptr<Blob>>& bottom_b
         float* batch_input  = input_data + b * num_points * 2;
         float* batch_output = top_data + b * max_points * 2;
 
-        // Create temporary buffer for processing
-        float temp_coords[num_points * 2];
-        std::memcpy(temp_coords, batch_input, num_points * 2 * sizeof(float));
+        // Heap-allocated scratch buffer; avoids unbounded VLA on the stack.
+        std::vector<float> temp_coords(num_points * 2);
+        std::memcpy(temp_coords.data(), batch_input, temp_coords.size() * sizeof(float));
 
         // Normalize coordinates if required
         if (normalize) {
-            NormalizeCoords(temp_coords, num_points, orig_width, orig_height);
+            NormalizeCoords(temp_coords.data(), num_points, orig_width, orig_height);
         }
 
         // Pad points to max_points
         if (num_points < max_points) {
-            PadPoints(temp_coords, num_points, batch_output, max_points);
+            PadPoints(temp_coords.data(), num_points, batch_output, max_points);
         } else {
-            std::memcpy(batch_output, temp_coords, max_points * 2 * sizeof(float));
+            std::memcpy(batch_output, temp_coords.data(), max_points * 2 * sizeof(float));
         }
     }
 

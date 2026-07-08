@@ -50,6 +50,8 @@ public:
 
     void SetHandle(BlobHandle handle);
 
+    void ClearHandle();
+
 private:
     std::unique_ptr<BlobImpl> impl;
 };

@@ -88,17 +88,28 @@ Status BlobStore::FreeBlob(std::shared_ptr<Blob>& blob) {
 
     auto handle = blob->GetHandle();
     if (!handle.base)
-        return COSMO_NN_OK;  // Skip if never allocated, avoid Free on invalid pointer
+        return COSMO_NN_OK;  // Skip if never allocated / already freed
 
     auto desc        = blob->GetBlobDesc();
     auto device_type = desc.device_type;
+    Status status;
     if (device_type == DEVICE_NAIVE) {
-        return host_device->Free(handle);
+        status = host_device->Free(handle);
     } else if (device_type == calculate_device_type) {
-        return calculate_device->Free(handle);
+        status = calculate_device->Free(handle);
     } else {
         return Status(COSMO_NN_ERR_INVALID_INPUT, "invalid device type");
     }
+
+    // Invalidate the handle after a successful free so a repeat FreeBlob
+    // (~BlobStore loop, FreeBlob(name), or a blob that outlives this BlobStore
+    // via Graph::Output) is a no-op instead of a double-free / use-after-free.
+    // ClearHandle (not SetHandle) skips the free-on-replace path that would
+    // double-free a self-owning blob (alloc_memory == true).
+    if (bool(status)) {
+        blob->ClearHandle();
+    }
+    return status;
 }
 
 Status BlobStore::AllocaBlob(std::shared_ptr<Blob>& blob) {

@@ -2,6 +2,8 @@
 
 #include "api/MessageCameraHandler.h"
 
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
 
 #include "service/camera/ICameraChannelQuery.h"
@@ -52,8 +54,11 @@ camera::MsgAddVideoSend MessageCameraHandler::Handle(camera::MsgAddVideoRecv&& d
         errc = util::ErrorEnum::FileNotSupport;
         return retData;
     }
+    // Compare case-insensitively so .AVI/.MP4 etc. are accepted regardless of casing.
     std::string videoType = info.url.substr(dot_pos);
-    if (videoType != ".mp4" && videoType != ".mkv") {
+    std::transform(videoType.begin(), videoType.end(), videoType.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    if (videoType != ".mp4" && videoType != ".mkv" && videoType != ".avi" && videoType != ".dav") {
         LOG_INFO("videoType:{}", videoType);
         errc = util::ErrorEnum::FileNotSupport;
         return retData;

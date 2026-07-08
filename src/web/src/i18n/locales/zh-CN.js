@@ -643,7 +643,7 @@ export default {
     tempUploadNoResponse: '视频临时上传接口无响应',
     tempUploadFailed: '视频临时上传失败',
     tempVideoPathMissing: '无法获取临时视频文件路径',
-    videoUploadTip: '说明：支持视频文件上传，分辨率限720P以上，格式支持{types}，单个视频文件大小限{n}GB。',
+    videoUploadTip: '说明：支持视频文件上传，分辨率限720P以上，格式支持{types}，单个视频文件大小限{n}GB。AVI/DAV 视内部编码而定：仅 H.264/H.265 可正常解码，MPEG-4(DivX/Xvid) 等旧编码可能无法播放，建议转成 MP4(H.264)。',
     usbDeviceTip: '对应 /dev/videoN，列表展示当前设备可用摄像头',
     dragUploadHint: '将文件拖到此处，或{clickUpload}（支持分片上传，最大{n}GB）',
     noAvailableChannel: '没有可用的通道',

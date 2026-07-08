@@ -643,7 +643,7 @@ export default {
     tempUploadNoResponse: 'No response from temporary upload service',
     tempUploadFailed: 'Temporary video upload failed',
     tempVideoPathMissing: 'Unable to retrieve temporary video file path',
-    videoUploadTip: 'Note: Video upload supported. Resolution must be 720P or above. Supported formats: {types}. Max file size: {n} GB.',
+    videoUploadTip: 'Note: Video upload supported. Resolution must be 720P or above. Supported formats: {types}. Max file size: {n} GB. AVI/DAV depend on the internal codec: only H.264/H.265 decode properly; older codecs such as MPEG-4 (DivX/Xvid) may fail to play. Converting to MP4 (H.264) is recommended.',
     usbDeviceTip: 'Corresponds to /dev/videoN. Lists available cameras on this device.',
     dragUploadHint: 'Drag file here, or {clickUpload} (chunked upload supported, max {n} GB)',
     noAvailableChannel: 'No available channel',

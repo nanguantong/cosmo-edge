@@ -74,7 +74,7 @@ void StreamViewerOverview::ProcessPersonCountAlarm(const MsgRecAlarm& aiData) {
             text.pos = FindMinPoint(area.points, width_, height_);
             StreamOverviewTextEl posText;
             posText.text         = "COUNT: " + std::to_string(aiData.targetCount);
-            posText.attrPriority = VideoOverviewAttrPriority::VideoOverviewAttrPriorityCount;
+            posText.attrPriority = VideoOverviewAttrPriority::kCount;
             text.posTexts.push_back(posText);
             AddAlarmCountTextToLocal(aiData.streamIndex, aiData.index, aiData.timestamp, text);
         }
@@ -97,7 +97,7 @@ void StreamViewerOverview::ProcessPassFlowAlarm(const MsgRecAlarm& aiData) {
     }
 
     posText.text         = "IN : " + std::to_string(inAlarm);
-    posText.attrPriority = VideoOverviewAttrPriority::VideoOverviewAttrPriorityPassFlow;
+    posText.attrPriority = VideoOverviewAttrPriority::kPassFlow;
     text.posTexts.push_back(posText);
     posText.text = "OUT: " + std::to_string(outAlarm);
     text.posTexts.push_back(posText);
@@ -113,9 +113,9 @@ void StreamViewerOverview::ProcessOtherAlarm(const MsgRecAlarm& aiData) {
     }
 
     if (!aiData.alarm) {
-        text.attrPriority = VideoOverviewAttrPriority::VideoOverviewAttrPriorityAlarmFilter;
+        text.attrPriority = VideoOverviewAttrPriority::kAlarmFilter;
     } else {
-        text.attrPriority = VideoOverviewAttrPriority::VideoOverviewAttrPriorityAlarmReport;
+        text.attrPriority = VideoOverviewAttrPriority::kAlarmReport;
     }
     AddAlarmTextToLocal(aiData.streamIndex, aiData.index, aiData.timestamp, text);
 }

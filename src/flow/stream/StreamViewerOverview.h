@@ -22,17 +22,17 @@
 namespace cosmo {
 // Overlay attribute priority: lower value = higher priority
 enum class VideoOverviewAttrPriority {
-    VideoOverviewAttrPriorityAlarmReport = 0,  // alarm         red/large font   display 3s or update
-    VideoOverviewAttrPriorityAlarmFilter,      // alarm filtered blue/large font  display 3s or update
-    VideoOverviewAttrPriorityArea,             // area           blue/2px line    permanent display
-    VideoOverviewAttrPriorityBox,              // target box     yellow/1px line  display until next update
-    VideoOverviewAttrPriorityTrackId,          // track ID       white/small font display until next update
-    VideoOverviewAttrPriorityConfidence,       // confidence     white/small font display until next update
-    VideoOverviewAttrPriorityBoxSize,          // box size       white/small font display until next update
-    VideoOverviewAttrPriorityCount,            // target count   white/small font display until next update
-    VideoOverviewAttrPriorityPassFlow,         // pass flow      white/small font display until next update
+    kAlarmReport = 0,  // alarm         red/large font   display 3s or update
+    kAlarmFilter,      // alarm filtered blue/large font  display 3s or update
+    kArea,             // area           blue/2px line    permanent display
+    kBox,              // target box     yellow/1px line  display until next update
+    kTrackId,          // track ID       white/small font display until next update
+    kConfidence,       // confidence     white/small font display until next update
+    kBoxSize,          // box size       white/small font display until next update
+    kCount,            // target count   white/small font display until next update
+    kPassFlow,         // pass flow      white/small font display until next update
 
-    VideoOverviewAttrPriorityOther  // other          white
+    kOther  // other          white
 };
 
 struct StreamOverviewAttr {
@@ -43,7 +43,7 @@ struct StreamOverviewAttr {
 };
 
 struct StreamOverviewTextEl {
-    VideoOverviewAttrPriority attrPriority{VideoOverviewAttrPriority::VideoOverviewAttrPriorityOther};
+    VideoOverviewAttrPriority attrPriority{VideoOverviewAttrPriority::kOther};
     std::string text;
     media::Color bgColor{0, 0, 0};
     bool hasBgColor{false};
@@ -56,7 +56,7 @@ struct StreamOverviewText {
     std::vector<StreamOverviewTextEl> posTexts;
 };
 struct StreamOverviewLine {
-    VideoOverviewAttrPriority attrPriority{VideoOverviewAttrPriority::VideoOverviewAttrPriorityOther};
+    VideoOverviewAttrPriority attrPriority{VideoOverviewAttrPriority::kOther};
     std::pair<util::Point, util::Point> line;
     media::Color color{200, 200, 200};  // default gray, can be overridden per label
 };
@@ -83,7 +83,7 @@ struct StreamOverviewAlarmCountInfo : public StreamOverviewIdentity {
 
 struct StreamOverviewInfo {
     std::vector<StreamOverviewEl> overviews;
-    // VideoOverviewAttrPriorityAlarmReport and VideoOverviewAttrPriorityAlarmFilter
+    // kAlarmReport and kAlarmFilter
     std::vector<StreamOverviewAlarmInfo> alarmOverviews;
     std::vector<StreamOverviewAlarmCountInfo> countOverviews;
     std::vector<StreamOverviewAlarmCountInfo> passFlowOverviews;

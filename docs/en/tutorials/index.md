@@ -19,6 +19,10 @@ These tutorials are designed for users who want to turn CosmoEdge from a running
 4. [Volume 4: Pipeline Orchestration](04-pipeline-orchestration/pipeline-orchestration.md) explains how scenario tasks are composed from pipeline nodes.
 5. [Volume 5: Model Porting](05-model-porting/model-porting.md) walks through third-party model conversion, upload, validation, and integration.
 
+## Deployment Examples
+
+- [Deploy Ultralytics YOLO with CosmoEdge](06-ultralytics-yolo-edge/ultralytics-yolo-edge.md) shows the shortest path from Ultralytics YOLO export to a CosmoEdge edge video analytics pipeline.
+
 ## Related Documentation
 
 - [Build Guide](../guide/build.md)

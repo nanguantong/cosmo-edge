@@ -196,7 +196,7 @@ MsgQueryTaskOverviewFileSend MessageHandler::Handle(MsgQueryTaskOverviewFileRecv
         data.taskId, is_live_stream, retData.index, retData.pts, retData.frameSize, retData.streamUrl);
 
     if (is_live_stream) {
-        retData.type = MsgTaskOverviewFileType::MsgTaskOverviewFileTypeLive;
+        retData.type = MsgTaskOverviewFileType::kLive;
         retData.liveDatas =
             service::ServiceRegistry::Instance().Get<service::ITaskQuery>().GetTaskLiveOverviewInfo(
                 data.taskId);
@@ -216,7 +216,7 @@ MsgQueryTaskOverviewFileSend MessageHandler::Handle(MsgQueryTaskOverviewFileRecv
             retData.files.push_back(msgFile);
         }
         retData.taskId = data.taskId;
-        retData.type   = MsgTaskOverviewFileType::MsgTaskOverviewFileTypeVod;
+        retData.type   = MsgTaskOverviewFileType::kVod;
     }
 
     return retData;
@@ -243,7 +243,8 @@ MsgQueryTaskStatusSend MessageHandler::Handle(MsgQueryTaskStatusRecv&& data, std
             std::error_condition ec = queStatus.actionStatus;
             status.statusCode       = std::to_string(ec.value());
             status.statusDesc       = ec.message();
-            status.statusDescKey    = "api.error." + util::ErrorEnumName(static_cast<util::ErrorEnum>(ec.value()));
+            status.statusDescKey =
+                "api.error." + util::ErrorEnumName(static_cast<util::ErrorEnum>(ec.value()));
 
             status.holdCount          = queStatus.queueStatus.holdCount;
             status.alarmCount         = queStatus.alarmCount;

@@ -54,9 +54,9 @@ void to_json(nlohmann::json& j, const MsgQueryTaskOverviewFileSend& s) {
     j["frameSize"] = s.frameSize;
     j["streamUrl"] = s.streamUrl;
     j["type"]      = static_cast<int>(s.type);
-    if (MsgTaskOverviewFileType::MsgTaskOverviewFileTypeVod == s.type) {
+    if (MsgTaskOverviewFileType::kVod == s.type) {
         j["files"] = s.files;
-    } else if (MsgTaskOverviewFileType::MsgTaskOverviewFileTypeLive == s.type) {
+    } else if (MsgTaskOverviewFileType::kLive == s.type) {
         j["liveDatas"] = s.liveDatas;
     } else {
         j["files"] = s.files;

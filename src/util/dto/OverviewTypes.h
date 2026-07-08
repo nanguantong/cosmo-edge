@@ -57,11 +57,9 @@ void to_json(nlohmann::json& j, const MsgQueryTaskOverviewFileRecv& r);
 void from_json(const nlohmann::json& j, MsgQueryTaskOverviewFileRecv& r);
 
 enum class MsgTaskOverviewFileType {
-    MsgTaskOverviewFileTypeVod = 0,
-    MsgTaskOverviewFileTypeLive
-
-    ,
-    MsgTaskOverviewFileTypeMax  //
+    kVod = 0,
+    kLive,
+    kMax,
 };
 struct MsgQueryTaskOverviewFileSend : public MsgSendHead {
     std::string taskId;
@@ -69,7 +67,7 @@ struct MsgQueryTaskOverviewFileSend : public MsgSendHead {
     int64_t pts{-1};
     int64_t frameSize{-1};
     std::string streamUrl;
-    MsgTaskOverviewFileType type{MsgTaskOverviewFileType::MsgTaskOverviewFileTypeVod};
+    MsgTaskOverviewFileType type{MsgTaskOverviewFileType::kVod};
     std::vector<MsgOverviewFile> files;
     std::vector<MsgOverviewMem> liveDatas;
 };

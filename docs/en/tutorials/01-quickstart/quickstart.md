@@ -1,6 +1,6 @@
 ---
 title: "Volume 1: Quick Start"
-description: From unboxing to seeing live AI detection results in your browser — a 10–15 minute first experience.
+description: Two deployment environments available. out-of-the-box hardware edge box / Docker deployment on X86 servers. Complete your first real-time AI detection experience within 10–15 minutes.
 prev:
   text: Tutorials
   link: /en/tutorials/
@@ -11,10 +11,69 @@ next:
 
 # Volume 1: Quick Start
 
-> **Estimated time**: 10–15 minutes
-> **Goal**: Go from unboxing to seeing live AI detection results in your browser
-> **Prerequisites**: You have received a CosmoEdge-preinstalled edge device
-> **No extra equipment needed**: Built-in demo videos are provided — no camera required to complete the entire tutorial
+> **Reading Time**: 10–15 minutes
+> **Objective**: Cover the full workflow from environment preparation to viewing real\-time AI detection results via web browser for two deployment environments\.
+> **Environment Types**:
+> 
+> 1. Pre\-installed CosmoEdge edge computing hardware box: No deployment required; power on and use immediately\.
+> 
+> 2. No hardware box available: Deploy and run the platform via Docker containers on an X86 server\.
+> **General Notes**: Both environments support testing with demo video footage; no cameras required to complete all tutorial steps\.
+> 
+> 
+
+## Table of Contents
+
+> 1. Option 1: Docker Deployment on X86 Server \(No Hardware Box, Safety Helmet Detection Demo\)
+> 
+> 2. Option 2: Quick Start with CosmoEdge Edge Hardware Box \(Pre\-installed System, Pedestrian Flow Count Demo\)
+> 
+> 3. Post Quick Start Completion \& Follow\-Up Tutorial Guidance
+> 
+> 
+
+# Option 1: Docker Deployment on X86 Server \(No Hardware Box, Supports Safety Helmet Detection\)
+
+## 1\. Operating Environment
+
+- OS: ubuntu-22.04.2
+- Docker version:  29.1.3
+- Docker Compose version: v5.1.4
+- CPU: 13th Gen Intel(R) Core(TM) i9-13900F
+- memory：64G
+- Using Linux compose file: docker-compose.x86.yml
+
+## 2\. Execution Command \& Running Results
+
+```bash
+sudo docker compose -f docker-compose.x86.yml up -d --build
+```
+
+### 		1\. Image Build \& Startup Process
+![](images\build.png)
+### 		2\. Docker Container Running Status
+![](images\container.png)
+## 3\. Browser Access Method
+
+Access URL: `http://<ServerIP>:8080`
+Default Login Credentials:
+Username: admin
+Password: admin
+
+> Important Reminder: Change the default password immediately after logging in\.
+> 
+
+## 4\. Post\-Deployment Operation Guide
+
+Once containers finish starting, refer to the Scenario Configuration Tutorial to set up your first AI detection scenario: Safety Helmet Detection\.
+Tutorial Link: [Scenario Configuration Tutorial](https://github.com/cosmo-wander-ai/cosmo-edge/blob/main/docs/en/tutorials/02-scenario-config/scenario-config.md)
+
+## 5\. Algorithm Inference Result Preview
+![](images\res.png)
+
+
+
+# Option 2: Quick Start with CosmoEdge Edge Hardware Box
 
 ## Hardware Overview
 
@@ -329,10 +388,27 @@ Page note: "Departing visitors" = the OUT count from the visualization; "Net inf
 
 You've now successfully:
 
-- [x] Powered on the device and connected it to the network
-- [x] Accessed the management console via browser
-- [x] Viewed live AI detection results from the pre-installed demo
-- [x] Reviewed historical alarm records
+### X86 Server Docker Environment Completion Checklist
+
+- [X] Install Docker and deploy CosmoEdge containers on X86 hardware
+
+- [X] Access the platform via web browser, log in and update default credentials
+
+- [X] Configure safety helmet detection AI scenario and upload matching demo footage
+
+- [X] View real\-time visualized safety helmet detection results
+
+- [X] Review alert records for unhelmeted personnel
+
+### Hardware Box Environment Completion Checklist
+
+- [X] Power on and network the edge device
+
+- [X] Access the web management console
+
+- [X] Preview pre\-deployed real\-time AI detection demos
+
+- [X] Retrieve historical alert and counting records
 
 **What's next:**
 

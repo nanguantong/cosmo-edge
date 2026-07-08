@@ -1,6 +1,6 @@
 ---
 title: "Volume 1: Quick Start"
-description: Two deployment environments available. out-of-the-box hardware edge box / Docker deployment on X86 servers. Complete your first real-time AI detection experience within 10–15 minutes.
+description: Use either a pre-installed edge box or an x86 Docker deployment to complete your first real-time AI detection experience in 10-15 minutes.
 prev:
   text: Tutorials
   link: /en/tutorials/
@@ -8,74 +8,96 @@ next:
   text: "Volume 2: Scenario Configuration"
   link: /en/tutorials/02-scenario-config/scenario-config
 ---
-
 # Volume 1: Quick Start
 
-> **Reading Time**: 10–15 minutes
-> **Objective**: Cover the full workflow from environment preparation to viewing real\-time AI detection results via web browser for two deployment environments\.
+> **Reading time**: 10-15 minutes
+> **Objective**: Cover the workflow from environment preparation to viewing real-time AI detection results in a web browser.
 > **Environment Types**:
-> 
-> 1. Pre\-installed CosmoEdge edge computing hardware box: No deployment required; power on and use immediately\.
-> 
-> 2. No hardware box available: Deploy and run the platform via Docker containers on an X86 server\.
-> **General Notes**: Both environments support testing with demo video footage; no cameras required to complete all tutorial steps\.
-> 
-> 
+>
+> - Pre-installed CosmoEdge edge box: no deployment required; power on and use it directly.
+> - No hardware box: deploy and run the platform with Docker containers on an x86 server.
+>
+> **General note**: Both environments support demo videos, so no camera is required to complete the tutorial.
 
 ## Table of Contents
 
-> 1. Option 1: Docker Deployment on X86 Server \(No Hardware Box, Safety Helmet Detection Demo\)
-> 
-> 2. Option 2: Quick Start with CosmoEdge Edge Hardware Box \(Pre\-installed System, Pedestrian Flow Count Demo\)
-> 
-> 3. Post Quick Start Completion \& Follow\-Up Tutorial Guidance
-> 
-> 
+1. Option 1: Docker Deployment on an x86 Server
+2. Option 2: Quick Start with a CosmoEdge Edge Box
+3. Quick Start Completion and Next Steps
 
-# Option 1: Docker Deployment on X86 Server \(No Hardware Box, Supports Safety Helmet Detection\)
+## Option 1: Docker Deployment on an x86 Server
 
-## 1\. Operating Environment
+### 1. Operating Environment
+
+The following environment has been verified:
 
 - OS: ubuntu-22.04.2
-- Docker version:  29.1.3
+- Docker version: 29.1.3
 - Docker Compose version: v5.1.4
 - CPU: 13th Gen Intel(R) Core(TM) i9-13900F
-- memory：64G
-- Using Linux compose file: docker-compose.x86.yml
+- Memory: 64 GB
+- Linux compose file: `docker-compose.x86.yml`
+- Windows compose file: `docker-compose.x86.windows.yml`
 
-## 2\. Execution Command \& Running Results
+> **Docker Compose version note**: This documentation uses the Docker Compose V2 command format, `docker compose`. If you use an older Docker environment, replace it with `docker-compose`.
+
+### 2. Get the Code and Start the Containers
+
+For a first run, clone the repository and enter the repository root first:
+
+```bash
+git clone https://github.com/cosmo-wander-ai/cosmo-edge.git
+# Or use the Gitee mirror in China:
+# git clone https://gitee.com/cosmo-wander-ai/cosmo-edge.git
+cd cosmo-edge
+```
+
+Linux:
 
 ```bash
 sudo docker compose -f docker-compose.x86.yml up -d --build
 ```
 
-### 		1\. Image Build \& Startup Process
-![](images\build.png)
-### 		2\. Docker Container Running Status
-![](images\container.png)
-## 3\. Browser Access Method
+Windows (PowerShell/CMD):
 
-Access URL: `http://<ServerIP>:8080`
+```powershell
+docker compose -f docker-compose.x86.windows.yml up -d --build
+```
+
+### 3. Running Results
+
+Image build and startup process:
+
+![](images/build.webp)
+
+Docker container running status:
+
+![](images/container.webp)
+
+### 4. Browser Access
+
+Access URL: `http://<server-ip>:8080`. If you run it on the same machine, you can also use `http://127.0.0.1:8080`.
+
 Default Login Credentials:
-Username: admin
-Password: admin
 
-> Important Reminder: Change the default password immediately after logging in\.
-> 
+![](images/x86-login.webp)
 
-## 4\. Post\-Deployment Operation Guide
+- Username: `admin`
+- Password: `admin`
 
-Once containers finish starting, refer to the Scenario Configuration Tutorial to set up your first AI detection scenario: Safety Helmet Detection\.
-Tutorial Link: [Scenario Configuration Tutorial](https://github.com/cosmo-wander-ai/cosmo-edge/blob/main/docs/en/tutorials/02-scenario-config/scenario-config.md)
+> Important reminder: Change the default password immediately after logging in.
 
-## 5\. Algorithm Inference Result Preview
-![](images\res.png)
+### 5. Post-Deployment Operation Guide
 
+After the containers start, follow the [Scenario Configuration tutorial](/en/tutorials/02-scenario-config/scenario-config) to set up your first AI detection scenario.
 
+### 6. Algorithm Inference Result Preview
 
-# Option 2: Quick Start with CosmoEdge Edge Hardware Box
+![](images/res.webp)
 
-## Hardware Overview
+## Option 2: Quick Start with a CosmoEdge Edge Box
+
+### Hardware Overview
 
 CosmoEdge runs on a Sophon-based AI edge computing device powered by the BM1688 processor, delivering 16.0 TOPS of AI compute for intelligent analysis of IP camera video streams.
 
@@ -89,17 +111,17 @@ CosmoEdge runs on a Sophon-based AI edge computing device powered by the BM1688 
 
 Key specifications:
 
-| Component  | Specification                                      |
-| ---------- | -------------------------------------------------- |
-| Processor  | BM1688                                             |
-| CPU        | Octa-core ARM A53 @ 1.6 GHz                        |
-| Memory     | LPDDR4 8 GB                                        |
-| Storage    | 64 GB                                              |
-| AI Compute | 16.0 TOPS                                          |
-| Network    | 2 × 10/100/1000 Mbps auto-negotiation Ethernet     |
+| Component  | Specification                                           |
+| ---------- | ------------------------------------------------------- |
+| Processor  | BM1688                                                  |
+| CPU        | Octa-core ARM A53 @ 1.6 GHz                             |
+| Memory     | LPDDR4 8 GB                                             |
+| Storage    | 64 GB                                                   |
+| AI Compute | 16.0 TOPS                                               |
+| Network    | 2 × 10/100/1000 Mbps auto-negotiation Ethernet         |
 | Interfaces | USB 3.0 × 2, Type-C × 1, HDMI × 1, TF × 1, SIM × 1 |
 
-## Step 1: Hardware Connection
+### Step 1: Hardware Connection
 
 Connect the device to your local network and power it on.
 
@@ -153,7 +175,7 @@ Connect the device to your local network and power it on.
 
 **💡 The default CosmoEdge address is: WAN: 192.168.100.1**
 
-## Step 2: Access the Management Console and Configure System Settings
+### Step 2: Access the Management Console and Configure System Settings
 
 Open a browser and navigate to the device's IP address.
 
@@ -162,7 +184,7 @@ Open a browser and navigate to the device's IP address.
 
 <!-- Screenshot of browser navigation -->
 
-![](images/img_10.webp)
+![](images/x86-login.webp)
 
 3. Log in with the default credentials:
    - Username: `admin`
@@ -174,12 +196,12 @@ Open a browser and navigate to the device's IP address.
 
 After a successful login, you'll see the **System Dashboard**, which displays the following key metrics:
 
-|   Metric    |                 Description                  |
+|   Metric   |                 Description                 |
 | :---------: | :------------------------------------------: |
 |  CPU Usage  |                Processor load                |
-| VRAM Usage  |    Video memory consumed by loaded tasks     |
-|  NPU Usage  |         Neural processing unit load          |
-| eMMC Usage  |          System storage utilization          |
+| VRAM Usage |    Video memory consumed by loaded tasks    |
+|  NPU Usage  |         Neural processing unit load         |
+| eMMC Usage |          System storage utilization          |
 | Packet Loss | If above 10%, system performance may degrade |
 
 Go to **System Management** → **System Settings** → **Time Settings** → **Manual Sync** → **Sync with Computer**. (Since the device is directly connected, it can't automatically obtain the correct time.)
@@ -200,7 +222,7 @@ Go to **System Management** → **Network Configuration** to change the device's
 > - Try connecting the device directly to your computer with an Ethernet cable (bypassing the router).
 > - Check whether your browser is using a proxy — disable it and try again.
 
-## Step 3: View Live AI Detection Results
+### Step 3: View Live AI Detection Results
 
 The device comes pre-loaded with several demo scenarios using **built-in demo videos** as data sources — no cameras needed to experience the full AI detection workflow. We'll use **Pedestrian Flow Counting** as our example.
 
@@ -366,7 +388,7 @@ The visualization includes:
 
 > Video demo: Coming soon.
 
-## Step 4: View Statistics
+### Step 4: View Statistics
 
 All AI-detected alarms and statistical events are automatically recorded and can be reviewed later.
 
@@ -388,34 +410,26 @@ Page note: "Departing visitors" = the OUT count from the visualization; "Net inf
 
 You've now successfully:
 
-### X86 Server Docker Environment Completion Checklist
+### x86 Server Docker Environment Completion Checklist
 
-- [X] Install Docker and deploy CosmoEdge containers on X86 hardware
-
-- [X] Access the platform via web browser, log in and update default credentials
-
-- [X] Configure safety helmet detection AI scenario and upload matching demo footage
-
-- [X] View real\-time visualized safety helmet detection results
-
-- [X] Review alert records for unhelmeted personnel
+- [X] Cloned the CosmoEdge repository and started containers from the repository root
+- [X] Accessed the web management console in a browser
+- [X] Logged in with the default account and noted that the initial password should be changed
+- [X] Found the next tutorial entry for scenario configuration
 
 ### Hardware Box Environment Completion Checklist
 
-- [X] Power on and network the edge device
-
-- [X] Access the web management console
-
-- [X] Preview pre\-deployed real\-time AI detection demos
-
-- [X] Retrieve historical alert and counting records
+- [X] Powered on the device and connected it to the network
+- [X] Accessed the web management console
+- [X] Previewed pre-deployed real-time AI detection demos
+- [X] Reviewed counting/statistics records
 
 **What's next:**
 
-| Goal                                                        | Read                                         |
-| ----------------------------------------------------------- | -------------------------------------------- |
-| Configure your own AI detection scenarios                   | → Scenario Configuration Guide (Volume 2)    |
+| Goal                                                         | Read                                          |
+| ------------------------------------------------------------ | --------------------------------------------- |
+| Configure your own AI detection scenarios                    | → Scenario Configuration Guide (Volume 2)    |
 | Try the VLM — switch detection rules without model training | → VLM Visual State Judgment Guide (Volume 3) |
-| Look up a specific parameter or troubleshoot an issue       | → Reference Manual                           |
+| Look up a specific parameter or troubleshoot an issue        | → Reference Manual                           |
 
 ---

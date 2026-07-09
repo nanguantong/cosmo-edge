@@ -38,6 +38,12 @@ const tutorialsZh = [
   { text: '卷五：模型移植', link: '/tutorials/05-model-porting/model-porting' }
 ]
 
+const communityZh = [
+  { text: '社区总览', link: '/community/' },
+  { text: '操作案例', link: '/community/cases/' },
+  { text: '案例模板', link: '/community/cases/template' }
+]
+
 const guideEn = [
   { text: 'Build Guide', link: '/en/guide/build' },
   { text: 'Deployment Guide', link: '/en/guide/deployment' },
@@ -71,6 +77,12 @@ const tutorialsEn = [
   { text: 'Volume 5: Model Porting', link: '/en/tutorials/05-model-porting/model-porting' }
 ]
 
+const communityEn = [
+  { text: 'Community Overview', link: '/en/community/' },
+  { text: 'Recipes and Cases', link: '/en/community/cases/' },
+  { text: 'Case Template', link: '/en/community/cases/template' }
+]
+
 export default defineConfig({
   title: 'CosmoEdge',
   description: 'CosmoEdge documentation and tutorials',
@@ -93,6 +105,7 @@ export default defineConfig({
         nav: [
           { text: '教程', link: '/tutorials/' },
           { text: '指南', link: '/guide/build' },
+          { text: '社区', link: '/community/' },
           { text: '参考', link: '/reference/api' },
           { text: '开发', link: '/development/frontend' },
           { text: 'GitHub', link: 'https://github.com/cosmo-wander-ai/cosmo-edge' }
@@ -103,9 +116,11 @@ export default defineConfig({
           '/development/': [{ text: '开发', items: developmentZh }],
           '/i18n/': [{ text: 'I18N', items: i18nZh }],
           '/tutorials/': [{ text: '教程', items: tutorialsZh }],
+          '/community/': [{ text: '社区', items: communityZh }],
           '/': [
             { text: '开始', items: [{ text: '文档首页', link: '/' }, ...guideZh] },
             { text: '五卷教程', items: tutorialsZh },
+            { text: '社区', items: communityZh },
             { text: '参考', items: referenceZh },
             { text: '开发', items: developmentZh },
             { text: 'I18N', items: i18nZh }
@@ -135,6 +150,7 @@ export default defineConfig({
         nav: [
           { text: 'Tutorials', link: '/en/tutorials/' },
           { text: 'Guide', link: '/en/guide/build' },
+          { text: 'Community', link: '/en/community/' },
           { text: 'Reference', link: '/en/reference/api' },
           { text: 'Development', link: '/en/development/frontend' },
           { text: 'GitHub', link: 'https://github.com/cosmo-wander-ai/cosmo-edge' }
@@ -144,9 +160,11 @@ export default defineConfig({
           '/en/reference/': [{ text: 'Reference', items: referenceEn }],
           '/en/development/': [{ text: 'Development', items: developmentEn }],
           '/en/tutorials/': [{ text: 'Tutorials', items: tutorialsEn }],
+          '/en/community/': [{ text: 'Community', items: communityEn }],
           '/en/': [
             { text: 'Start', items: [{ text: 'Documentation Home', link: '/en/' }, ...guideEn] },
             { text: 'Tutorials', items: tutorialsEn },
+            { text: 'Community', items: communityEn },
             { text: 'Reference', items: referenceEn },
             { text: 'Development', items: developmentEn }
           ]

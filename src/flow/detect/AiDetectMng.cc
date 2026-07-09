@@ -13,14 +13,14 @@
 namespace cosmo {
 
 namespace {
-constexpr const char* kTag = "AiDetectMng";
+    constexpr const char* kTag = "AiDetectMng";
 }
 
 AiDetectorPtr AiDetectMng::GetInst(const std::string& algCode, const std::string& channelId,
                                    const std::string& task, ActionNode& action) {
-    const float requested_fps = action.initFps;
+    const float requested_fps  = action.initFps;
     const float normalized_fps = ai_detector_fps::NormalizeRequestedFps(requested_fps);
-    const bool exclusive = (requested_fps <= 0.0f);
+    const bool exclusive       = (requested_fps <= 0.0f);
 
     std::lock_guard<std::shared_mutex> lock(m_mtx);
     auto& algInsts = m_insts[algCode];
@@ -69,9 +69,9 @@ AiDetectorPtr AiDetectMng::GetInst(const std::string& algCode, const std::string
 
     // Rule 3: first existing instance that fits under both the channel cap and the fps budget.
     for (size_t i = 0; i < algInsts.size(); ++i) {
-        const auto& inst = algInsts[i];
+        const auto& inst            = algInsts[i];
         const float assigned_before = inst->AssignedFps();
-        const float delta = inst->DeltaFpsForTask(channelId, requested_fps);
+        const float delta           = inst->DeltaFpsForTask(channelId, requested_fps);
         if (inst->CanAccept(channelId, requested_fps)) {
             if (!inst->AddTask(channelId, task, requested_fps)) {
                 LOG_WARN("[{}] Channel:{} Task:{} Get {} Inst Failed", kTag, channelId, task, algCode);

@@ -14,8 +14,8 @@ class AiDetectMng : public MultiChannelActionMng<AiDetector> {
 public:
     AiDetectMng() : MultiChannelActionMng("AiDetectMng") {}
 
-    AiDetectorPtr GetInst(const std::string& algCode, const std::string& channelId,
-                          const std::string& task, ActionNode& action);
+    AiDetectorPtr GetInst(const std::string& algCode, const std::string& channelId, const std::string& task,
+                          ActionNode& action);
 };
 
 }  // namespace cosmo

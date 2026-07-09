@@ -43,32 +43,9 @@ export class ReportWriter {
     const samples = r.samples ?? [];
     const thresholds = r.thresholds ?? {};
     const videoMode = r.videoMode ?? 'local';
-    const summaries = [];
-
-    for (const st of r.steps ?? []) {
-      const stepSamples = samples.filter((s) => s.stepIndex === st.index);
-      const observedChannels = uniqueObservedChannels(stepSamples);
-      const targetObserved = observedChannels.includes(st.channels);
-      const stoppedInRamp = r.bottleneck?.stepIndex === st.index
-        && (r.bottleneck?.phase === 'ramp' || (!targetObserved && observedChannels.some((ch) => ch < st.channels)));
-
-      if (stoppedInRamp && observedChannels.length) {
-        for (const channels of observedChannels) {
-          summaries.push(this._summarizeStep({
-            ...st,
-            channels,
-            targetChannels: st.channels,
-            sampleChannels: channels,
-            samplePhase: 'ramp',
-          }, samples, thresholds, videoMode));
-        }
-        continue;
-      }
-
-      summaries.push(this._summarizeStep(st, samples, thresholds, videoMode));
-    }
-
-    return summaries;
+    return buildReportSteps(r).map((st) =>
+      this._summarizeStep(st, samples, thresholds, videoMode),
+    );
   }
 
   _summarizeStep(step, samples, thresholds, videoMode) {
@@ -148,7 +125,7 @@ export class ReportWriter {
         upperExclusive: bottleneck.channels,
       } : null,
       bottleneck,
-      baselineFps: r.baselineFps,
+      baselineFps: reportBaselineFps(r, stepSummaries),
       baselineByTask: r.baselineByTask ?? {},
       device: r.device,
       startedAt: r.startedAt,
@@ -185,7 +162,7 @@ export class ReportWriter {
       ['开始时间', r.startedAt],
       ['结束时间', r.endedAt],
       ['总采样点', (r.samples ?? []).length],
-      ['基线 FPS（参考）', r.baselineFps != null ? `${r.baselineFps} (step 1, 1ch)` : '-'],
+      ['基线 FPS（参考）', summary.baselineFps != null ? `${summary.baselineFps} (step 1, 1ch)` : '-'],
     ];
 
     const bottleneckBanner = summary.bottleneck
@@ -214,7 +191,7 @@ export class ReportWriter {
       <tr>
         <td>${rowIndex + 1}</td>
         <td>${s.channels}</td>
-        <td>${s.phase === 'ramp' ? '升路' : `${s.holdSec}s`}</td>
+        <td>${s.holdSec}s</td>
         <td>${s.targetFps ?? '-'}</td>
         <td>${s.minFpsAcross ?? '-'}</td>
         <td>${s.criticalPathLatencyMs ?? '-'}</td>
@@ -329,7 +306,6 @@ function formatTaskStrategies(tasks) {
 
 function isContinuousChannelProfile(stepSummaries) {
   const channels = stepSummaries
-    .filter((s) => s.phase !== 'ramp')
     .map((s) => s.channels)
     .filter((v) => Number.isInteger(v))
     .sort((a, b) => a - b);
@@ -338,6 +314,39 @@ function isContinuousChannelProfile(stepSummaries) {
     if (channels[i] !== channels[i - 1] + 1) return false;
   }
   return true;
+}
+
+function buildReportSteps(runResult) {
+  const samples = runResult.samples ?? [];
+  const steps = runResult.steps ?? [];
+  const reportSteps = [];
+  const seenChannels = new Set();
+
+  for (const step of steps) {
+    const observedChannels = uniqueObservedChannels(
+      samples.filter((sample) => sample.stepIndex === step.index),
+    );
+
+    const shouldExpand = observedChannels.length > 1
+      && observedChannels.some((channels) => channels < step.channels);
+    const channelsToReport = shouldExpand ? observedChannels : [step.channels];
+
+    for (const channels of channelsToReport) {
+      if (seenChannels.has(channels)) continue;
+      seenChannels.add(channels);
+      reportSteps.push({
+        ...step,
+        index: channels - 1,
+        sourceIndex: step.index,
+        channels,
+        targetChannels: step.channels,
+        sampleStepIndex: step.index,
+        sampleChannels: channels,
+      });
+    }
+  }
+
+  return reportSteps.sort((a, b) => a.channels - b.channels);
 }
 
 function uniqueObservedChannels(samples) {
@@ -350,22 +359,39 @@ function uniqueObservedChannels(samples) {
 
 function normalizeBottleneck(bottleneck, stepSummaries) {
   if (!bottleneck) return null;
-  const stepRows = stepSummaries.filter((s) => s.step.index === bottleneck.stepIndex && !s.skipped);
+  const stepRows = stepSummaries.filter((s) => !s.skipped);
   if (!stepRows.length) return bottleneck;
 
   const channels = stepRows.map((s) => s.channels).filter((v) => Number.isInteger(v));
-  if (!channels.length || channels.includes(bottleneck.channels)) return bottleneck;
+  if (!channels.length) return bottleneck;
+
+  const matchingRow = stepRows.find((s) => s.channels === bottleneck.channels);
+  if (matchingRow) {
+    return {
+      ...bottleneck,
+      stepIndex: matchingRow.step.index,
+      stepNumber: matchingRow.step.index + 1,
+    };
+  }
 
   const maxObserved = Math.max(...channels);
   if (Number.isInteger(bottleneck.channels) && maxObserved < bottleneck.channels) {
+    const observedRow = stepRows.find((s) => s.channels === maxObserved);
     return {
       ...bottleneck,
+      stepIndex: observedRow?.step.index ?? bottleneck.stepIndex,
+      stepNumber: observedRow ? observedRow.step.index + 1 : bottleneck.stepNumber,
       targetChannels: bottleneck.targetChannels ?? bottleneck.channels,
       channels: maxObserved,
-      phase: bottleneck.phase ?? 'ramp',
     };
   }
+
   return bottleneck;
+}
+
+function reportBaselineFps(runResult, stepSummaries) {
+  const oneChannel = stepSummaries.find((s) => s.channels === 1 && !s.skipped);
+  return oneChannel?.minFpsAcross ?? runResult.baselineFps;
 }
 
 function formatPercent(v) {

@@ -7,7 +7,7 @@ import {
 
 export function summarizeStep(step, samples, thresholds = {}, videoMode = 'local') {
   const allTicks = selectStepSamples(
-    samples.filter((s) => s.stepIndex === step.index),
+    samples.filter((s) => s.stepIndex === (step.sampleStepIndex ?? step.index)),
     step,
   );
   const ticks = allTicks.slice(Math.floor(allTicks.length / 2));
@@ -28,7 +28,6 @@ export function summarizeStep(step, samples, thresholds = {}, videoMode = 'local
       pass: null,
       reasons: ['未执行，瓶颈提前停止'],
       skipped: true,
-      phase: step.samplePhase ?? null,
     };
   }
 
@@ -164,7 +163,6 @@ export function summarizeStep(step, samples, thresholds = {}, videoMode = 'local
     perThreshold,
     pass: overall.pass,
     reasons: overall.reasons,
-    phase: step.samplePhase ?? null,
   };
 }
 
@@ -240,20 +238,12 @@ function summarizeBinding(stat) {
 function selectStepSamples(samples, step) {
   let out = samples;
 
-  if (step.samplePhase === 'ramp') {
-    const ramp = out.filter((s) => s.phase === 'ramp');
-    if (ramp.length) out = ramp;
-  } else if (step.samplePhase === 'hold') {
-    const hold = out.filter((s) => s.phase !== 'ramp');
-    if (hold.length) out = hold;
-  } else {
-    const hold = out.filter((s) => s.phase !== 'ramp');
-    if (hold.length) out = hold;
-  }
-
   if (Number.isInteger(step.sampleChannels)) {
     out = out.filter((s) => Number(s.activeChannels) === step.sampleChannels);
   }
+
+  const hold = out.filter((s) => s.phase !== 'ramp');
+  if (hold.length) out = hold;
 
   return out;
 }

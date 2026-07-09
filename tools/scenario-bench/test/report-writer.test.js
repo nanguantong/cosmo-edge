@@ -167,3 +167,62 @@ test('HTML rendering splits ramp-only bottleneck samples by observed channels', 
   assert.match(routeTable, /<td>7<\/td>[\s\S]*<td class="warn">STOPPED<\/td>/);
   assert.doesNotMatch(routeTable, /<td>16<\/td>/);
 });
+
+test('HTML rendering expands single target step from observed channel samples', () => {
+  const writer = new ReportWriter('.');
+  const samples = [
+    ...Array.from({ length: 16 }, (_, index) => sampleForChannels(index + 1, index * 3000, 'ramp')),
+    ...Array.from({ length: 10 }, (_, index) => sampleForChannels(16, 48_000 + index * 3000, 'hold')),
+  ];
+  const runResult = {
+    scenarioName: 'helmet',
+    profileMode: 'configured',
+    videoMode: 'local',
+    status: 'completed',
+    tasks: [{ id: 'helmet-99898', type: 'cv', algorithmId: '99898', targetFps: 5 }],
+    thresholds: { pass: { avgDiscardRate: 0.05 } },
+    steps: [{ index: 0, channels: 16, holdSec: 30 }],
+    baselineFps: 5.45,
+    samples,
+  };
+
+  const stepSummaries = writer._summarizeSteps(runResult);
+  assert.deepEqual(stepSummaries.map((s) => s.channels), Array.from({ length: 16 }, (_, i) => i + 1));
+  assert.equal(stepSummaries[15].taskStats[0].bindingCount, 16);
+
+  const summary = writer._buildSummary(runResult, stepSummaries);
+  assert.equal(summary.baselineFps, 5);
+  assert.equal(summary.maxStableChannels, 16);
+
+  const html = writer._renderHtml(runResult, stepSummaries, summary);
+  assert.match(html, /<td>16<\/td>/);
+  assert.doesNotMatch(html, /samplePhase/);
+});
+
+function sampleForChannels(activeChannels, ts, phase) {
+  return {
+    stepIndex: 0,
+    phase,
+    targetChannels: 16,
+    activeChannels,
+    ts,
+    channels: Array.from({ length: activeChannels }, (_, channelIndex) => ({
+      taskKey: 'helmet-99898',
+      taskDisplayName: 'helmet 99898',
+      taskType: 'cv',
+      algorithmId: '99898',
+      channelId: `ch-${channelIndex + 1}`,
+      measuredFps: 5,
+      pipelineMinFps: 5,
+      discardRate: 0,
+      nodeDurationInfos: [
+        { name: 'detector', durationAvgUs: 20_000 },
+      ],
+    })),
+    hardware: {
+      npuUtilization: { usedPercent: 50 },
+      cpuUtilization: { usedPercent: 20 },
+      generalMemoryUtilization: { usedPercent: 40 },
+    },
+  };
+}

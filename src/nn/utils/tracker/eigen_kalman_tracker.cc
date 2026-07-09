@@ -10,7 +10,7 @@ EigenKalmanTracker::EigenKalmanTracker(Rect2f r, TrackerConfig cfg, unsigned int
 }
 
 void EigenKalmanTracker::Update(Rect2f stateMat, double score) {
-    status                 = TRACKING;
+    status                 = TrackingStatus::kTracking;
     time_since_last_update = 0;
     hits += 1;
     hit_streak += 1;
@@ -40,7 +40,7 @@ MotionState EigenKalmanTracker::MotionEval() {
     trajectory.length() >= config.motion_length ? len = config.motion_length : len = trajectory.length();
 
     if (len < 2 || config.motion_iou <= 0) {
-        return UNCERTAIN;
+        return MotionState::kUncertain;
     }
 
     float ave_iou = 0;
@@ -65,11 +65,11 @@ MotionState EigenKalmanTracker::MotionEval() {
             }
         }
         if (ave_iou >= config.motion_iou)
-            return STILL;
+            return MotionState::kStill;
         else
-            return MOVING;
+            return MotionState::kMoving;
     }
-    return UNCERTAIN;
+    return MotionState::kUncertain;
 }
 
 TrackingBox EigenKalmanTracker::Predict() {
@@ -86,7 +86,7 @@ TrackingBox EigenKalmanTracker::Predict() {
     last_predict_position = record.box;
 
     time_since_last_update += 1;
-    status = LOSS;
+    status = TrackingStatus::kLoss;
     return record;
 }
 
@@ -96,9 +96,9 @@ void EigenKalmanTracker::init_kf(Rect2f stateMat, unsigned int assigned_id) {
     age                    = 0;
     hits                   = 0;
     hit_streak             = 0;
-    motion_state           = UNCERTAIN;  // object is still or not
+    motion_state           = MotionState::kUncertain;  // object is still or not
     id                     = assigned_id;
-    status                 = NEW;
+    status                 = TrackingStatus::kNew;
     time_since_last_update = 0;
     search_range           = (stateMat.width + stateMat.height) / 2;
     search_range           = search_range > config.max_range ? config.max_range : search_range;

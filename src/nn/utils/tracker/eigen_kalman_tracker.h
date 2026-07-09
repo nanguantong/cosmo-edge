@@ -32,12 +32,12 @@ public:
     float confidence                    = 0.0f;
     double search_range                 = 0.0;
     int low_thresh_count                = 0;
-    TrackingStatus status               = NEW;
+    TrackingStatus status               = TrackingStatus::kNew;
 
     Rect2f last_detect_position;
     Rect2f last_predict_position;
     Queue<Rect2f> trajectory;
-    MotionState motion_state = UNCERTAIN;  // target motion state
+    MotionState motion_state = MotionState::kUncertain;  // target motion state
 
 private:
     void init_kf(Rect2f stateMat, unsigned int assigned_id);

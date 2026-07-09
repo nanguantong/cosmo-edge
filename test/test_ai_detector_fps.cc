@@ -1,0 +1,115 @@
+#include "catch_amalgamated.hpp"
+/*
+ * test_ai_detector_fps.cc - AiDetectorFps.h free-function unit tests.
+ *
+ * Exercises the fps-aware placement math directly over std::vector<AiDetectorChannel>, without
+ * constructing an AiDetector (whose base AlgActionBase is heavy / device-bound).
+ */
+#include <cmath>
+#include <limits>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "flow/detect/AiDetectorFps.h"
+
+using Catch::Approx;
+using namespace cosmo;
+
+namespace {
+AiDetectorChannel makeChannel(const std::string& ch,
+                              const std::vector<std::pair<std::string, float>>& tasks) {
+    AiDetectorChannel channel;
+    channel.channel = ch;
+    for (const auto& kv : tasks) {
+        channel.tasks.push_back({kv.first, kv.second});
+    }
+    return channel;
+}
+}  // namespace
+
+TEST_CASE("AiDetectorFps NormalizeRequestedFps", "[AiDetectorFps]") {
+    using ai_detector_fps::NormalizeRequestedFps;
+    REQUIRE(NormalizeRequestedFps(12.0f) == Approx(12.0f));
+    REQUIRE(NormalizeRequestedFps(0.0f) == Approx(kUnknownFpsEstimate));
+    REQUIRE(NormalizeRequestedFps(-1.0f) == Approx(kUnknownFpsEstimate));
+    REQUIRE(NormalizeRequestedFps(std::nan("")) == Approx(kUnknownFpsEstimate));
+    REQUIRE(NormalizeRequestedFps(std::numeric_limits<float>::infinity()) == Approx(kUnknownFpsEstimate));
+}
+
+TEST_CASE("AiDetectorFps ChannelAssignedFps takes max not sum", "[AiDetectorFps]") {
+    using ai_detector_fps::ChannelAssignedFps;
+    REQUIRE(ChannelAssignedFps(makeChannel("ch", {})) == Approx(0.0f));
+    REQUIRE(ChannelAssignedFps(makeChannel("ch", {{"t1", 3.0f}, {"t2", 8.0f}})) == Approx(8.0f));
+}
+
+TEST_CASE("AiDetectorFps AssignedFps sums per-channel max", "[AiDetectorFps]") {
+    using ai_detector_fps::AssignedFps;
+    std::vector<AiDetectorChannel> inst = {
+        makeChannel("ch1", {{"t1", 12.0f}, {"t2", 5.0f}}),  // channel max 12
+        makeChannel("ch2", {{"t3", 24.0f}}),                // channel max 24
+    };
+    REQUIRE(AssignedFps(inst) == Approx(36.0f));
+    REQUIRE(AssignedFps({}) == Approx(0.0f));
+}
+
+TEST_CASE("AiDetectorFps DeltaFpsForTask", "[AiDetectorFps]") {
+    using ai_detector_fps::DeltaFpsForTask;
+    std::vector<AiDetectorChannel> inst = {makeChannel("ch1", {{"t1", 12.0f}})};
+    REQUIRE(DeltaFpsForTask(inst, "ch_new", 12.0f) == Approx(12.0f));  // new channel → requested
+    REQUIRE(DeltaFpsForTask(inst, "ch1", 5.0f) == Approx(0.0f));       // lower fps, no rise
+    REQUIRE(DeltaFpsForTask(inst, "ch1", 24.0f) == Approx(12.0f));     // higher fps, rises by diff
+}
+
+TEST_CASE("AiDetectorFps CanAccept placement matrix", "[AiDetectorFps]") {
+    using ai_detector_fps::CanAccept;
+    constexpr size_t kMaxReuse = 3;
+    constexpr float kBudget    = 36.0f;
+
+    SECTION("empty instance accepts a new channel") {
+        REQUIRE(CanAccept({}, "ch1", 12.0f, kMaxReuse, kBudget));
+    }
+
+    SECTION("12fps builds up to one instance across 3 channels (12+12+12=36)") {
+        REQUIRE(CanAccept({}, "ch1", 12.0f, kMaxReuse, kBudget));
+        std::vector<AiDetectorChannel> one = {makeChannel("ch1", {{"t1", 12.0f}})};
+        REQUIRE(CanAccept(one, "ch2", 12.0f, kMaxReuse, kBudget));  // 12 + 12 = 24
+        std::vector<AiDetectorChannel> two = {one[0], makeChannel("ch2", {{"t2", 12.0f}})};
+        REQUIRE(CanAccept(two, "ch3", 12.0f, kMaxReuse, kBudget));  // 24 + 12 = 36
+    }
+
+    SECTION("12fps 4th channel must split (3+1): channel cap and budget both reject") {
+        std::vector<AiDetectorChannel> three = {makeChannel("ch1", {{"t1", 12.0f}}),
+                                                makeChannel("ch2", {{"t2", 12.0f}}),
+                                                makeChannel("ch3", {{"t3", 12.0f}})};
+        REQUIRE_FALSE(CanAccept(three, "ch4", 12.0f, kMaxReuse, kBudget));
+    }
+
+    SECTION("24fps x2 must split (budget forces 1+1)") {
+        std::vector<AiDetectorChannel> one = {makeChannel("ch1", {{"t1", 24.0f}})};
+        REQUIRE_FALSE(CanAccept(one, "ch2", 24.0f, kMaxReuse, kBudget));  // 24 + 24 = 48 > 36
+    }
+
+    SECTION("24 + 12 = 36 fits one instance") {
+        std::vector<AiDetectorChannel> one = {makeChannel("ch1", {{"t1", 24.0f}})};
+        REQUIRE(CanAccept(one, "ch2", 12.0f, kMaxReuse, kBudget));
+    }
+
+    SECTION("channel cap rejects even when fps budget remains") {
+        std::vector<AiDetectorChannel> two = {makeChannel("ch1", {{"t1", 3.0f}}),
+                                              makeChannel("ch2", {{"t2", 3.0f}})};
+        REQUIRE_FALSE(CanAccept(two, "ch3", 3.0f, 2, kBudget));  // 6 fps, but cap=2
+    }
+
+    SECTION("same-channel lower-fps task adds no load") {
+        std::vector<AiDetectorChannel> ch = {makeChannel("ch1", {{"t1", 24.0f}})};
+        REQUIRE(CanAccept(ch, "ch1", 5.0f, kMaxReuse, kBudget));  // max stays 24, delta 0
+    }
+
+    SECTION("same-channel higher-fps task raising max beyond budget is rejected by the gate") {
+        std::vector<AiDetectorChannel> ch = {makeChannel("ch1", {{"t1", 12.0f}})};
+        // new 30fps task raises channel max: delta = 30-12 = 18; 12 + 18 = 30 > 20 budget.
+        // GetInst rule 1 bypasses the gate for existing channels; this documents why.
+        REQUIRE_FALSE(CanAccept(ch, "ch1", 30.0f, kMaxReuse, 20.0f));
+    }
+}

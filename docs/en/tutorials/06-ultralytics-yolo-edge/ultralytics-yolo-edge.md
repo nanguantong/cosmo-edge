@@ -93,7 +93,8 @@ The benchmark hardware identifiers are anonymized. Keep that policy for public d
 
 | Artifact | Link | What it verifies |
 | --- | --- | --- |
-| Demo video | [`ultralytics-yolo-edge-demo.mp4`](https://github.com/user-attachments/assets/1d65ec39-c3d2-4fb8-8712-8a8d6bad8936) | End-to-end demo flow, 1920 x 1080, 24 FPS, 100.97 seconds, H.264/AAC. |
+| Input video | `data/test-video/Safety Helmet.mp4` | Reproducible source video used by the pipeline validation and ScenarioBench benchmark. |
+| Demo recording | [`ultralytics-yolo-edge-demo.mp4`](https://github.com/user-attachments/assets/1d65ec39-c3d2-4fb8-8712-8a8d6bad8936) | Screen recording of the CosmoEdge workflow and OSD result, 1920 x 1080, 24 FPS, 100.97 seconds, H.264/AAC. |
 | Pipeline package | [`ultralytics-yolo-no-safety-helmet-pipeline.tar.gz`](../../../assets/community/ultralytics-yolo-no-safety-helmet-pipeline.tar.gz) | Exported `NO Safety Helmet` scenario package containing `87841_NO Safety Helmet.json`. |
 | Benchmark reports | ScenarioBench v1.0 report paths | Published capacity and stability evidence for each benchmark row. |
 
@@ -210,7 +211,7 @@ Recommended metadata:
 | Labels | `labels.txt` | Must match model output order. |
 | Runtime backend | `ONNX Runtime CPU` or `NPU runtime package` | Record the exact runtime and conversion version. |
 
-Reference screenshot: [Model import output](images/model-import.webp).
+Reference screenshot: see the model import output in the Validation Evidence section above.
 
 Post-import checklist:
 
@@ -294,7 +295,7 @@ The expected event output is:
 - Snapshot or frame reference is available when event snapshots are enabled.
 - Event timestamps line up with the visible OSD result.
 
-Reference screenshots: [Live OSD output](images/live-osd.webp) and [Event output](images/event-output.webp).
+Reference screenshots: see the live OSD and event output examples in the Validation Evidence section above.
 
 For downstream integration, use the MQTT or HTTP webhook references:
 
@@ -312,7 +313,7 @@ Benchmark environment summary:
 - Detection model: `YOLOv8n.pt`
 - Classification model: `YOLOv8n-cls.pt`
 - Model source: Ultralytics documentation
-- Test video: [`ultralytics-yolo-edge-demo.mp4`](https://github.com/user-attachments/assets/1d65ec39-c3d2-4fb8-8712-8a8d6bad8936)
+- Test video: `data/test-video/Safety Helmet.mp4`
 - NPU hardware profile: `npu-yy-16t01-preview`
 - NPU CosmoEdge software version: `V1.0.0.0`
 - x86 baseline CosmoEdge software version: `V0.1.0.0`

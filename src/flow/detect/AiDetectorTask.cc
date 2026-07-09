@@ -23,7 +23,7 @@ bool AiDetector::TaskExist(const std::string& channel_id, const std::string& tas
     for (const auto& channel_node : channel_list_) {
         if (channel_id == channel_node.channel) {
             return std::any_of(channel_node.tasks.begin(), channel_node.tasks.end(),
-                               [&task](const auto& t) { return task == t; });
+                               [&task](const auto& t) { return task == t.task; });
         }
     }
     return false;
@@ -57,12 +57,12 @@ bool AiDetector::AddTask(const std::string& channel_id, const std::string& task)
     for (auto& channel_node : channel_list_) {
         if (channel_id == channel_node.channel) {
             if (std::any_of(channel_node.tasks.begin(), channel_node.tasks.end(),
-                            [&task](const auto& t) { return task == t; })) {
+                            [&task](const auto& t) { return task == t.task; })) {
                 LOG_WARN("{}[{} {}] [{} {}] Add Task. But Task Is Exist", kTag, name_, uuid, channel_id,
                          task);
                 return true;
             }
-            channel_node.tasks.push_back(task);
+            channel_node.tasks.push_back({task, 0.0f});
             AddOverviewTask(task);
             {
                 std::lock_guard<std::shared_mutex> lock(mtx);
@@ -75,7 +75,7 @@ bool AiDetector::AddTask(const std::string& channel_id, const std::string& task)
 
     AiDetectorChannel newChannel;
     newChannel.channel = channel_id;
-    newChannel.tasks.push_back(task);
+    newChannel.tasks.push_back({task, 0.0f});
     channel_list_.push_back(newChannel);
 
     AddOverviewTask(task);
@@ -92,7 +92,7 @@ bool AiDetector::RemoveTask(const std::string& channel_id, const std::string& ta
     for (auto chIt = channel_list_.begin(); chIt != channel_list_.end(); ++chIt) {
         if (chIt->channel == channel_id) {
             for (auto taskIt = chIt->tasks.begin(); taskIt != chIt->tasks.end(); ++taskIt) {
-                if (*taskIt == task) {
+                if (taskIt->task == task) {
                     chIt->tasks.erase(taskIt);
                     LOG_INFO("{}[{} {}] Remove Task Channel:{} Task:{} left:{}", kTag, name_, uuid,
                              channel_id, task, chIt->tasks.size());

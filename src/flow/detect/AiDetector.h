@@ -17,9 +17,16 @@
 // 2. Filter detection results by confidence and distribute to task queues.
 
 namespace cosmo {
+
+// One task bound to a channel, carrying the task's requested fps for instance placement.
+struct AiDetectorTaskBinding {
+    std::string task;
+    float fps{0.0f};
+};
+
 struct AiDetectorChannel {
     std::string channel;
-    std::vector<std::string> tasks;
+    std::vector<AiDetectorTaskBinding> tasks;
 };
 
 struct AiDetectorParamEl {

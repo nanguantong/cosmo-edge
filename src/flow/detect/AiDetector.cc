@@ -127,7 +127,9 @@ void AiDetector::QueueStatus(std::vector<AlgActionDataQueueStatus>& que_status, 
         status.actionId = GetActionId();
         for (auto& channelNode : channel_list_) {
             status.channelIds.push_back(channelNode.channel);
-            status.taskIds.insert(status.taskIds.end(), channelNode.tasks.begin(), channelNode.tasks.end());
+            for (const auto& binding : channelNode.tasks) {
+                status.taskIds.push_back(binding.task);
+            }
         }
         status.actionStatus = action_status;
         que_status.push_back(status);

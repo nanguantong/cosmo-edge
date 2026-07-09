@@ -49,6 +49,36 @@ TEST_CASE("AiDetectorFps EffectiveMaxReuseCount", "[AiDetectorFps]") {
     REQUIRE(EffectiveMaxReuseCount(-1.0f, kBudget, kHardMax) == 3);
 }
 
+TEST_CASE("AiDetectorFps ParseReuseProfile", "[AiDetectorFps]") {
+    using ai_detector_fps::ParseReuseProfile;
+
+    const auto profile = ParseReuseProfile(" 12:2, 5=3 ; 24:1, bad, 18:0 ");
+    REQUIRE(profile.size() == 3);
+    REQUIRE(profile[0].max_fps == Approx(5.0f));
+    REQUIRE(profile[0].reuse_count == 3);
+    REQUIRE(profile[1].max_fps == Approx(12.0f));
+    REQUIRE(profile[1].reuse_count == 2);
+    REQUIRE(profile[2].max_fps == Approx(24.0f));
+    REQUIRE(profile[2].reuse_count == 1);
+}
+
+TEST_CASE("AiDetectorFps EffectiveMaxReuseCount profile override", "[AiDetectorFps]") {
+    using ai_detector_fps::EffectiveMaxReuseCount;
+    using ai_detector_fps::ParseReuseProfile;
+    constexpr size_t kHardMax = 6;
+    constexpr float kBudget   = 36.0f;
+
+    const auto profile = ParseReuseProfile("5:6,12:2,24:1");
+    REQUIRE(EffectiveMaxReuseCount(3.0f, kBudget, kHardMax, profile) == 6);
+    REQUIRE(EffectiveMaxReuseCount(5.0f, kBudget, kHardMax, profile) == 6);
+    REQUIRE(EffectiveMaxReuseCount(10.0f, kBudget, kHardMax, profile) == 2);
+    REQUIRE(EffectiveMaxReuseCount(12.0f, kBudget, kHardMax, profile) == 2);
+    REQUIRE(EffectiveMaxReuseCount(24.0f, kBudget, kHardMax, profile) == 1);
+
+    const auto empty_profile = ParseReuseProfile("invalid");
+    REQUIRE(EffectiveMaxReuseCount(12.0f, kBudget, kHardMax, empty_profile) == 3);
+}
+
 TEST_CASE("AiDetectorFps ChannelAssignedFps takes max not sum", "[AiDetectorFps]") {
     using ai_detector_fps::ChannelAssignedFps;
     REQUIRE(ChannelAssignedFps(makeChannel("ch", {})) == Approx(0.0f));
@@ -71,6 +101,15 @@ TEST_CASE("AiDetectorFps DeltaFpsForTask", "[AiDetectorFps]") {
     REQUIRE(DeltaFpsForTask(inst, "ch_new", 12.0f) == Approx(12.0f));  // new channel → requested
     REQUIRE(DeltaFpsForTask(inst, "ch1", 5.0f) == Approx(0.0f));       // lower fps, no rise
     REQUIRE(DeltaFpsForTask(inst, "ch1", 24.0f) == Approx(12.0f));     // higher fps, rises by diff
+}
+
+TEST_CASE("AiDetectorFps PeakFpsAfterTask", "[AiDetectorFps]") {
+    using ai_detector_fps::PeakFpsAfterTask;
+    std::vector<AiDetectorChannel> inst = {makeChannel("ch1", {{"t1", 24.0f}}),
+                                           makeChannel("ch2", {{"t2", 5.0f}})};
+    REQUIRE(PeakFpsAfterTask(inst, "ch3", 12.0f) == Approx(24.0f));
+    REQUIRE(PeakFpsAfterTask(inst, "ch2", 30.0f) == Approx(30.0f));
+    REQUIRE(PeakFpsAfterTask({}, "ch1", 5.0f) == Approx(5.0f));
 }
 
 TEST_CASE("AiDetectorFps CanAccept placement matrix", "[AiDetectorFps]") {
@@ -109,9 +148,9 @@ TEST_CASE("AiDetectorFps CanAccept placement matrix", "[AiDetectorFps]") {
         REQUIRE_FALSE(CanAccept(one, "ch2", 24.0f, kMaxReuse, kBudget));  // 24 + 24 = 48 > 36
     }
 
-    SECTION("24 + 12 = 36 fits one instance") {
+    SECTION("mixed high-fps placement uses the instance peak fps cap") {
         std::vector<AiDetectorChannel> one = {makeChannel("ch1", {{"t1", 24.0f}})};
-        REQUIRE(CanAccept(one, "ch2", 12.0f, kMaxReuse, kBudget));
+        REQUIRE_FALSE(CanAccept(one, "ch2", 12.0f, kMaxReuse, kBudget));
     }
 
     SECTION("channel cap rejects even when fps budget remains") {
@@ -131,6 +170,13 @@ TEST_CASE("AiDetectorFps CanAccept placement matrix", "[AiDetectorFps]") {
     SECTION("same-channel lower-fps task adds no load") {
         std::vector<AiDetectorChannel> ch = {makeChannel("ch1", {{"t1", 24.0f}})};
         REQUIRE(CanAccept(ch, "ch1", 5.0f, kMaxReuse, kBudget));  // max stays 24, delta 0
+    }
+
+    SECTION("profile can split 12fps at two channels without changing the compiled default") {
+        const auto profile = ai_detector_fps::ParseReuseProfile("5:3,12:2,24:1");
+        std::vector<AiDetectorChannel> two = {makeChannel("ch1", {{"t1", 12.0f}}),
+                                              makeChannel("ch2", {{"t2", 12.0f}})};
+        REQUIRE_FALSE(CanAccept(two, "ch3", 12.0f, kMaxReuse, kBudget, profile));
     }
 
     SECTION("same-channel higher-fps task raising max beyond budget is rejected by the gate") {

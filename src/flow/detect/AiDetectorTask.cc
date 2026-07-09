@@ -67,7 +67,7 @@ float AiDetector::DeltaFpsForTask(const std::string& channel_id, float requested
 
 bool AiDetector::CanAccept(const std::string& channel_id, float requested_fps) const {
     return ai_detector_fps::CanAccept(channel_list_, channel_id, requested_fps, max_reuse_count_,
-                                      instance_fps_budget_);
+                                      instance_fps_budget_, reuse_profile_);
 }
 
 bool AiDetector::AddTask(const std::string& channel_id, const std::string& task) {

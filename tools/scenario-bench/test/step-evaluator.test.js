@@ -81,3 +81,48 @@ test('VLM step summary uses window counter throughput instead of minimum instant
   assert.equal(summary.channelStats[0].windowThroughputFps, 0.1);
   assert.equal(summary.taskStats[0].minFpsRatio, 1);
 });
+
+test('step summary ignores ramp samples when hold samples are available', () => {
+  const ramp = {
+    stepIndex: 0,
+    phase: 'ramp',
+    activeChannels: 1,
+    ts: 0,
+    channels: [{
+      taskKey: 'cv',
+      taskDisplayName: 'cv',
+      taskType: 'cv',
+      channelId: 'ch1',
+      measuredFps: 0,
+      discardRate: 0,
+      nodeDurationInfos: [],
+    }],
+    hardware: {},
+  };
+  const hold = [1, 2, 3, 4].map((index) => ({
+    stepIndex: 0,
+    phase: 'hold',
+    activeChannels: 4,
+    ts: index * 3000,
+    channels: Array.from({ length: 4 }, (_, channelIndex) => ({
+      taskKey: 'cv',
+      taskDisplayName: 'cv',
+      taskType: 'cv',
+      channelId: `ch${channelIndex + 1}`,
+      measuredFps: 5,
+      discardRate: 0,
+      nodeDurationInfos: [],
+    })),
+    hardware: {},
+  }));
+
+  const summary = summarizeStep(
+    { index: 0, channels: 4, holdSec: 30 },
+    [ramp, ...hold],
+    {},
+    'local',
+  );
+
+  assert.equal(summary.minFpsAcross, 5);
+  assert.equal(summary.taskStats[0].bindingCount, 4);
+});

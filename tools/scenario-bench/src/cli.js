@@ -309,6 +309,8 @@ async function runBenchmark(args) {
   let baselineFps = null;
   const baselineByTask = {};
   let bottleneckStep = null;
+  let bottleneckChannels = null;
+  let bottleneckPhase = null;
   let bottleneckReason = null;
   let runError = null;
   let currentChannels = 0;
@@ -346,7 +348,14 @@ async function runBenchmark(args) {
     configuredLoadProfile: pkg?.loadProfile?.map((s, i) => ({ index: i, ...s })) ?? [],
     profileMode: args.profile ?? 'capacity',
     bottleneck: bottleneckStep != null
-      ? { stepIndex: bottleneckStep, stepNumber: bottleneckStep + 1, channels: effectiveLoadProfile?.[bottleneckStep]?.channels, reason: bottleneckReason }
+      ? {
+          stepIndex: bottleneckStep,
+          stepNumber: bottleneckStep + 1,
+          channels: bottleneckChannels ?? effectiveLoadProfile?.[bottleneckStep]?.channels,
+          targetChannels: effectiveLoadProfile?.[bottleneckStep]?.channels,
+          phase: bottleneckPhase,
+          reason: bottleneckReason,
+        }
       : null,
     baselineFps,
     baselineByTask,
@@ -424,9 +433,11 @@ async function runBenchmark(args) {
     const FPS_HALVE_RATIO = 0.5;
     const DISCARD_BOTTLENECK = 0.05;
 
-    const captureSample = async () => {
+    const captureSample = async (phase = 'hold', targetChannels = currentChannels) => {
       const sample = await sampler.sample(activeEntries());
       sample.stepIndex = currentStepIndex;
+      sample.phase = phase;
+      sample.targetChannels = targetChannels;
       samples.push(sample);
       await writePartial();
       const ch0 = sample.channels[0];
@@ -482,7 +493,7 @@ async function runBenchmark(args) {
       onRampBatch: async (step, active) => {
         currentChannels = active.length;
         currentStepIndex = step.index;
-        return quickFuse(await captureSample());
+        return quickFuse(await captureSample('ramp', step.channels));
       },
       onStepStart: async (step, active) => {
         currentChannels = active.length;
@@ -495,7 +506,7 @@ async function runBenchmark(args) {
         }
       },
       onSample: async () => {
-        await captureSample();
+        await captureSample('hold', currentChannels);
       },
       onStepEnd: async (step) => {
         const summary = summarizeStep(step, samples, pkg.thresholds, pkg.videoMode);
@@ -528,6 +539,8 @@ async function runBenchmark(args) {
       },
     }, pkg.sampleIntervalSec);
     bottleneckStep = staircaseResult?.bottleneckStep ?? null;
+    bottleneckChannels = staircaseResult?.bottleneckChannels ?? null;
+    bottleneckPhase = staircaseResult?.bottleneckPhase ?? null;
     bottleneckReason = staircaseResult?.bottleneckReason ?? null;
   } catch (err) {
     runError = err;

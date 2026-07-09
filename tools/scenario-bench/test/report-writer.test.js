@@ -106,3 +106,64 @@ test('HTML rendering estimates sampling interval from stable in-step samples', (
 
   assert.match(html, /约每 3s 采样一次/);
 });
+
+test('HTML rendering splits ramp-only bottleneck samples by observed channels', () => {
+  const writer = new ReportWriter('.');
+  const samples = Array.from({ length: 7 }, (_, index) => {
+    const activeChannels = index + 1;
+    return {
+      stepIndex: 0,
+      phase: 'ramp',
+      targetChannels: 16,
+      activeChannels,
+      ts: index * 3000,
+      channels: Array.from({ length: activeChannels }, (_, channelIndex) => ({
+        taskKey: 'helmet-7463',
+        taskDisplayName: '安全帽检测 7463',
+        taskType: 'cv',
+        algorithmId: '7463',
+        channelId: `ch-${channelIndex + 1}`,
+        measuredFps: 5,
+        pipelineMinFps: 5,
+        discardRate: 0,
+        nodeDurationInfos: [
+          { name: 'detector', durationAvgUs: 20_000 },
+        ],
+      })),
+      hardware: {
+        npuUtilization: { usedPercent: activeChannels === 7 ? 94 : 50 },
+        cpuUtilization: { usedPercent: 20 },
+        generalMemoryUtilization: { usedPercent: 40 },
+      },
+    };
+  });
+  const runResult = {
+    scenarioName: 'helmet',
+    profileMode: 'configured',
+    videoMode: 'local',
+    status: 'completed',
+    tasks: [{ id: 'helmet-7463', type: 'cv', algorithmId: '7463', targetFps: 5 }],
+    thresholds: { pass: { avgDiscardRate: 0.05 } },
+    steps: [{ index: 0, channels: 16, holdSec: 30 }],
+    bottleneck: {
+      stepIndex: 0,
+      stepNumber: 1,
+      channels: 16,
+      reason: 'NPU >= 90%',
+    },
+    samples,
+  };
+
+  const stepSummaries = writer._summarizeSteps(runResult);
+  assert.deepEqual(stepSummaries.map((s) => s.channels), [1, 2, 3, 4, 5, 6, 7]);
+
+  const summary = writer._buildSummary(runResult, stepSummaries);
+  assert.equal(summary.bottleneck.channels, 7);
+  assert.equal(summary.bottleneck.targetChannels, 16);
+
+  const html = writer._renderHtml(runResult, stepSummaries, summary);
+  const routeTable = html.match(/<h2>路数结果<\/h2>[\s\S]*?<h2>分任务汇总<\/h2>/)[0];
+  assert.equal((routeTable.match(/<tr>/g) ?? []).length - 1, 7);
+  assert.match(routeTable, /<td>7<\/td>[\s\S]*<td class="warn">STOPPED<\/td>/);
+  assert.doesNotMatch(routeTable, /<td>16<\/td>/);
+});

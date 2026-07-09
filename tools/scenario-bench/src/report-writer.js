@@ -40,9 +40,35 @@ export class ReportWriter {
   }
 
   _summarizeSteps(r) {
-    return (r.steps ?? []).map((st) =>
-      this._summarizeStep(st, r.samples ?? [], r.thresholds ?? {}, r.videoMode ?? 'local'),
-    );
+    const samples = r.samples ?? [];
+    const thresholds = r.thresholds ?? {};
+    const videoMode = r.videoMode ?? 'local';
+    const summaries = [];
+
+    for (const st of r.steps ?? []) {
+      const stepSamples = samples.filter((s) => s.stepIndex === st.index);
+      const observedChannels = uniqueObservedChannels(stepSamples);
+      const targetObserved = observedChannels.includes(st.channels);
+      const stoppedInRamp = r.bottleneck?.stepIndex === st.index
+        && (r.bottleneck?.phase === 'ramp' || (!targetObserved && observedChannels.some((ch) => ch < st.channels)));
+
+      if (stoppedInRamp && observedChannels.length) {
+        for (const channels of observedChannels) {
+          summaries.push(this._summarizeStep({
+            ...st,
+            channels,
+            targetChannels: st.channels,
+            sampleChannels: channels,
+            samplePhase: 'ramp',
+          }, samples, thresholds, videoMode));
+        }
+        continue;
+      }
+
+      summaries.push(this._summarizeStep(st, samples, thresholds, videoMode));
+    }
+
+    return summaries;
   }
 
   _summarizeStep(step, samples, thresholds, videoMode) {
@@ -52,14 +78,14 @@ export class ReportWriter {
   _buildSummary(r, stepSummaries) {
     const ran = stepSummaries.filter((s) => !s.skipped);
     const firstFailed = ran.find((s) => s.pass === false) ?? null;
-    const bottleneck = r.bottleneck ?? (firstFailed
+    const bottleneck = normalizeBottleneck(r.bottleneck ?? (firstFailed
       ? {
           stepIndex: firstFailed.step.index,
           stepNumber: firstFailed.step.index + 1,
           channels: firstFailed.channels,
           reason: firstFailed.reasons.join('; '),
         }
-      : null);
+      : null), stepSummaries);
     const hasBottleneck = Boolean(bottleneck);
     const verifiedPassed = ran.filter((s) =>
       s.pass && (!hasBottleneck || s.step.index < bottleneck.stepIndex),
@@ -163,7 +189,7 @@ export class ReportWriter {
     ];
 
     const bottleneckBanner = summary.bottleneck
-      ? `<div class="banner warn"><strong>检测到瓶颈</strong><br>第 ${summary.bottleneck.stepNumber} 阶段（${summary.bottleneck.channels} 路）触发停止。原因：${esc(summary.bottleneck.reason)}</div>`
+      ? `<div class="banner warn"><strong>检测到瓶颈</strong><br>第 ${summary.bottleneck.stepNumber} 阶段（${summary.bottleneck.channels} 路${summary.bottleneck.targetChannels && summary.bottleneck.targetChannels !== summary.bottleneck.channels ? `，目标 ${summary.bottleneck.targetChannels} 路` : ''}）触发停止。原因：${esc(summary.bottleneck.reason)}</div>`
       : '';
 
     const abortedBanner = r.status === 'aborted'
@@ -175,17 +201,20 @@ export class ReportWriter {
       : (summary.overallPass ? { className: 'pass', label: 'PASS' } : { className: 'fail', label: 'FAIL' });
     const stepStatus = (s) => {
       if (s.skipped) return { className: 'na', label: 'SKIP' };
-      if (summary.bottleneck?.stepIndex === s.step.index) return { className: 'warn', label: 'STOPPED' };
+      if (summary.bottleneck?.stepIndex === s.step.index
+          && (summary.bottleneck.channels == null || summary.bottleneck.channels === s.channels)) {
+        return { className: 'warn', label: 'STOPPED' };
+      }
       return s.pass ? { className: 'pass', label: 'PASS' } : { className: 'fail', label: 'FAIL' };
     };
 
-    const stepRows = stepSummaries.map((s) => {
+    const stepRows = stepSummaries.map((s, rowIndex) => {
       const status = stepStatus(s);
       return `
       <tr>
-        <td>${s.step.index + 1}</td>
+        <td>${rowIndex + 1}</td>
         <td>${s.channels}</td>
-        <td>${s.holdSec}s</td>
+        <td>${s.phase === 'ramp' ? '升路' : `${s.holdSec}s`}</td>
         <td>${s.targetFps ?? '-'}</td>
         <td>${s.minFpsAcross ?? '-'}</td>
         <td>${s.criticalPathLatencyMs ?? '-'}</td>
@@ -300,6 +329,7 @@ function formatTaskStrategies(tasks) {
 
 function isContinuousChannelProfile(stepSummaries) {
   const channels = stepSummaries
+    .filter((s) => s.phase !== 'ramp')
     .map((s) => s.channels)
     .filter((v) => Number.isInteger(v))
     .sort((a, b) => a - b);
@@ -308,6 +338,34 @@ function isContinuousChannelProfile(stepSummaries) {
     if (channels[i] !== channels[i - 1] + 1) return false;
   }
   return true;
+}
+
+function uniqueObservedChannels(samples) {
+  return [...new Set(
+    samples
+      .map((s) => Number(s.activeChannels))
+      .filter((v) => Number.isInteger(v) && v > 0),
+  )].sort((a, b) => a - b);
+}
+
+function normalizeBottleneck(bottleneck, stepSummaries) {
+  if (!bottleneck) return null;
+  const stepRows = stepSummaries.filter((s) => s.step.index === bottleneck.stepIndex && !s.skipped);
+  if (!stepRows.length) return bottleneck;
+
+  const channels = stepRows.map((s) => s.channels).filter((v) => Number.isInteger(v));
+  if (!channels.length || channels.includes(bottleneck.channels)) return bottleneck;
+
+  const maxObserved = Math.max(...channels);
+  if (Number.isInteger(bottleneck.channels) && maxObserved < bottleneck.channels) {
+    return {
+      ...bottleneck,
+      targetChannels: bottleneck.targetChannels ?? bottleneck.channels,
+      channels: maxObserved,
+      phase: bottleneck.phase ?? 'ramp',
+    };
+  }
+  return bottleneck;
 }
 
 function formatPercent(v) {

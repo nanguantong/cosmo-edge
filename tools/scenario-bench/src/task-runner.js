@@ -140,7 +140,12 @@ export class TaskRunner {
             const failedIds = failedList.map((f) => f.id ?? f.channelId ?? '?').join(', ');
             active = [...new Set([...active, ...batch])];
             this.log?.warn(`[step ${i + 1}] bottleneck detected - task bind failed on: ${failedIds}`);
-            bottleneck = { bottleneckStep: i, bottleneckReason: `任务绑定失败 (可能达到设备并发授权上限): ${failedIds}` };
+            bottleneck = {
+              bottleneckStep: i,
+              bottleneckChannels: active.length,
+              bottleneckPhase: 'ramp',
+              bottleneckReason: `任务绑定失败 (可能达到设备并发授权上限): ${failedIds}`,
+            };
             return bottleneck;
           }
           active = this.allChannelIds.slice(0, active.length + batch.length);
@@ -150,7 +155,12 @@ export class TaskRunner {
             const decision = await hooks.onRampBatch(step, active, batch, entries);
             if (decision?.stop) {
               this.log?.warn(`[step ${i + 1}] ramp fuse tripped: ${decision.reason ?? 'threshold breached'}`);
-              bottleneck = { bottleneckStep: i, bottleneckReason: decision.reason ?? 'ramp fuse tripped' };
+              bottleneck = {
+                bottleneckStep: i,
+                bottleneckChannels: active.length,
+                bottleneckPhase: 'ramp',
+                bottleneckReason: decision.reason ?? 'ramp fuse tripped',
+              };
               return bottleneck;
             }
           }
@@ -178,7 +188,12 @@ export class TaskRunner {
           const decision = await hooks.onStepEnd(step, active, this.expectedTaskEntries(active));
           if (decision?.stop) {
             this.log?.warn(`[step ${i + 1}] bottleneck detected - stopping staircase: ${decision.reason ?? 'threshold breached'}`);
-            bottleneck = { bottleneckStep: i, bottleneckReason: decision.reason ?? 'threshold breached' };
+            bottleneck = {
+              bottleneckStep: i,
+              bottleneckChannels: step.channels,
+              bottleneckPhase: 'hold',
+              bottleneckReason: decision.reason ?? 'threshold breached',
+            };
             break;
           }
         }

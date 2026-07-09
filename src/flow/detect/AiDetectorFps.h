@@ -24,19 +24,41 @@ struct AiDetectorChannel {
     std::vector<AiDetectorTaskBinding> tasks;
 };
 
-// Fallback fps used when a task does not specify one (initFps <= 0 means "unconfigured / full-frame").
-inline constexpr float kUnknownFpsEstimate = 25.0f;
-
 // Default per-instance fps budget when no per-algCode override is configured.
 inline constexpr float kDefaultInstanceFpsBudget = 36.0f;
 
+// Hard cap used by fps-aware placement. Stress tests show 3 is a better global ceiling than 6.
+inline constexpr size_t kMaxReuseHardLimit = 3;
+
+// Safe compatibility cap when the orchestration did not expose fps to placement.
+inline constexpr size_t kUnknownFpsReuseCount = 3;
+
 namespace ai_detector_fps {
 
-    // Map an unconfigured (<=0) or non-finite (NaN/inf) fps to a conservative estimate; otherwise
-    // pass through. Finite out-of-range values are intentionally NOT clamped: an absurdly large fps
-    // simply fails CanAccept and forces a new instance, which is the safe (over-provisioning) direction.
+    inline bool HasConfiguredFps(float fps) {
+        return fps > 0.0f && std::isfinite(fps);
+    }
+
+    // Keep unconfigured fps as 0. Placement handles it with the compatibility channel cap instead
+    // of pretending it is 25fps, which over-splits low-fps deployments when initFps is not populated.
     inline float NormalizeRequestedFps(float fps) {
-        return (fps > 0.0f && std::isfinite(fps)) ? fps : kUnknownFpsEstimate;
+        return HasConfiguredFps(fps) ? fps : 0.0f;
+    }
+
+    inline size_t ClampReuseCount(size_t value, size_t hard_max_reuse_count) {
+        const size_t capped_hard_max = std::max<size_t>(1, hard_max_reuse_count);
+        return std::clamp(value, static_cast<size_t>(1), capped_hard_max);
+    }
+
+    inline size_t EffectiveMaxReuseCount(float requested_fps, float instance_fps_budget,
+                                         size_t hard_max_reuse_count) {
+        if (!HasConfiguredFps(requested_fps) || instance_fps_budget <= 0.0f ||
+            !std::isfinite(instance_fps_budget)) {
+            return ClampReuseCount(kUnknownFpsReuseCount, hard_max_reuse_count);
+        }
+
+        const auto by_fps = static_cast<size_t>(std::floor(instance_fps_budget / requested_fps));
+        return ClampReuseCount(by_fps, hard_max_reuse_count);
     }
 
     // Max task fps within a single channel. Multiple tasks on one channel share one inference per
@@ -76,15 +98,25 @@ namespace ai_detector_fps {
 
     // Placement gate: a new task fits iff the channel hard cap and the fps budget both hold.
     inline bool CanAccept(const std::vector<AiDetectorChannel>& channels, const std::string& channel_id,
-                          float requested_fps, size_t max_reuse_count, float instance_fps_budget) {
+                          float requested_fps, size_t hard_max_reuse_count, float instance_fps_budget) {
         const float normalized = NormalizeRequestedFps(requested_fps);
         const float delta      = DeltaFpsForTask(channels, channel_id, normalized);
         const bool channel_exists =
             std::any_of(channels.begin(), channels.end(),
                         [&](const AiDetectorChannel& ch) { return ch.channel == channel_id; });
         const size_t channel_count_after_add = channel_exists ? channels.size() : channels.size() + 1;
-        return channel_count_after_add <= max_reuse_count &&
-               AssignedFps(channels) + delta <= instance_fps_budget;
+        const size_t effective_max_reuse =
+            EffectiveMaxReuseCount(requested_fps, instance_fps_budget, hard_max_reuse_count);
+
+        if (channel_count_after_add > effective_max_reuse) {
+            return false;
+        }
+
+        if (!HasConfiguredFps(requested_fps)) {
+            return true;
+        }
+
+        return AssignedFps(channels) + delta <= instance_fps_budget;
     }
 
 }  // namespace ai_detector_fps

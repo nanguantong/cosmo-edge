@@ -31,10 +31,22 @@ AiDetectorChannel makeChannel(const std::string& ch,
 TEST_CASE("AiDetectorFps NormalizeRequestedFps", "[AiDetectorFps]") {
     using ai_detector_fps::NormalizeRequestedFps;
     REQUIRE(NormalizeRequestedFps(12.0f) == Approx(12.0f));
-    REQUIRE(NormalizeRequestedFps(0.0f) == Approx(kUnknownFpsEstimate));
-    REQUIRE(NormalizeRequestedFps(-1.0f) == Approx(kUnknownFpsEstimate));
-    REQUIRE(NormalizeRequestedFps(std::nan("")) == Approx(kUnknownFpsEstimate));
-    REQUIRE(NormalizeRequestedFps(std::numeric_limits<float>::infinity()) == Approx(kUnknownFpsEstimate));
+    REQUIRE(NormalizeRequestedFps(0.0f) == Approx(0.0f));
+    REQUIRE(NormalizeRequestedFps(-1.0f) == Approx(0.0f));
+    REQUIRE(NormalizeRequestedFps(std::nan("")) == Approx(0.0f));
+    REQUIRE(NormalizeRequestedFps(std::numeric_limits<float>::infinity()) == Approx(0.0f));
+}
+
+TEST_CASE("AiDetectorFps EffectiveMaxReuseCount", "[AiDetectorFps]") {
+    using ai_detector_fps::EffectiveMaxReuseCount;
+    constexpr size_t kHardMax = 3;
+    constexpr float kBudget   = 36.0f;
+
+    REQUIRE(EffectiveMaxReuseCount(3.0f, kBudget, kHardMax) == 3);
+    REQUIRE(EffectiveMaxReuseCount(5.0f, kBudget, kHardMax) == 3);
+    REQUIRE(EffectiveMaxReuseCount(12.0f, kBudget, kHardMax) == 3);
+    REQUIRE(EffectiveMaxReuseCount(24.0f, kBudget, kHardMax) == 1);
+    REQUIRE(EffectiveMaxReuseCount(-1.0f, kBudget, kHardMax) == 3);
 }
 
 TEST_CASE("AiDetectorFps ChannelAssignedFps takes max not sum", "[AiDetectorFps]") {
@@ -85,6 +97,13 @@ TEST_CASE("AiDetectorFps CanAccept placement matrix", "[AiDetectorFps]") {
         REQUIRE_FALSE(CanAccept(three, "ch4", 12.0f, kMaxReuse, kBudget));
     }
 
+    SECTION("5fps uses the tested hard cap of 3, not the old cap of 6") {
+        std::vector<AiDetectorChannel> three = {makeChannel("ch1", {{"t1", 5.0f}}),
+                                                makeChannel("ch2", {{"t2", 5.0f}}),
+                                                makeChannel("ch3", {{"t3", 5.0f}})};
+        REQUIRE_FALSE(CanAccept(three, "ch4", 5.0f, kMaxReuse, kBudget));
+    }
+
     SECTION("24fps x2 must split (budget forces 1+1)") {
         std::vector<AiDetectorChannel> one = {makeChannel("ch1", {{"t1", 24.0f}})};
         REQUIRE_FALSE(CanAccept(one, "ch2", 24.0f, kMaxReuse, kBudget));  // 24 + 24 = 48 > 36
@@ -99,6 +118,14 @@ TEST_CASE("AiDetectorFps CanAccept placement matrix", "[AiDetectorFps]") {
         std::vector<AiDetectorChannel> two = {makeChannel("ch1", {{"t1", 3.0f}}),
                                               makeChannel("ch2", {{"t2", 3.0f}})};
         REQUIRE_FALSE(CanAccept(two, "ch3", 3.0f, 2, kBudget));  // 6 fps, but cap=2
+    }
+
+    SECTION("unknown fps falls back to compatibility reuse count, not exclusive placement") {
+        std::vector<AiDetectorChannel> two = {makeChannel("ch1", {{"t1", 0.0f}}),
+                                              makeChannel("ch2", {{"t2", 0.0f}})};
+        REQUIRE(CanAccept(two, "ch3", -1.0f, kMaxReuse, kBudget));
+        std::vector<AiDetectorChannel> three = {two[0], two[1], makeChannel("ch3", {{"t3", 0.0f}})};
+        REQUIRE_FALSE(CanAccept(three, "ch4", -1.0f, kMaxReuse, kBudget));
     }
 
     SECTION("same-channel lower-fps task adds no load") {

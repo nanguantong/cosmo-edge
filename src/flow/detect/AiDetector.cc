@@ -65,7 +65,7 @@ AiDetector::AiDetector(ActionNode& action)
     uuid      = util::GenerateUUID();
 
     batch_count_         = 4;
-    max_reuse_count_     = 3;
+    max_reuse_count_     = kMaxReuseHardLimit;
     instance_fps_budget_ = LookupInstanceFpsBudget(alg_code_);
     data_queue->SetMaxSize(48);
 

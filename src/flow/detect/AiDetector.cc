@@ -51,7 +51,7 @@ AiDetector::AiDetector(ActionNode& action)
     uuid      = util::GenerateUUID();
 
     batch_count_     = 4;
-    max_reuse_count_ = 6;
+    max_reuse_count_ = 3;
     data_queue->SetMaxSize(48);
 
     LOG_INFO("{}[{} {}] Init MaxReuse:{} BatchCount:{}", kTag, name_, uuid, max_reuse_count_, batch_count_);

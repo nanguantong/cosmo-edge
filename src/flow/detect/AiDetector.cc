@@ -5,6 +5,8 @@
 
 #include "flow/detect/AiDetector.h"
 
+#include <unordered_map>
+
 #include "service/detail/ServiceRegistry.h"
 #include "service/model/IModelService.h"
 #include "service/system/IConfigReadService.h"
@@ -16,6 +18,18 @@
 
 static constexpr const char* kTag = "AI-DETECTER ";
 namespace cosmo {
+
+namespace {
+    // Per-algCode fps budget overrides for instance placement. Unlisted algCodes fall back to
+    // kDefaultInstanceFpsBudget. Populate from per-model stress-test results.
+    float LookupInstanceFpsBudget(const std::string& alg_code) {
+        static const std::unordered_map<std::string, float> kAlgFpsBudget = {
+            // {"45626", 36.0f},
+        };
+        const auto it = kAlgFpsBudget.find(alg_code);
+        return (it != kAlgFpsBudget.end()) ? it->second : kDefaultInstanceFpsBudget;
+    }
+}  // namespace
 
 AiDetector::~AiDetector() {
     is_detector_inst_initialized_ = false;
@@ -50,11 +64,13 @@ AiDetector::AiDetector(ActionNode& action)
     name_     = action.atomicCode;
     uuid      = util::GenerateUUID();
 
-    batch_count_     = 4;
-    max_reuse_count_ = 3;
+    batch_count_         = 4;
+    max_reuse_count_     = 3;
+    instance_fps_budget_ = LookupInstanceFpsBudget(alg_code_);
     data_queue->SetMaxSize(48);
 
-    LOG_INFO("{}[{} {}] Init MaxReuse:{} BatchCount:{}", kTag, name_, uuid, max_reuse_count_, batch_count_);
+    LOG_INFO("{}[{} {}] Init MaxReuse:{} BatchCount:{} FpsBudget:{}", kTag, name_, uuid, max_reuse_count_,
+             batch_count_, instance_fps_budget_);
 }
 
 bool AiDetector::AiSdkInit() {

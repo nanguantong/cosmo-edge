@@ -166,7 +166,7 @@
         </el-form-item>
         <!-- 离线视频类型 -->
         <el-form-item :label="t('glossary.uploadVideo') + localeColon" prop="videoFileList" v-if="channelForm.channelType === 3 && channelDialogMode !== 'edit'">
-          <el-upload id="onboarding-upload-video" class="form-item-content" drag action="" :http-request="handleVideoUpload" :file-list="channelForm.videoFileList" :limit="1" :on-remove="handleRemove" :before-upload="beforeVideoUpload" accept=".avi,.mp4,.dav">
+          <el-upload id="onboarding-upload-video" class="form-item-content" drag action="" :http-request="handleVideoUpload" :file-list="channelForm.videoFileList" :limit="1" :on-remove="handleRemove" :before-upload="beforeVideoUpload" accept=".avi,.mp4,.mkv,.dav">
             <i class="el-icon-upload"></i>
             <div class="el-upload__text">{{ t('validate.dragUploadHint', { clickUpload: t('action.clickUpload'), n: 1 }) }}</div>
           </el-upload>
@@ -178,7 +178,7 @@
         <el-form-item v-if="channelForm.channelType === 3 && channelDialogMode !== 'edit'">
           <div class="form-item-content tip-content">
             <i class="el-icon-info"></i>
-            {{ t('validate.videoUploadTip', { types: 'AVI、MP4、DAV', n: 1 }) }}
+            {{ t('validate.videoUploadTip', { types: 'AVI、MP4、MKV、DAV', n: 1 }) }}
           </div>
         </el-form-item>
       </el-form>
@@ -391,9 +391,14 @@ const handleRemove = () => {
 
 const beforeVideoUpload = (file) => {
   const isLimit = file.size / 1024 / 1024 < 1024
-  const isType = ['video/mp4', 'video/avi', 'video/x-dav'].includes(file.type)
+  // Validate by extension, not MIME: browsers report inconsistent/empty MIME
+  // for .avi and .dav, and the backend gates on extension anyway.
+  const lowerName = (file.name || '').toLowerCase()
+  const dotIdx = lowerName.lastIndexOf('.')
+  const ext = dotIdx >= 0 ? lowerName.slice(dotIdx) : ''
+  const isType = ['.mp4', '.mkv', '.avi', '.dav'].includes(ext)
   if (!isType) {
-    proxy.$message.error(t('validate.videoFormatSupported', { types: 'AVI, MP4, DAV' }))
+    proxy.$message.error(t('validate.videoFormatSupported', { types: 'AVI, MP4, MKV, DAV' }))
     return false
   }
   if (!isLimit) {

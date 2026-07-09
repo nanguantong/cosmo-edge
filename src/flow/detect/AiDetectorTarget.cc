@@ -9,14 +9,14 @@ static constexpr const char* kTag = "AI-DETECTER ";
 namespace cosmo {
 
 void AiDetector::TargetAddArea(AiDetectRstEl& target, TargetPosition pos, TargetAreaType type,
-                               MsgTaskArea& area, int picWidth, int picHeight, bool bAssociatedArea,
-                               const std::string& mainAreaId) {
-    if (BoxInArea(target.box, pos, target.point, area.points, picWidth, picHeight)) {
+                               MsgTaskArea& area, int pic_width, int pic_height, bool associated_area,
+                               const std::string& main_area_id) {
+    if (BoxInArea(target.box, pos, target.point, area.points, pic_width, pic_height)) {
         TargetAreaUnit targetArea;
         targetArea.area_id            = area.areaId;
         targetArea.area_name          = area.name;
-        targetArea.is_associated_area = bAssociatedArea;
-        targetArea.main_area_id       = mainAreaId;
+        targetArea.is_associated_area = associated_area;
+        targetArea.main_area_id       = main_area_id;
         targetArea.position           = pos;
         targetArea.type               = type;
         target.targetPos              = pos;
@@ -29,41 +29,42 @@ void AiDetector::TargetAddArea(AiDetectRstEl& target, TargetPosition pos, Target
     return;
 }
 
-void AiDetector::TargetAddLine(AiDetectRstEl& target, TargetPosition pos, MsgTaskArea& area, int picWidth,
-                               int picHeight, bool bAssociatedArea, const std::string& mainAreaId) {
+void AiDetector::TargetAddLine(AiDetectRstEl& target, TargetPosition pos, MsgTaskArea& area, int pic_width,
+                               int pic_height, bool associated_area, const std::string& main_area_id) {
     TargetLineUnit targetonLineUnit;
     targetonLineUnit.area_id            = area.areaId;
     targetonLineUnit.area_name          = area.name;
-    targetonLineUnit.is_associated_area = bAssociatedArea;
-    targetonLineUnit.main_area_id       = mainAreaId;
+    targetonLineUnit.is_associated_area = associated_area;
+    targetonLineUnit.main_area_id       = main_area_id;
     targetonLineUnit.position           = pos;
-    targetonLineUnit.type = BoxOnLinePos(target.box, pos, target.point, area.linePoints, picWidth, picHeight);
-    target.targetPos      = pos;
+    targetonLineUnit.type =
+        BoxOnLinePos(target.box, pos, target.point, area.linePoints, pic_width, pic_height);
+    target.targetPos = pos;
     target.areaSign.lines.push_back(targetonLineUnit);
 
     return;
 }
 
 // Mark area information on targets
-void AiDetector::SignTargetAreas(AlgDataPtr dataPtr, const std::string& taskId) {
-    if (!dataPtr) {
+void AiDetector::SignTargetAreas(AlgDataPtr data_ptr, const std::string& taskId) {
+    if (!data_ptr) {
         return;
     }
 
-    if (!dataPtr->chanDataDec.frame) {
+    if (!data_ptr->chanDataDec.frame) {
         return;
     }
 
-    if (!dataPtr->chanDataDetect.detRet) {
+    if (!data_ptr->chanDataDetect.detRet) {
         return;
     }
 
-    auto detRet = dataPtr->chanDataDetect.detRet;
-    auto width  = dataPtr->chanDataDec.frame->GetWidth();
-    auto height = dataPtr->chanDataDec.frame->GetHeight();
+    auto detRet = data_ptr->chanDataDetect.detRet;
+    auto width  = data_ptr->chanDataDec.frame->GetWidth();
+    auto height = data_ptr->chanDataDec.frame->GetHeight();
     std::shared_lock<std::shared_mutex> lock(mtx);
-    auto areaIt = m_taskAreas.find(taskId);
-    if (areaIt == m_taskAreas.end())
+    auto areaIt = task_areas_.find(taskId);
+    if (areaIt == task_areas_.end())
         return;  // Task deleted, skip area marking
     auto& taskArea = areaIt->second;
     if (taskArea.areas.size()) {
@@ -104,31 +105,31 @@ void AiDetector::SignTargetAreas(AlgDataPtr dataPtr, const std::string& taskId) 
     }
 }
 
-void AiDetector::RecordHistory(AlgDataPtr dataPtr, const std::string& taskId) {
-    if (!dataPtr)
+void AiDetector::RecordHistory(AlgDataPtr data_ptr, const std::string& taskId) {
+    if (!data_ptr)
         return;
-    if (!dataPtr->chanDataDetect.detRet)
+    if (!data_ptr->chanDataDetect.detRet)
         return;
 
     std::lock_guard<std::shared_mutex> lock(mtx);
-    auto it = m_taskHistorys.find(taskId);
-    if (it == m_taskHistorys.end())
+    auto it = task_histories_.find(taskId);
+    if (it == task_histories_.end())
         return;  // Task deleted, skip recording
     auto& taskHistory = it->second;
-    taskHistory.push_back(*dataPtr->chanDataDetect.detRet);
-    if (dataPtr->chanDataDetect.detRet->timestamp - taskHistory.front().timestamp >
+    taskHistory.push_back(*data_ptr->chanDataDetect.detRet);
+    if (data_ptr->chanDataDetect.detRet->timestamp - taskHistory.front().timestamp >
         media::kVideoInfoMaxDuration) {
         taskHistory.pop_front();
     }
 }
 
-std::vector<DataDetTrackClassify> AiDetector::GetHistory(const std::string& /*channelId*/,
+std::vector<DataDetTrackClassify> AiDetector::GetHistory(const std::string& /*channel_id*/,
                                                          const std::string& taskId, int64_t from, int64_t ts,
                                                          int64_t to) {
     std::vector<DataDetTrackClassify> rst;
     std::lock_guard<std::shared_mutex> lock(mtx);
-    auto histIt = m_taskHistorys.find(taskId);
-    if (histIt == m_taskHistorys.end())
+    auto histIt = task_histories_.find(taskId);
+    if (histIt == task_histories_.end())
         return rst;
     const auto& taskHistory = histIt->second;
     bool bStart             = false;
@@ -151,25 +152,25 @@ std::vector<DataDetTrackClassify> AiDetector::GetHistory(const std::string& /*ch
 }
 
 void AiDetector::AddOverviewTask(const std::string& taskId) {
-    auto it = m_overviewRecInsts.find(taskId);
-    if (it == m_overviewRecInsts.end()) {
-        OverviewRecordAiRstPtr recordInst = std::make_shared<OverviewRecordAiRst>(taskId, "detect_" + m_name);
-        m_overviewRecInsts[taskId]        = recordInst;
+    auto it = overview_rec_insts_.find(taskId);
+    if (it == overview_rec_insts_.end()) {
+        OverviewRecordAiRstPtr recordInst = std::make_shared<OverviewRecordAiRst>(taskId, "detect_" + name_);
+        overview_rec_insts_[taskId]       = recordInst;
     }
 }
 
 void AiDetector::OverviewRecord(const std::string& taskId, DataDetTrackClassifyPtr detRet) {
-    auto it = m_overviewRecInsts.find(taskId);
-    if (it != m_overviewRecInsts.end() && it->second) {
+    auto it = overview_rec_insts_.find(taskId);
+    if (it != overview_rec_insts_.end() && it->second) {
         it->second->OverviewRecordFrame(detRet);
     }
 }
 
-MsgOverviewMem AiDetector::GetOverviewInfo(const std::string& /*channelId*/, const std::string& taskId,
+MsgOverviewMem AiDetector::GetOverviewInfo(const std::string& /*channel_id*/, const std::string& taskId,
                                            int64_t streamIndex, int64_t from, int64_t to) {
     MsgOverviewMem info;
-    auto it = m_overviewRecInsts.find(taskId);
-    if (it != m_overviewRecInsts.end() && it->second) {
+    auto it = overview_rec_insts_.find(taskId);
+    if (it != overview_rec_insts_.end() && it->second) {
         info = it->second->GetOverviewInfo(streamIndex, from, to);
     }
 

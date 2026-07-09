@@ -24,6 +24,8 @@ public:
 
     void SetHandle(BlobHandle handle_);
 
+    void ClearHandle();
+
 private:
     BlobDesc desc;
     BlobHandle handle;

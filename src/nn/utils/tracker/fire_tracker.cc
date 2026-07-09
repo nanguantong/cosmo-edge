@@ -72,7 +72,7 @@ Status FireTracker::GetResult(std::vector<TrackingBox>& output) {
             res.confidence   = f->confidence;
             res.status       = f->status;
             res.box          = f->region;
-            res.motion_state = STILL;
+            res.motion_state = MotionState::kStill;
 
             output.emplace_back(res);
         }
@@ -116,7 +116,7 @@ std::unique_ptr<FireFilter> FireTracker::GetIdleFireFilter() {
 
     f->id                     = next_filter_id_++;
     f->flag                   = false;
-    f->status                 = TrackingStatus::NEW;
+    f->status                 = TrackingStatus::kNew;
     f->time_since_last_update = 0;
     f->low_thresh_count       = 0;
 
@@ -241,7 +241,7 @@ Status FireTracker::Update(const std::vector<TrackingBox>& bboxes, std::vector<T
             continue;
 
         if (costDisMatrix.at(i).at(assignm) < 0.9) {
-            fire_filters.at(i)->status                 = TRACKING;
+            fire_filters.at(i)->status                 = TrackingStatus::kTracking;
             fire_filters.at(i)->class_id               = high_conf_boxes.at(assignm).class_id;
             fire_filters.at(i)->time_since_last_update = 0;
             fire_filters.at(i)->low_thresh_count       = 0;
@@ -311,7 +311,7 @@ Status FireTracker::Update(const std::vector<TrackingBox>& bboxes, std::vector<T
         for (int i = 0; i < utrkNum; ++i) {
             if (assignment.at(i) == -1) {
                 // unassigned label will be set as -1 in the assignment algorithm
-                fire_filters.at(utrack.at(i).filter_index)->status = LOSS;
+                fire_filters.at(utrack.at(i).filter_index)->status = TrackingStatus::kLoss;
 
                 fire_filters.at(utrack.at(i).filter_index)->confidence = -1;
 
@@ -327,14 +327,14 @@ Status FireTracker::Update(const std::vector<TrackingBox>& bboxes, std::vector<T
             continue;
 
         if (costDisMatrix.at(i).at(assignm) < 0.9) {
-            fire_filters.at(utrack.at(i).filter_index)->status                 = TRACKING;
+            fire_filters.at(utrack.at(i).filter_index)->status                 = TrackingStatus::kTracking;
             fire_filters.at(utrack.at(i).filter_index)->time_since_last_update = 0;
             fire_filters.at(utrack.at(i).filter_index)->low_thresh_count += 1;
             fire_filters.at(utrack.at(i).filter_index)->confidence = low_conf_boxes.at(assignm).confidence;
 
             matchedPairs.push_back(std::pair<int, int>(i, assignm));
         } else {
-            fire_filters.at(utrack.at(i).filter_index)->status     = LOSS;
+            fire_filters.at(utrack.at(i).filter_index)->status     = TrackingStatus::kLoss;
             fire_filters.at(utrack.at(i).filter_index)->confidence = -1;
             unmatchedTrajectories.insert(utrack.at(i).filter_index);
             unmatchedDetections.insert(assignm);

@@ -42,7 +42,7 @@ public:
 
     int low_thresh_count = 0;
 
-    TrackingStatus status = NEW;
+    TrackingStatus status = TrackingStatus::kNew;
 
     int class_id     = 0;
     float confidence = 0.0f;

@@ -61,4 +61,12 @@ void BlobImpl::SetHandle(BlobHandle handle_) {
     alloc_memory = false;
 }
 
+void BlobImpl::ClearHandle() {
+    // Forget the handle without freeing it. Used after BlobStore has already
+    // freed the device memory, so a repeat FreeBlob is a no-op and ~BlobImpl
+    // does not double-free. Unlike SetHandle, this never calls device->Free.
+    handle       = BlobHandle{};
+    alloc_memory = false;
+}
+
 }  // namespace cosmo::nn

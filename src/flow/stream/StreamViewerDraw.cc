@@ -46,7 +46,7 @@ StreamViewerOverview::OverviewInfo StreamViewerOverview::GetOverviewDataFromLoca
             uint32_t key = PackLineKey(line.attrPriority, line.color);
             auto& group  = info.attrLines[key];
             group.color  = line.color;
-            if (line.attrPriority == VideoOverviewAttrPriority::VideoOverviewAttrPriorityBox) {
+            if (line.attrPriority == VideoOverviewAttrPriority::kBox) {
                 group.lineWidth = 3;  // corner bracket line thickened to 3px
             }
             group.lines.push_back(line.line);
@@ -75,7 +75,7 @@ StreamViewerOverview::OverviewInfo StreamViewerOverview::GetOverviewDataFromLoca
                 uint32_t key = PackLineKey(line.attrPriority, line.color);
                 auto& group  = info.attrLines[key];
                 group.color  = line.color;
-                if (line.attrPriority == VideoOverviewAttrPriority::VideoOverviewAttrPriorityBox) {
+                if (line.attrPriority == VideoOverviewAttrPriority::kBox) {
                     group.lineWidth = 3;  // corner bracket line thickened to 3px
                 }
                 group.lines.push_back(line.line);
@@ -128,7 +128,7 @@ StreamViewerOverview::OverviewInfo StreamViewerOverview::GetOverviewDataFromLoca
 
     if (!areaLines.empty()) {
         media::Color areaColor{0, 0, 0xff};
-        uint32_t key = PackLineKey(VideoOverviewAttrPriority::VideoOverviewAttrPriorityArea, areaColor);
+        uint32_t key              = PackLineKey(VideoOverviewAttrPriority::kArea, areaColor);
         info.attrLines[key].color = areaColor;
         info.attrLines[key].lines = areaLines;
     }
@@ -137,25 +137,25 @@ StreamViewerOverview::OverviewInfo StreamViewerOverview::GetOverviewDataFromLoca
 }
 
 void StreamViewerOverview::AttrToColor(VideoOverviewAttrPriority attrPriority, StreamOverviewAttr& attr) {
-    if (VideoOverviewAttrPriority::VideoOverviewAttrPriorityAlarmReport == attrPriority) {
+    if (VideoOverviewAttrPriority::kAlarmReport == attrPriority) {
         attr.color = {255, 107, 107};  // coral red #FF6B6B
-    } else if (VideoOverviewAttrPriority::VideoOverviewAttrPriorityAlarmFilter == attrPriority) {
+    } else if (VideoOverviewAttrPriority::kAlarmFilter == attrPriority) {
         attr.color = {99, 102, 241};  // electric blue #6366F1
     }
 
-    else if (VideoOverviewAttrPriority::VideoOverviewAttrPriorityArea == attrPriority) {
+    else if (VideoOverviewAttrPriority::kArea == attrPriority) {
         attr.color = {99, 102, 241};  // electric blue #6366F1
-    } else if (VideoOverviewAttrPriority::VideoOverviewAttrPriorityBox == attrPriority) {
+    } else if (VideoOverviewAttrPriority::kBox == attrPriority) {
         attr.color = {34, 211, 238};  // cyan #22D3EE
-    } else if (VideoOverviewAttrPriority::VideoOverviewAttrPriorityTrackId == attrPriority) {
+    } else if (VideoOverviewAttrPriority::kTrackId == attrPriority) {
         attr.color = {138, 148, 184};  // slate #8A94B8 — subtle ID
-    } else if (VideoOverviewAttrPriority::VideoOverviewAttrPriorityConfidence == attrPriority) {
+    } else if (VideoOverviewAttrPriority::kConfidence == attrPriority) {
         attr.color = {220, 231, 255};  // cool white-blue #DCE7FF
-    } else if (VideoOverviewAttrPriority::VideoOverviewAttrPriorityBoxSize == attrPriority) {
+    } else if (VideoOverviewAttrPriority::kBoxSize == attrPriority) {
         attr.color = {138, 148, 184};  // slate #8A94B8
-    } else if (VideoOverviewAttrPriority::VideoOverviewAttrPriorityCount == attrPriority) {
+    } else if (VideoOverviewAttrPriority::kCount == attrPriority) {
         attr.color = {220, 231, 255};  // cool white-blue #DCE7FF
-    } else if (VideoOverviewAttrPriority::VideoOverviewAttrPriorityPassFlow == attrPriority) {
+    } else if (VideoOverviewAttrPriority::kPassFlow == attrPriority) {
         attr.color    = {220, 231, 255};
         attr.fontSize = 19;
         attr.lineDiff = 70;

@@ -54,4 +54,8 @@ void Blob::SetHandle(BlobHandle handle) {
     impl->SetHandle(handle);
 }
 
+void Blob::ClearHandle() {
+    impl->ClearHandle();
+}
+
 }  // namespace cosmo::nn

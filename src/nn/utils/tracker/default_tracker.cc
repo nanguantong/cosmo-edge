@@ -49,7 +49,7 @@ Status DefaultTracker::Update(const std::vector<TrackingBox>& bboxes, std::vecto
     //  2 Remove predicted boxes --------------------------------------------------------------
     predictedBoxes.clear();
     for (auto it = trackers.begin(); it != trackers.end(); it++) {
-        if (it->status != NEW) {
+        if (it->status != TrackingStatus::kNew) {
             int base     = std::min((*it).last_detect_position.height, (*it).last_detect_position.width);
             double bias  = Distance(it->last_detect_position, it->last_predict_position);
             bias         = bias < base ? bias : base;
@@ -130,7 +130,7 @@ Status DefaultTracker::Update(const std::vector<TrackingBox>& bboxes, std::vecto
             continue;
 
         if (costDisMatrix.at(i).at(assignm) < trackers.at(i).search_range) {
-            trackers.at(i).status   = TRACKING;
+            trackers.at(i).status   = TrackingStatus::kTracking;
             trackers.at(i).class_id = high_conf_boxes.at(assignm).class_id;
             trackers.at(i).Update(high_conf_boxes.at(assignm).box, high_conf_boxes.at(assignm).confidence);
 
@@ -202,7 +202,7 @@ Status DefaultTracker::Update(const std::vector<TrackingBox>& bboxes, std::vecto
         for (int i = 0; i < utrkNum; ++i) {
             if (assignment.at(i) == -1) {
                 // unassigned label will be set as -1 in the assignment algorithm
-                trackers.at(utrack.at(i).trackers_index).status     = LOSS;
+                trackers.at(utrack.at(i).trackers_index).status     = TrackingStatus::kLoss;
                 trackers.at(utrack.at(i).trackers_index).confidence = -1;
 
                 unmatchedTrajectories.insert(utrack.at(i).trackers_index);
@@ -217,14 +217,14 @@ Status DefaultTracker::Update(const std::vector<TrackingBox>& bboxes, std::vecto
             continue;
 
         if (costDisMatrix.at(i).at(assignm) < trackers.at(utrack.at(i).trackers_index).search_range) {
-            trackers.at(utrack.at(i).trackers_index).status     = TRACKING;
+            trackers.at(utrack.at(i).trackers_index).status     = TrackingStatus::kTracking;
             trackers.at(utrack.at(i).trackers_index).confidence = low_conf_boxes.at(assignm).confidence;
             trackers.at(utrack.at(i).trackers_index)
                 .Update(low_conf_boxes.at(assignm).box, low_conf_boxes.at(assignm).confidence);
 
             matchedPairs.push_back(std::pair<int, int>(i, assignm));
         } else {
-            trackers.at(utrack.at(i).trackers_index).status     = LOSS;
+            trackers.at(utrack.at(i).trackers_index).status     = TrackingStatus::kLoss;
             trackers.at(utrack.at(i).trackers_index).confidence = -1;
             unmatchedTrajectories.insert(utrack.at(i).trackers_index);
         }
@@ -234,14 +234,15 @@ Status DefaultTracker::Update(const std::vector<TrackingBox>& bboxes, std::vecto
     for (auto it = trackers.begin(); it != trackers.end();) {
         bool contains = Contains(track_region, it->last_predict_position);
         if (it->time_since_last_update > config.max_age || it->low_thresh_count > config.thresh_low_timeout ||
-            (!contains && it->status == LOSS)) {
+            (!contains && it->status == TrackingStatus::kLoss)) {
             it = trackers.erase(it);
         } else {
             if (it->hits >= config.min_hits) {
                 TrackingBox res;
-                res.box      = it->status == TRACKING ? it->last_detect_position : it->last_predict_position;
-                res.id       = it->id;
-                res.class_id = it->class_id;
+                res.box          = it->status == TrackingStatus::kTracking ? it->last_detect_position
+                                                                           : it->last_predict_position;
+                res.id           = it->id;
+                res.class_id     = it->class_id;
                 res.confidence   = it->confidence;
                 res.status       = it->status;
                 res.motion_state = it->motion_state;

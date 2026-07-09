@@ -1,3 +1,5 @@
+#pragma once
+
 #include "nn/node/node.h"
 
 namespace cosmo::nn {

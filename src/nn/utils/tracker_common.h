@@ -7,19 +7,20 @@
 
 namespace cosmo::nn {
 
-enum TrackingStatus { NEW, TRACKING, LOSS };
+enum class TrackingStatus { kNew, kTracking, kLoss };
 
-enum MotionState { UNCERTAIN, MOVING, STILL };
+enum class MotionState { kUncertain, kMoving, kStill };
 
 struct PUBLIC TrackingBox {
     int id                = 0;
     int class_id          = 0;
     float confidence      = 0.0f;
-    TrackingStatus status = NEW;
+    TrackingStatus status = TrackingStatus::kNew;
     Rect2f box;
 
     // Queue<Rect2f> trajectory;
-    MotionState motion_state = UNCERTAIN;  // target motion state, motion_iou=0 don't evaluate state
+    MotionState motion_state =
+        MotionState::kUncertain;  // target motion state, motion_iou=0 don't evaluate state
 };
 
 struct PUBLIC TrackerConfig {

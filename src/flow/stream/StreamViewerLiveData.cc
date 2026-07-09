@@ -196,7 +196,7 @@ void StreamViewerOverview::LiveDataHandTarget(int64_t streamIndex, uint64_t inde
     util::Point pointTR(drawX + drawW, drawY);
     util::Point pointBR(drawX + drawW, drawY + drawH);
     util::Point pointBL(drawX, drawY + drawH);
-    VideoOverviewAttrPriority attrPriority = VideoOverviewAttrPriority::VideoOverviewAttrPriorityBox;
+    VideoOverviewAttrPriority attrPriority = VideoOverviewAttrPriority::kBox;
 
     int minSide = std::min(drawW, drawH);
     if (minSide < 30) {
@@ -244,7 +244,7 @@ void StreamViewerOverview::LiveDataHandTarget(int64_t streamIndex, uint64_t inde
         }
         util::Point pos(drawX, drawY);  // label position follows smoothed box
         StreamOverviewTextEl text;
-        text.attrPriority = VideoOverviewAttrPriority::VideoOverviewAttrPriorityConfidence;
+        text.attrPriority = VideoOverviewAttrPriority::kConfidence;
         text.bgColor      = {5, 8, 22};  // near-black blue bg #050816
         text.hasBgColor   = true;
 

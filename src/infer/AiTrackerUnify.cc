@@ -179,8 +179,8 @@ std::vector<cosmo::nn::TrackingBox> AiTrackerUnify::DetEl2TrackEl(std::vector<Ai
             track_box_el.box.y        = static_cast<float>(el.box.y);
             track_box_el.box.width    = static_cast<float>(el.box.width);
             track_box_el.box.height   = static_cast<float>(el.box.height);
-            track_box_el.status       = cosmo::nn::TrackingStatus::NEW;
-            track_box_el.motion_state = cosmo::nn::MotionState::UNCERTAIN;
+            track_box_el.status       = cosmo::nn::TrackingStatus::kNew;
+            track_box_el.motion_state = cosmo::nn::MotionState::kUncertain;
             tracking_boxs.push_back(track_box_el);
         }
     }
@@ -238,11 +238,11 @@ void AiTrackerUnify::TrackDataSignDetId(std::vector<AiDetectRstEl>& track_out,
 
 AITrackingStatus AiTrackerUnify::AITrackStatusChange(cosmo::nn::TrackingStatus status) {
     switch (status) {
-        case cosmo::nn::TrackingStatus::NEW:
+        case cosmo::nn::TrackingStatus::kNew:
             return AITrackingStatus::NEW;
-        case cosmo::nn::TrackingStatus::TRACKING:
+        case cosmo::nn::TrackingStatus::kTracking:
             return AITrackingStatus::TRACKING;
-        case cosmo::nn::TrackingStatus::LOSS:
+        case cosmo::nn::TrackingStatus::kLoss:
             return AITrackingStatus::LOSS;
         default:
             return AITrackingStatus::UNKNOW;
@@ -253,11 +253,11 @@ AITrackingStatus AiTrackerUnify::AITrackStatusChange(cosmo::nn::TrackingStatus s
 
 AIMotionState AiTrackerUnify::AIMotionStatusChange(cosmo::nn::MotionState status) {
     switch (status) {
-        case cosmo::nn::MotionState::UNCERTAIN:
+        case cosmo::nn::MotionState::kUncertain:
             return AIMotionState::UNCERTAIN;
-        case cosmo::nn::MotionState::MOVING:
+        case cosmo::nn::MotionState::kMoving:
             return AIMotionState::MOVING;
-        case cosmo::nn::MotionState::STILL:
+        case cosmo::nn::MotionState::kStill:
             return AIMotionState::STILL;
         default:
             return AIMotionState::UNCERTAIN;

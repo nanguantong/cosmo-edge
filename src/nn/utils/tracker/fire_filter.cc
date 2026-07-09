@@ -6,7 +6,7 @@ FireFilter::FireFilter(DeviceType type, int device_id, unsigned int assigned_id)
     time_since_last_update = 0;
     low_thresh_count       = 0;
     id                     = assigned_id;
-    status                 = TrackingStatus::NEW;
+    status                 = TrackingStatus::kNew;
     flag                   = false;
 
     filter = std::make_unique<Filter>(type);

@@ -19,6 +19,8 @@ hero:
 features:
   - title: Tutorials
     details: Five guided tutorials from first boot, scenario configuration, VLM / DINO, pipeline orchestration, and third-party model porting.
+  - title: Community Cases
+    details: Contributor-submitted recipes and field notes kept separate from the official tutorials.
   - title: Build, Deploy, Operate
     details: Confirmed build commands, runtime layout, processes, ports, configuration, and troubleshooting notes.
   - title: Reference and Development
@@ -32,5 +34,6 @@ features:
 3. To understand runtime paths, ports, and services, read the [Deployment Guide](guide/deployment.md).
 4. To understand the project layout, read the [Architecture Overview](guide/architecture.md).
 5. To troubleshoot runtime issues, read [Troubleshooting](guide/troubleshooting.md).
-6. For integrations, read [API Overview](reference/api.md), [API Fields](reference/api-fields.md), [MQTT Reference](reference/mqtt.md), [HTTP Webhook Reference](reference/webhook.md), and [Models and Resources](reference/models.md).
-7. For development, start with the [Contributor Guide](development/contributing.md), then read [Frontend Development](development/frontend.md), [Backend Development](development/backend.md), and [CI and Quality Checks](development/ci.md) as needed.
+6. To read or contribute community workflows, start with [Community Recipes and Cases](community/cases/index.md).
+7. For integrations, read [API Overview](reference/api.md), [API Fields](reference/api-fields.md), [MQTT Reference](reference/mqtt.md), [HTTP Webhook Reference](reference/webhook.md), and [Models and Resources](reference/models.md).
+8. For development, start with the [Contributor Guide](development/contributing.md), then read [Frontend Development](development/frontend.md), [Backend Development](development/backend.md), and [CI and Quality Checks](development/ci.md) as needed.

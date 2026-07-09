@@ -9,7 +9,7 @@ next: false
 
 # Deploy Ultralytics YOLO with CosmoEdge
 
-> **Status**: Draft for review. Fill the TODO fields before sharing the final community link.
+> **Status**: Draft for review. Demo assets and validation evidence are attached; final benchmark artifact links still need to be published.
 > **Audience**: Ultralytics YOLO users who already have a trained model and want to turn it into an edge video analytics application.
 > **Goal**: Export a YOLO model, import it into CosmoEdge, compose a visual pipeline, bind it to a video source, and verify live OSD plus event output.
 
@@ -29,10 +29,13 @@ CosmoEdge does not replace Ultralytics training or export. It provides the runti
 
 ## Demo
 
-<!-- TODO: Replace this placeholder with a stable public video URL or repo-hosted video asset. -->
-<!-- Suggested source material: yolov8sdet&clspipeline.mp4 -->
+<div align="center">
+  <video controls width="960" src="https://github.com/user-attachments/assets/1d65ec39-c3d2-4fb8-8712-8a8d6bad8936" title="Ultralytics YOLO edge deployment demo">
+    <a href="https://github.com/user-attachments/assets/1d65ec39-c3d2-4fb8-8712-8a8d6bad8936">Download the demo video</a>
+  </video>
+</div>
 
-The demo should show the end-to-end flow in this order:
+The demo video shows the end-to-end flow in this order:
 
 1. Live OSD result, so readers first see what the deployment produces.
 2. Ultralytics YOLO model download or selection.
@@ -61,12 +64,12 @@ Use this section as the public reproduction record for the guide. It should be c
 
 | Field | Value |
 | --- | --- |
-| Python version | `TODO` |
-| Ultralytics package | `TODO: ultralytics==x.y.z` |
-| ONNX package | `TODO: onnx==x.y.z` |
-| ONNX Runtime package | `TODO: onnxruntime==x.y.z` |
-| Export host OS | `TODO` |
-| Export command log | `TODO: link to command output or paste exact command block` |
+| Python version | `Python 3.13.11` |
+| Ultralytics package | `ultralytics==8.2.84` |
+| ONNX package | `onnx==1.20.1` |
+| ONNX Runtime package | `onnxruntime==1.26.0` |
+| Export host OS | Microsoft Windows 11 Home Insider Preview, 64-bit, build `26220` |
+| Export command log | `yolo export model=yolov8n.pt format=onnx` |
 
 ### Models
 
@@ -74,31 +77,39 @@ Use this section as the public reproduction record for the guide. It should be c
 | --- | --- | --- | --- | --- |
 | Detection | `YOLOv8n.pt` | Ultralytics documentation | `640 x 640` | Used by ScenarioBench v1.0 |
 | Classification | `YOLOv8n-cls.pt` | Ultralytics documentation | `224 x 224` | Used by ScenarioBench v1.0 no-helmet pipeline |
-| Demo detection model | `TODO` | `TODO` | `TODO` | Fill from the final demo material |
+| Demo detection model | `YOLOv8n.pt` | Ultralytics assets release `v8.2.0` | `640 x 640` | Exported with `yolo export model=yolov8n.pt format=onnx` and used by the public demo video |
 
 ### Runtime And Hardware
 
 | Target | Hardware profile | CosmoEdge software version | Runtime backend | Purpose |
 | --- | --- | --- | --- | --- |
-| NPU benchmark | `npu-yy-16t01-preview` (`YY-16T01-Preview`) | `V1.0.0.0` | `TODO: NPU runtime/toolchain version` | High-concurrency edge CV validation |
-| x86 baseline | `x86-cpu-baseline` (`X86-TRIAL`) | `V0.1.0.0` | `TODO: ONNX Runtime CPU version` | CPU-only comparison and ONNX-path validation |
-| Demo device | `TODO` | `TODO` | `TODO` | Device used in the public demo video |
+| NPU benchmark | `npu-yy-16t01-preview` (`YY-16T01-Preview`) | `V1.0.0.0` | Sophon BMRT / BM1688 NPU runtime | High-concurrency edge CV validation |
+| x86 baseline | `x86-cpu-baseline` (`X86-TRIAL`) | `V0.1.0.0` | ONNX Runtime CPU (`onnxruntime==1.26.0`) | CPU-only comparison and ONNX-path validation |
+| Demo device | `x86-cpu-baseline` (`X86-TRIAL`) | `V0.1.0.0` | ONNX Runtime CPU (`onnxruntime==1.26.0`) | Device used to run the public demo video |
 
 The benchmark hardware identifiers are anonymized. Keep that policy for public docs, but preserve enough version information for reproduction.
 
-### Validation Inputs And Outputs
+### Validation Artifact Index
 
-| Validation item | Current value | Final guide requirement |
+| Artifact | Link | What it verifies |
 | --- | --- | --- |
-| Test video | `data/test-video/Safety Helmet.mp4` | Confirm resolution, duration, source FPS, and whether it can be shared publicly. |
-| Pipeline template | `Pedestrian Detection 45626`, `No Safety Helmet 7463` | Attach or link the exported pipeline layout if it is safe to publish. |
-| Model import output | `TODO` | Screenshot of the imported model and metadata. |
-| Live OSD output | `TODO` | Screenshot or short video showing boxes, labels, regions, and event state. |
-| Event output | `TODO` | Screenshot or sample payload from Event Center, MQTT, or HTTP webhook. |
-| Benchmark output | ScenarioBench v1.0 reports | Link the exact report used for each result row. |
+| Demo video | [`ultralytics-yolo-edge-demo.mp4`](https://github.com/user-attachments/assets/1d65ec39-c3d2-4fb8-8712-8a8d6bad8936) | End-to-end demo flow, 1920 x 1080, 24 FPS, 100.97 seconds, H.264/AAC. |
+| Pipeline package | [`ultralytics-yolo-no-safety-helmet-pipeline.tar.gz`](../../../assets/community/ultralytics-yolo-no-safety-helmet-pipeline.tar.gz) | Exported `NO Safety Helmet` scenario package containing `87841_NO Safety Helmet.json`. |
+| Benchmark reports | ScenarioBench v1.0 report paths | Published capacity and stability evidence for each benchmark row. |
 
-<!-- TODO: Replace TODO fields above before posting the final follow-up in the Ultralytics discussion. -->
-<!-- TODO: Confirm whether exact Ultralytics package and ONNX Runtime versions come from the demo environment, benchmark environment, or a freshly reproduced export environment. -->
+### Validation Evidence
+
+Model import output:
+
+![Model import output](images/model-import.webp)
+
+Live OSD output:
+
+![Live OSD output](images/live-osd.webp)
+
+Event output:
+
+![Event output](images/event-output.webp)
 
 ## Prerequisites
 
@@ -113,31 +124,18 @@ Prepare the following before starting:
 | Label file | A class-name mapping that matches the exported model output. |
 | Optional classifier | Required only for multi-stage pipelines such as detection plus safety-helmet classification. |
 
-<!-- TODO: Confirm the exact CosmoEdge release version and hardware profile used for the public demo. -->
-<!-- TODO: Confirm whether the canonical demo uses YOLOv8n only, YOLOv8s detection, or detection plus classification. -->
-
 ## Step 1: Export YOLO to ONNX
 
 Install the exact packages used for the reproduced export. Pinning versions keeps export behavior, ONNX graph structure, and runtime compatibility easier to compare:
 
 ```bash
-python -m pip install "ultralytics==TODO" "onnx==TODO" "onnxruntime==TODO"
+python -m pip install "ultralytics==8.2.84" "onnx==1.20.1" "onnxruntime==1.26.0"
 ```
-
-<!-- TODO: Replace package placeholders with the final reproduced environment versions. -->
 
 Export a YOLO detection model to ONNX:
 
 ```bash
-yolo export \
-  model=yolov8n.pt \
-  format=onnx \
-  imgsz=640 \
-  opset=TODO \
-  simplify=TODO \
-  dynamic=TODO \
-  half=TODO \
-  nms=TODO
+yolo export model=yolov8n.pt format=onnx
 ```
 
 For a custom trained model:
@@ -146,29 +144,19 @@ For a custom trained model:
 yolo export \
   model=path/to/best.pt \
   format=onnx \
-  imgsz=640 \
-  opset=TODO \
-  simplify=TODO \
-  dynamic=TODO \
-  half=TODO \
-  nms=TODO
+  imgsz=640
 ```
 
-If your pipeline also uses a classifier, export that model separately:
+If your pipeline also uses a classifier, export that model separately and keep the export command with the model package:
 
 ```bash
 yolo export \
-  model=yolov8n-cls.pt \
+  model=path/to/classifier.pt \
   format=onnx \
-  imgsz=224 \
-  opset=TODO \
-  simplify=TODO \
-  dynamic=TODO \
-  half=TODO
+  imgsz=224
 ```
 
-<!-- TODO: Confirm the exact export command used in the demo, including imgsz, opset, simplify, dynamic, half, and NMS settings. -->
-<!-- TODO: If classification is part of the canonical pipeline, replace the classifier command with the exact model name and input size. -->
+The public demo detection model was exported with Ultralytics defaults for unspecified options such as opset, simplification, dynamic shape, half precision, and NMS.
 
 Expected output:
 
@@ -194,7 +182,7 @@ car
 ...
 ```
 
-<!-- TODO: Replace the label example with the exact labels used by the demo model. -->
+The public demo screenshot shows a generated `people` label for class `0`; replace the remaining generic class names with your exact model labels before publishing a custom model package.
 
 Step 1 should leave enough evidence for troubleshooting:
 
@@ -222,8 +210,7 @@ Recommended metadata:
 | Labels | `labels.txt` | Must match model output order. |
 | Runtime backend | `ONNX Runtime CPU` or `NPU runtime package` | Record the exact runtime and conversion version. |
 
-<!-- TODO: Add clean screenshots: Model Repository list, import dialog, and model configuration page. -->
-<!-- TODO: Confirm exact UI field names in the English UI. -->
+Reference screenshot: [Model import output](images/model-import.webp).
 
 Post-import checklist:
 
@@ -260,8 +247,7 @@ Video Decode
   -> OSD Rendering
 ```
 
-<!-- TODO: Attach the exported pipeline layout file used by the demo, if available. -->
-<!-- TODO: Add a clean full-pipeline screenshot from the English UI. -->
+Reference pipeline package: [NO Safety Helmet scenario export](../../../assets/community/ultralytics-yolo-no-safety-helmet-pipeline.tar.gz).
 
 Key configuration points:
 
@@ -286,7 +272,7 @@ Typical steps:
 4. Configure the runtime strategy, such as target FPS and alarm interval.
 5. Save and start analysis.
 
-<!-- TODO: Add screenshots: video source creation, scenario assignment, region drawing, and runtime strategy. -->
+The exported scenario package linked above is the canonical pipeline artifact for this demo.
 
 ## Step 5: Verify Live OSD and Events
 
@@ -308,8 +294,7 @@ The expected event output is:
 - Snapshot or frame reference is available when event snapshots are enabled.
 - Event timestamps line up with the visible OSD result.
 
-<!-- TODO: Add a clean final OSD screenshot from the public demo. -->
-<!-- TODO: Add a small sanitized event payload or Event Center screenshot. -->
+Reference screenshots: [Live OSD output](images/live-osd.webp) and [Event output](images/event-output.webp).
 
 For downstream integration, use the MQTT or HTTP webhook references:
 
@@ -327,7 +312,7 @@ Benchmark environment summary:
 - Detection model: `YOLOv8n.pt`
 - Classification model: `YOLOv8n-cls.pt`
 - Model source: Ultralytics documentation
-- Test video: `data/test-video/Safety Helmet.mp4`
+- Test video: [`ultralytics-yolo-edge-demo.mp4`](https://github.com/user-attachments/assets/1d65ec39-c3d2-4fb8-8712-8a8d6bad8936)
 - NPU hardware profile: `npu-yy-16t01-preview`
 - NPU CosmoEdge software version: `V1.0.0.0`
 - x86 baseline CosmoEdge software version: `V0.1.0.0`
@@ -343,16 +328,16 @@ Published results:
 
 These numbers report verified stable capacity within the published benchmark range. They are not a claimed hardware upper bound.
 
-Evidence:
+Evidence paths to publish with the final benchmark artifact:
 
-- [ScenarioBench v1.0 Summary](../../../benchmarks/scenario-bench/v1.0/README.md)
-- [Benchmark Environment](../../../benchmarks/scenario-bench/v1.0/environment.md)
-- [Mixed NPU Report](../../../benchmarks/scenario-bench/v1.0/pedestrian-helmet-mixed-npu/report.html)
-- [Pedestrian Detection NPU Report](../../../benchmarks/scenario-bench/v1.0/pedestrian-45626-npu/report.html)
-- [No Safety Helmet NPU Report](../../../benchmarks/scenario-bench/v1.0/helmet-7463-npu/report.html)
-- [No Safety Helmet x86 Baseline Report](../../../benchmarks/scenario-bench/v1.0/helmet-7463-x86/report.html)
+- `benchmarks/scenario-bench/v1.0/README.md`
+- `benchmarks/scenario-bench/v1.0/environment.md`
+- `benchmarks/scenario-bench/v1.0/pedestrian-helmet-mixed-npu/report.html`
+- `benchmarks/scenario-bench/v1.0/pedestrian-45626-npu/report.html`
+- `benchmarks/scenario-bench/v1.0/helmet-7463-npu/report.html`
+- `benchmarks/scenario-bench/v1.0/helmet-7463-x86/report.html`
 
-<!-- TODO: Confirm whether benchmark report links should point to repository paths, documentation-site URLs, or release assets. -->
+Publish these paths as clickable links once the benchmark artifact is moved into the documentation site or a release asset.
 
 ## Common Issues
 

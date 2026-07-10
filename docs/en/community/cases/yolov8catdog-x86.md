@@ -15,7 +15,7 @@ description: Complete community tutorial covering ONNX model upload, task orches
 
 - Case Scope: This guide walks through the full workflow on CosmoEdge x86 Docker: uploading YOLOv8 cat/dog ONNX model, modifying model config, creating \& arranging detection tasks, binding video streams, and viewing real\-time inference outputs
 
-- Related Issue: \#21
+- Related issue or discussion: N/A
 
 ## Status
 
@@ -67,53 +67,54 @@ Download the pre\-exported YOLOv8 cat/dog ONNX model and confirm target labels a
 
     1. Navigate to **Models** on the left sidebar, click the **Add Model** button at the top\-right, then upload the ONNX model file and complete basic configuration as prompted\.
 
-       ![](images/uploadmodel.png)
+       ![](../../../assets/community/yolov8catdog-x86/en/upload-model.webp)
 
     2. Click the **Config** button under the target model entry, update category labels for cat/dog detection, then save changes\.
 
-       ![](images/clickconfig.png)
+       ![](../../../assets/community/yolov8catdog-x86/en/click-config.webp)
 
-       ![](images/update-categories.png)
+       ![](../../../assets/community/yolov8catdog-x86/en/update-categories.webp)
 
 3. Create \& Orchestrate Detection Task
 
     1. Go to the **Task** menu on the left sidebar, click **Create Task** in the top\-right corner, and create a detection task named `catdog-det`\.
 
-       ![](images/createtask.png)
+       ![](../../../assets/community/yolov8catdog-x86/en/create-task.webp)
 
     2. Click **Arrange Algorithm** on the new task entry, complete algorithm pipeline arrangement and save the configuration\.
 
-       ![](images/arragetask.png)
+       ![](../../../assets/community/yolov8catdog-x86/en/arrange-task.webp)
 
 4. Upload Test Video \& Bind Detection Task
 
     1. Open the **Video** tab on the left sidebar, click the top\-right **Add** button to upload your cat/dog test video\.
 
-       ![](images/uploadvideo.png)
+       ![](../../../assets/community/yolov8catdog-x86/en/upload-video.webp)
 
     2. Click **Allocate Task** on the uploaded video entry\. Select the `catdog-det` task from the left panel, hit **Add Area** to draw detection zones, then enable the service\.
 
-       ![](images/allocatetask.png)
+       ![](../../../assets/community/yolov8catdog-x86/en/allocate-task.webp)
 
 5. Verify Real\-Time Inference Results
   Click the **Live** tab on the left sidebar, tap the camera icon at top\-left, double\-click to select the `catdogvideo` stream channel\. In the **Algorithm Overlay** dropdown at the top\-middle of the page, pick the `catdog-det` task to view live detection visualization\.
 
-  ![](images/result.png)
+  ![](../../../assets/community/yolov8catdog-x86/en/live-result.webp)
 
 ## Verification Checklist
 
-|Check Item|Result|
-|---|---|
-|Model imported successfully|Passed|
-|Class labels displayed correctly|Passed|
-|Real\-time OSD overlay works as expected|Passed|
-|Event logs generated normally|Passed|
+|Check Item|Result|Evidence|
+|---|---|---|
+|Model imported successfully|Passed|[Model upload screenshot](../../../assets/community/yolov8catdog-x86/en/upload-model.webp)|
+|Class labels displayed correctly|Passed|[Category configuration screenshot](../../../assets/community/yolov8catdog-x86/en/update-categories.webp)|
+|Real\-time OSD overlay works as expected|Passed|[Live result screenshot](../../../assets/community/yolov8catdog-x86/en/live-result.webp)|
 
 ## Known Limitations
 
 - This case is only validated under x86 Docker environment; adaptation is required for other hardware platforms and deployment modes\.
 
 - Only YOLOv8 object detection ONNX models are tested\. Configuration adjustments are necessary for ONNX models with other architectures or task types\.
+
+- Event record payloads are not included in this case; verify Event Center output separately if your workflow depends on alarm records\.
 
 ## References
 

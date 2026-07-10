@@ -16,7 +16,7 @@ description: 社区贡献的 CosmoEdge 真实操作流程和可复现实践。
 
 ## 案例列表
 
-当前还没有已接受的社区案例。
+- [x86 环境下 YOLOv8 猫狗检测 ONNX 模型导入与运行](yolov8catdog-x86.md)
 
 ## 新增案例
 

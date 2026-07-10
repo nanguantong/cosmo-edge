@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <iterator>
 #include <numeric>
 
 #include "api/MessageFaceLibHandler.h"
@@ -35,9 +36,8 @@ Lib::MsgQueryFaceLibInfoSend MessageFaceLibHandler::Handle(Lib::MsgQueryFaceLibI
         // Convert to DTO views for filtering and sorting
         std::vector<service::FaceLibView> views;
         views.reserve(faceLibList.size());
-        for (const auto& lib : faceLibList) {
-            views.push_back(service::FaceLibView::From(lib));
-        }
+        std::transform(faceLibList.begin(), faceLibList.end(), std::back_inserter(views),
+                       [](const auto& lib) { return service::FaceLibView::From(lib); });
 
         // Filter by faceLibId
         if (!data.faceLibId.empty()) {
@@ -95,9 +95,8 @@ Lib::MsgQueryFacesSend MessageFaceLibHandler::Handle(Lib::MsgQueryFacesRecv&& da
     // Build PersonDetailView snapshots for filtering/sorting/rendering
     std::vector<service::PersonDetailView> details;
     details.reserve(personList.size());
-    for (const auto& p : personList) {
-        details.push_back(service::PersonDetailView::From(p));
-    }
+    std::transform(personList.begin(), personList.end(), std::back_inserter(details),
+                   [](const auto& p) { return service::PersonDetailView::From(p); });
 
     // Filter — erase non-matching entries
     auto filterDetails = [&](auto pred) {

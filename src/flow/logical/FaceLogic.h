@@ -1,12 +1,5 @@
+// FaceLogic — face logic interface.
 #pragma once
-
-/*
- * @Author: zhangxiaobo
- * @Date: 2023-11-29 15:56:48
- * @LastEditors: zhangxiaobo
- * @LastEditTime: 2025-08-18 10:06:55
- * @Description:
- */
 
 #include <list>
 #include <memory>

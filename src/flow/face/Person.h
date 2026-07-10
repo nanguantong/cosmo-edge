@@ -1,12 +1,5 @@
+// Person — face person record.
 #pragma once
-
-/*
- * @Author: shiwei
- * @Date: 2020-04-01 14:45:43
- * @LastEditors: shiwei
- * @LastEditTime: 2021-04-16 11:41:53
- * @Description: Person
- */
 
 #include <map>
 #include <memory>

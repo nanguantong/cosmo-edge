@@ -1,12 +1,5 @@
+// FaceRegLib — face record library.
 #pragma once
-
-/*
- * @Author: zhangxiaobo
- * @Date: 2025-04-08 17:30:13
- * @LastEditors: zhangxiaobo
- * @LastEditTime: 2025-05-21 15:55:44
- * @Description: Face record
- */
 
 #include <map>
 #include <memory>

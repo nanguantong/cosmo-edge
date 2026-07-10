@@ -1,12 +1,5 @@
+// TaskFaceAlarmMng — face alarm task management.
 #pragma once
-
-/*
- * @Author: zhangxiaobo
- * @Date: 2023-11-13 19:22:44
- * @LastEditors: zhangxiaobo
- * @LastEditTime: 2024-11-14 11:01:07
- * @Descripttion:
- */
 
 #include <map>
 #include <memory>

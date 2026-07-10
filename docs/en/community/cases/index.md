@@ -16,7 +16,7 @@ Community cases should be scoped and reproducible. They should not replace the o
 
 ## Case List
 
-No community cases have been accepted yet.
+- [Import and run YOLOv8 cat/dog detection ONNX model on x86](yolov8catdog-x86.md)
 
 ## Add a Case
 

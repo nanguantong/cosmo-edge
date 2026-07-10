@@ -1,14 +1,6 @@
 // FaceLogicMatch.cc — face matching.
 // Split from FaceLogic.cc (DEBT-007).
 
-/*
- * @Author: zhangxiaobo
- * @Date: 2023-11-29 15:55:39
- * @LastEditors: zhangxiaobo
- * @LastEditTime: 2025-08-18 10:08:27
- * @Description:
- */
-
 #include <chrono>
 #include <thread>
 

@@ -89,13 +89,14 @@ namespace {
     ai_detector_fps::ReuseProfile LookupReuseProfile(const std::string& alg_code) {
         const auto raw_value = LookupPlacementEnv(kEnvReuseProfile, alg_code);
         if (raw_value.empty()) {
-            return {};
+            return ai_detector_fps::DefaultReuseProfile();
         }
 
         auto profile = ai_detector_fps::ParseReuseProfile(raw_value);
         if (profile.empty()) {
-            LOG_WARN("{}Invalid {} value:{}, fallback to fps-budget formula", kTag, kEnvReuseProfile,
+            LOG_WARN("{}Invalid {} value:{}, fallback to default reuse profile", kTag, kEnvReuseProfile,
                      raw_value);
+            return ai_detector_fps::DefaultReuseProfile();
         }
         return profile;
     }

@@ -141,7 +141,7 @@ private:
     std::vector<std::string> labels_;
     size_t max_reuse_count_{1};                             // Max channels sharing this detector
     float instance_fps_budget_{kDefaultInstanceFpsBudget};  // Per-instance fps budget for placement
-    ai_detector_fps::ReuseProfile reuse_profile_;           // Optional fps-threshold reuse overrides
+    ai_detector_fps::ReuseProfile reuse_profile_;           // fps-threshold reuse profile for placement
     size_t batch_count_{1};                                 // Batch size for inference
     std::vector<AiDetectorChannel> channel_list_;           // Channels/tasks using this detector
     bool is_detector_inst_initialized_{false};

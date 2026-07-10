@@ -79,6 +79,22 @@ TEST_CASE("AiDetectorFps EffectiveMaxReuseCount profile override", "[AiDetectorF
     REQUIRE(EffectiveMaxReuseCount(12.0f, kBudget, kHardMax, empty_profile) == 3);
 }
 
+TEST_CASE("AiDetectorFps DefaultReuseProfile follows tested fps gradient", "[AiDetectorFps]") {
+    using ai_detector_fps::DefaultReuseProfile;
+    using ai_detector_fps::EffectiveMaxReuseCount;
+    constexpr size_t kHardMax = 3;
+    constexpr float kBudget   = 36.0f;
+
+    const auto profile = DefaultReuseProfile();
+    REQUIRE(EffectiveMaxReuseCount(3.0f, kBudget, kHardMax, profile) == 3);
+    REQUIRE(EffectiveMaxReuseCount(5.0f, kBudget, kHardMax, profile) == 3);
+    REQUIRE(EffectiveMaxReuseCount(8.0f, kBudget, kHardMax, profile) == 3);
+    REQUIRE(EffectiveMaxReuseCount(10.0f, kBudget, kHardMax, profile) == 2);
+    REQUIRE(EffectiveMaxReuseCount(12.0f, kBudget, kHardMax, profile) == 2);
+    REQUIRE(EffectiveMaxReuseCount(16.0f, kBudget, kHardMax, profile) == 1);
+    REQUIRE(EffectiveMaxReuseCount(24.0f, kBudget, kHardMax, profile) == 1);
+}
+
 TEST_CASE("AiDetectorFps ChannelAssignedFps takes max not sum", "[AiDetectorFps]") {
     using ai_detector_fps::ChannelAssignedFps;
     REQUIRE(ChannelAssignedFps(makeChannel("ch", {})) == Approx(0.0f));
@@ -172,11 +188,14 @@ TEST_CASE("AiDetectorFps CanAccept placement matrix", "[AiDetectorFps]") {
         REQUIRE(CanAccept(ch, "ch1", 5.0f, kMaxReuse, kBudget));  // max stays 24, delta 0
     }
 
-    SECTION("profile can split 12fps at two channels without changing the compiled default") {
-        const auto profile = ai_detector_fps::ParseReuseProfile("5:3,12:2,24:1");
+    SECTION("default profile splits 12fps at two channels and 16fps at one channel") {
+        const auto profile = ai_detector_fps::DefaultReuseProfile();
         std::vector<AiDetectorChannel> two = {makeChannel("ch1", {{"t1", 12.0f}}),
                                               makeChannel("ch2", {{"t2", 12.0f}})};
         REQUIRE_FALSE(CanAccept(two, "ch3", 12.0f, kMaxReuse, kBudget, profile));
+
+        std::vector<AiDetectorChannel> one = {makeChannel("ch1", {{"t1", 16.0f}})};
+        REQUIRE_FALSE(CanAccept(one, "ch2", 16.0f, kMaxReuse, kBudget, profile));
     }
 
     SECTION("same-channel higher-fps task raising max beyond budget is rejected by the gate") {

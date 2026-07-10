@@ -45,6 +45,11 @@ namespace ai_detector_fps {
 
     using ReuseProfile = std::vector<ReuseRule>;
 
+    // Tested placement gradient: <=8fps reuse 3, <=12fps reuse 2, higher fps reuse 1.
+    inline ReuseProfile DefaultReuseProfile() {
+        return {{8.0f, 3}, {12.0f, 2}, {100.0f, 1}};
+    }
+
     inline bool HasConfiguredFps(float fps) {
         return fps > 0.0f && std::isfinite(fps);
     }

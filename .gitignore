@@ -5,6 +5,7 @@
 .antigravitycli
 .claude
 CLAUDE.md
+AGENTS.md
 build
 build_linux
 build32

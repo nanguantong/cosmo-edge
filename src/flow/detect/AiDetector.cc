@@ -5,17 +5,117 @@
 
 #include "flow/detect/AiDetector.h"
 
+#include <algorithm>
+#include <cctype>
+#include <sstream>
+#include <unordered_map>
+
 #include "service/detail/ServiceRegistry.h"
 #include "service/model/IModelService.h"
 #include "service/system/IConfigReadService.h"
 #include "service/system/IHardwareQuery.h"
+#include "util/EnvUtil.h"
 #include "util/Log.h"
+#include "util/SafeParse.h"
 #include "util/TimeUtil.h"
 #include "util/UuidUtil.h"
 #include "util/dto/ActionCodes.h"
 
 static constexpr const char* kTag = "AI-DETECTER ";
 namespace cosmo {
+
+namespace {
+    constexpr const char* kEnvMaxReuse     = "COSMO_AI_DETECTOR_MAX_REUSE";
+    constexpr const char* kEnvFpsBudget    = "COSMO_AI_DETECTOR_FPS_BUDGET";
+    constexpr const char* kEnvReuseProfile = "COSMO_AI_DETECTOR_REUSE_PROFILE";
+    constexpr size_t kMaxRuntimeReuseLimit = 64;
+
+    std::string SanitizeEnvSuffix(const std::string& raw) {
+        std::string suffix;
+        suffix.reserve(raw.size());
+        for (unsigned char ch : raw) {
+            suffix.push_back(std::isalnum(ch) ? static_cast<char>(std::toupper(ch)) : '_');
+        }
+        return suffix;
+    }
+
+    std::string LookupPlacementEnv(const char* base_key, const std::string& alg_code) {
+        const auto suffix = SanitizeEnvSuffix(alg_code);
+        if (!suffix.empty()) {
+            const auto alg_key = std::string(base_key) + "_" + suffix;
+            const auto value   = util::GetEnvOrDefault(alg_key.c_str(), "");
+            if (!value.empty()) {
+                return value;
+            }
+        }
+        return util::GetEnvOrDefault(base_key, "");
+    }
+
+    size_t LookupMaxReuseCount(const std::string& alg_code) {
+        const auto raw_value = LookupPlacementEnv(kEnvMaxReuse, alg_code);
+        if (raw_value.empty()) {
+            return kMaxReuseHardLimit;
+        }
+
+        size_t parsed = 0;
+        if (!ai_detector_fps::ParsePositiveSize(raw_value, parsed)) {
+            LOG_WARN("{}Invalid {} value:{}, fallback:{}", kTag, kEnvMaxReuse, raw_value,
+                     kMaxReuseHardLimit);
+            return kMaxReuseHardLimit;
+        }
+        return std::clamp(parsed, static_cast<size_t>(1), kMaxRuntimeReuseLimit);
+    }
+
+    // Per-algCode fps budget overrides for instance placement. Unlisted algCodes fall back to
+    // kDefaultInstanceFpsBudget. Populate from per-model stress-test results.
+    float LookupInstanceFpsBudget(const std::string& alg_code) {
+        const auto raw_value = LookupPlacementEnv(kEnvFpsBudget, alg_code);
+        if (!raw_value.empty()) {
+            const float parsed = util::ParseFloat(raw_value, -1.0f);
+            if (ai_detector_fps::HasConfiguredFps(parsed)) {
+                return parsed;
+            }
+            LOG_WARN("{}Invalid {} value:{}, fallback:{}", kTag, kEnvFpsBudget, raw_value,
+                     kDefaultInstanceFpsBudget);
+        }
+
+        static const std::unordered_map<std::string, float> kAlgFpsBudget = {
+            // {"45626", 36.0f},
+        };
+        const auto it = kAlgFpsBudget.find(alg_code);
+        return (it != kAlgFpsBudget.end()) ? it->second : kDefaultInstanceFpsBudget;
+    }
+
+    ai_detector_fps::ReuseProfile LookupReuseProfile(const std::string& alg_code) {
+        const auto raw_value = LookupPlacementEnv(kEnvReuseProfile, alg_code);
+        if (raw_value.empty()) {
+            return ai_detector_fps::DefaultReuseProfile();
+        }
+
+        auto profile = ai_detector_fps::ParseReuseProfile(raw_value);
+        if (profile.empty()) {
+            LOG_WARN("{}Invalid {} value:{}, fallback to default reuse profile", kTag, kEnvReuseProfile,
+                     raw_value);
+            return ai_detector_fps::DefaultReuseProfile();
+        }
+        return profile;
+    }
+
+    std::string ReuseProfileToString(const ai_detector_fps::ReuseProfile& profile) {
+        if (profile.empty()) {
+            return "formula";
+        }
+
+        std::ostringstream oss;
+        for (size_t i = 0; i < profile.size(); ++i) {
+            if (i > 0) {
+                oss << ",";
+            }
+            oss << profile[i].max_fps << ":" << profile[i].reuse_count;
+        }
+        return oss.str();
+    }
+}  // namespace
 
 AiDetector::~AiDetector() {
     is_detector_inst_initialized_ = false;
@@ -50,11 +150,14 @@ AiDetector::AiDetector(ActionNode& action)
     name_     = action.atomicCode;
     uuid      = util::GenerateUUID();
 
-    batch_count_     = 4;
-    max_reuse_count_ = 6;
+    batch_count_         = 4;
+    max_reuse_count_     = LookupMaxReuseCount(alg_code_);
+    instance_fps_budget_ = LookupInstanceFpsBudget(alg_code_);
+    reuse_profile_       = LookupReuseProfile(alg_code_);
     data_queue->SetMaxSize(48);
 
-    LOG_INFO("{}[{} {}] Init MaxReuse:{} BatchCount:{}", kTag, name_, uuid, max_reuse_count_, batch_count_);
+    LOG_INFO("{}[{} {}] Init MaxReuse:{} BatchCount:{} FpsBudget:{} ReuseProfile:{}", kTag, name_, uuid,
+             max_reuse_count_, batch_count_, instance_fps_budget_, ReuseProfileToString(reuse_profile_));
 }
 
 bool AiDetector::AiSdkInit() {
@@ -127,7 +230,9 @@ void AiDetector::QueueStatus(std::vector<AlgActionDataQueueStatus>& que_status, 
         status.actionId = GetActionId();
         for (auto& channelNode : channel_list_) {
             status.channelIds.push_back(channelNode.channel);
-            status.taskIds.insert(status.taskIds.end(), channelNode.tasks.begin(), channelNode.tasks.end());
+            for (const auto& binding : channelNode.tasks) {
+                status.taskIds.push_back(binding.task);
+            }
         }
         status.actionStatus = action_status;
         que_status.push_back(status);

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "flow/action/AlgActionBase.h"
+#include "flow/detect/AiDetectorFps.h"
 #include "flow/overview/OverviewRecordAiRst.h"
 #include "flow/task/TaskBaseParam.h"
 #include "infer/AiDetectorUnify.h"
@@ -17,10 +18,6 @@
 // 2. Filter detection results by confidence and distribute to task queues.
 
 namespace cosmo {
-struct AiDetectorChannel {
-    std::string channel;
-    std::vector<std::string> tasks;
-};
 
 struct AiDetectorParamEl {
     std::string task_id;
@@ -64,7 +61,9 @@ public:
 
     void Stop() override;
 
-    // Add task when acquiring an instance
+    // Add task when acquiring an instance. requested_fps <= 0 means unconfigured (normalized inside).
+    bool AddTask(const std::string& channel_id, const std::string& task, float requested_fps);
+    // Add task when acquiring an instance (legacy: fps unconfigured).
     bool AddTask(const std::string& channel_id, const std::string& task);
     // Remove task when releasing an instance
     bool RemoveTask(const std::string& channel_id, const std::string& task);
@@ -79,6 +78,17 @@ public:
 
     size_t ChannelCount() const;
     size_t TaskCount() const;
+
+    // fps-aware placement helpers. Callers must hold the owning MultiChannelActionMng::m_mtx:
+    // these read channel_list_, which is mutated under that lock (channel_list_ itself is not
+    // guarded by mtx; mtx only protects task_histories_/task_areas_/overview_rec_insts_).
+    float NormalizeRequestedFps(float fps) const;
+    float AssignedFps() const;  // Sum of each channel's max-task-fps
+    float DeltaFpsForTask(const std::string& channel_id, float requested_fps) const;
+    bool CanAccept(const std::string& channel_id, float requested_fps) const;
+    float GetInstanceFpsBudget() const {
+        return instance_fps_budget_;
+    }
 
     std::string GetName() const {
         return name_;
@@ -129,9 +139,11 @@ private:
     int init_retry_count_{0};
     int64_t last_init_fail_time_ms_{0};
     std::vector<std::string> labels_;
-    size_t max_reuse_count_{1};                    // Max channels sharing this detector
-    size_t batch_count_{1};                        // Batch size for inference
-    std::vector<AiDetectorChannel> channel_list_;  // Channels/tasks using this detector
+    size_t max_reuse_count_{1};                             // Max channels sharing this detector
+    float instance_fps_budget_{kDefaultInstanceFpsBudget};  // Per-instance fps budget for placement
+    ai_detector_fps::ReuseProfile reuse_profile_;           // fps-threshold reuse profile for placement
+    size_t batch_count_{1};                                 // Batch size for inference
+    std::vector<AiDetectorChannel> channel_list_;           // Channels/tasks using this detector
     bool is_detector_inst_initialized_{false};
     AiDetectorUnifyPtr detector_;  // Detector inference instance
     int sign_register_{0};         // Tracks distributor sign changes to trigger confidence re-activation

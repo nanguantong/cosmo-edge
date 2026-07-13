@@ -56,12 +56,11 @@ template <typename _Tp>
 inline Rect_<_Tp>::Rect_(const Rect_<_Tp>& r) : x(r.x), y(r.y), width(r.width), height(r.height) {}
 
 template <typename _Tp>
-inline Rect_<_Tp>::Rect_(const Point_<_Tp>& pt1, const Point_<_Tp>& pt2) {
-    x      = std::min(pt1.x, pt2.x);
-    y      = std::min(pt1.y, pt2.y);
-    width  = std::max(pt1.x, pt2.x) - x;
-    height = std::max(pt1.y, pt2.y) - y;
-}
+inline Rect_<_Tp>::Rect_(const Point_<_Tp>& pt1, const Point_<_Tp>& pt2)
+    : x(std::min(pt1.x, pt2.x)),
+      y(std::min(pt1.y, pt2.y)),
+      width(std::max(pt1.x, pt2.x) - x),
+      height(std::max(pt1.y, pt2.y) - y) {}
 
 template <typename _Tp>
 inline Rect_<_Tp>& Rect_<_Tp>::operator=(const Rect_<_Tp>& r) {

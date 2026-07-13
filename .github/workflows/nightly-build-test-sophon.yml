@@ -25,16 +25,14 @@ jobs:
         with:
           submodules: recursive # Recommended if the repository uses git submodules
 
-      # Enforce project standards: use the unified build script instead of cmake directly
-      - name: Run Build Script
+      # Enforce project standards: use the unified build script instead of cmake directly.
+      # A single configure builds the clean production package and cosmo-tests
+      # together, sharing one set of compiled OBJECT libraries; coverage is off
+      # by default (COSMO_ENABLE_COVERAGE), so the package binary stays clean.
+      - name: Build package and tests
         run: |
           chmod +x scripts/build.sh
-          ./scripts/build.sh
-
-      - name: Build Tests
-        run: |
-          chmod +x scripts/build_test.sh
-          ./scripts/build_test.sh
+          ./scripts/build.sh -T
 
       # Upload the build artifacts for deployment or download
       - name: Upload Artifacts
@@ -155,10 +153,12 @@ jobs:
           mkdir -p "$shards_dir" "$bisect_dir" "$gcov_dir"
           : > "$summary_file"
 
-          # cosmo-tests is built with --coverage. The binary was produced in
-          # GitHub's /__w workspace, but this job runs on a Sophon device where
-          # that path does not exist. Redirect gcov writes to a local writable
-          # directory so libgcov does not pollute stderr or fail process exit.
+          # cosmo-tests is built WITHOUT --coverage by default; coverage is now
+          # opt-in via COSMO_ENABLE_COVERAGE. The GCOV_PREFIX exports below are a
+          # no-op in the default nightly build, but are kept so that if coverage
+          # is re-enabled, gcov writes redirect to a local writable dir instead
+          # of the GitHub /__w workspace path that does not exist on this device
+          # (libgcov would otherwise pollute stderr / fail process exit).
           export GCOV_PREFIX="$gcov_dir"
           export GCOV_PREFIX_STRIP=4
 

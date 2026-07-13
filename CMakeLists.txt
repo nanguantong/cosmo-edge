@@ -67,7 +67,8 @@ set(COSMO_STRICT_WARNINGS
 )
 
 option(BUILD_TESTS "Build unit tests" OFF)
-if(BUILD_TESTS)
+option(COSMO_ENABLE_COVERAGE "Enable gcov code-coverage instrumentation for the test build (adds --coverage; defines the 'coverage' lcov target)" OFF)
+if(BUILD_TESTS AND COSMO_ENABLE_COVERAGE)
     message(STATUS "Enabling code coverage for tests")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage")
@@ -332,15 +333,19 @@ if(BUILD_TESTS)
     if(COSMO_NN_USE_CPU_BACKEND)
         target_compile_definitions(cosmo-tests PRIVATE COSMO_NN_USE_CPU_BACKEND)
     endif()
-    target_link_libraries(cosmo-tests PRIVATE ${COMMON_LIBS} gcov)
+    target_link_libraries(cosmo-tests PRIVATE ${COMMON_LIBS})
+    if(COSMO_ENABLE_COVERAGE)
+        # gcov runtime is only needed when the test binary was instrumented.
+        target_link_libraries(cosmo-tests PRIVATE gcov)
 
-    add_custom_target(coverage
-        COMMAND lcov --capture --directory . --output-file coverage.info
-        COMMAND lcov --remove coverage.info '/usr/*' '*/3rd/*' '*/test/*' '*/thirdparty_install/*' --output-file coverage.info
-        COMMAND genhtml coverage.info --output-directory coverage_report
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        COMMENT "Generating coverage report..."
-    )
+        add_custom_target(coverage
+            COMMAND lcov --capture --directory . --output-file coverage.info
+            COMMAND lcov --remove coverage.info '/usr/*' '*/3rd/*' '*/test/*' '*/thirdparty_install/*' --output-file coverage.info
+            COMMAND genhtml coverage.info --output-directory coverage_report
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            COMMENT "Generating coverage report..."
+        )
+    endif()
 endif()
 
 

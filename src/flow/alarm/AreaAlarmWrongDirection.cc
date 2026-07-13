@@ -50,15 +50,13 @@ void AreaAlarm::GetMaxMinValue(const std::deque<AiDetectRstEl>& history, const s
 
 void AreaAlarm::HandAreaTargetWrongDirection(AlgDataPtr algData, PassFlowAreaTargets& areaTargets,
                                              PassFlowTrackIdData& areaData) {
-    constexpr int kDefaultHeight = 1080;
-    int height                   = kDefaultHeight;
-    float max                    = -1.0f;
-    float min                    = -1.0f;
+    float max = -1.0f;
+    float min = -1.0f;
     if (!algData || !algData->chanDataDec.frame) {
         return;
     }
 
-    height = static_cast<int>(algData->chanDataDec.frame->GetHeight());
+    const int height = static_cast<int>(algData->chanDataDec.frame->GetHeight());
     if (height < 0)
         return;
 

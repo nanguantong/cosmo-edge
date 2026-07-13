@@ -1,5 +1,4 @@
 #include "catch_amalgamated.hpp"
-
 #include "util/RtspUrlUtil.h"
 
 using cosmo::util::NormalizeRtspUrl;
@@ -18,15 +17,13 @@ TEST_CASE("RtspUrlUtil: preserve encoded and unrelated URLs", "[rtsp-url]") {
     REQUIRE(NormalizeRtspUrl("rtsp://admin:p%40ss@camera.local/live") ==
             "rtsp://admin:p%40ss@camera.local/live");
     REQUIRE(NormalizeRtspUrl("rtsp://192.168.1.1:554/live") == "rtsp://192.168.1.1:554/live");
-    REQUIRE(NormalizeRtspUrl("http://admin:p@ss@example.com/live") ==
-            "http://admin:p@ss@example.com/live");
+    REQUIRE(NormalizeRtspUrl("http://admin:p@ss@example.com/live") == "http://admin:p@ss@example.com/live");
     REQUIRE(NormalizeRtspUrl("").empty());
 }
 
 TEST_CASE("RtspUrlUtil: redact passwords for logs", "[rtsp-url]") {
     REQUIRE(RedactRtspUrl("rtsp://admin:Jdzlab@2026@192.168.1.117:554/live") ==
             "rtsp://admin:***@192.168.1.117:554/live");
-    REQUIRE(RedactRtspUrl("rtsp://admin@192.168.1.1/live") ==
-            "rtsp://admin@192.168.1.1/live");
+    REQUIRE(RedactRtspUrl("rtsp://admin@192.168.1.1/live") == "rtsp://admin@192.168.1.1/live");
     REQUIRE(RedactRtspUrl("rtsp://192.168.1.1/live") == "rtsp://192.168.1.1/live");
 }

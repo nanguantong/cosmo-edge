@@ -2,13 +2,16 @@
 export LC_ALL=C.UTF-8
 
 # ── Parse options ──
+# -t = dev mode (disable watchdog); -T = also build cosmo-tests in this pass.
 RESOURCE_DIR=""
 DEV_MODE=OFF
-while getopts "m:t" opt; do
+BUILD_TESTS_FLAG=OFF
+while getopts "m:tT" opt; do
     case $opt in
         m) RESOURCE_DIR="$OPTARG" ;;
         t) DEV_MODE=ON ;;
-        *) echo "Usage: $0 [-m <resource_repo_path>] [-t (enable dev mode)]"; exit 1 ;;
+        T) BUILD_TESTS_FLAG=ON ;;
+        *) echo "Usage: $0 [-m <resource_repo_path>] [-t (enable dev mode)] [-T (also build cosmo-tests)]"; exit 1 ;;
     esac
 done
 
@@ -44,7 +47,7 @@ echo "Resource dir: ${RESOURCE_DIR}"
 echo "Configuring..."
 cmake   -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
-        -DBUILD_TESTS=OFF \
+        -DBUILD_TESTS=${BUILD_TESTS_FLAG} \
         -DCOSMO_DEV_MODE=${DEV_MODE} \
         -DRESOURCE_DIR="${RESOURCE_DIR}" \
         ..
@@ -53,7 +56,12 @@ cmake   -DCMAKE_BUILD_TYPE=Release \
 ln -sf "${BUILD_DIR}/compile_commands.json" "${PROJECT_ROOT_PATH}/compile_commands.json" 2>/dev/null || true
 
 echo "Building Cosmo ..."
-cmake --build . --target install -j$(nproc)
+build_targets=(--target install)
+if [ "${BUILD_TESTS_FLAG}" = "ON" ]; then
+    echo "Also building cosmo-tests in this pass..."
+    build_targets+=(--target cosmo-tests)
+fi
+cmake --build . "${build_targets[@]}" -j$(nproc)
 
 echo "Packaging..."
 cmake --build . --target package_all

@@ -65,11 +65,57 @@ jobs:
       COSMO_SOPHON_LD_LIBRARY_PATH: /appfs/cosmo_wander/cwai_data/lib:/data:/usr/lib
 
     steps:
+      # The Download step below is the dominant wall-clock cost on this
+      # self-hosted device (fetching the artifact from GitHub over a slow link
+      # routinely takes 7-13 min, vs seconds-to-minutes for the tests). On
+      # "Re-run failed jobs" the whole job re-runs, so we cache the binary on
+      # the device's persistent filesystem keyed by GITHUB_RUN_ID (stable across
+      # re-run attempts) and skip re-downloading on a cache hit.
+      # CAVEAT: "Re-run all jobs" rebuilds the binary under the same artifact
+      # name; this cache would then serve a stale binary. Before a full re-run,
+      # clear the cache dir on the device (rm -rf $HOME/cosmo-ci-cache).
+      - name: Restore Test Binary From Device Cache
+        id: binary-cache
+        run: |
+          set -euo pipefail
+          # $HOME persists across runs and is outside the per-job workspace
+          # GitHub cleans, so a file saved here survives across attempts.
+          # Override the dir by setting COSMO_TEST_BINARY_CACHE_DIR in env.
+          cache_dir="${COSMO_TEST_BINARY_CACHE_DIR:-$HOME/cosmo-ci-cache}"
+          mkdir -p "$cache_dir"
+          cached="$cache_dir/cosmo-tests-${GITHUB_RUN_ID}"
+          if [ -f "$cached" ]; then
+            cp "$cached" ./cosmo-tests
+            echo "cache-hit=true" >> "$GITHUB_OUTPUT"
+            echo "Restored cosmo-tests from $cached (skipping artifact download)."
+          else
+            echo "cache-hit=false" >> "$GITHUB_OUTPUT"
+            echo "No cached binary for run ${GITHUB_RUN_ID}; will download."
+          fi
+
       - name: Download Test Binary
+        if: steps.binary-cache.outputs.cache-hit != 'true' # skipped on device-cache hit
         uses: actions/download-artifact@v8
         with:
           name: sophon-tests-binary
           path: .
+
+      - name: Save Test Binary To Device Cache
+        if: steps.binary-cache.outputs.cache-hit != 'true' && success()
+        run: |
+          set -euo pipefail
+          cache_dir="${COSMO_TEST_BINARY_CACHE_DIR:-$HOME/cosmo-ci-cache}"
+          cached="$cache_dir/cosmo-tests-${GITHUB_RUN_ID}"
+          cp ./cosmo-tests "$cached"
+          # Prune to the 5 most-recent entries; never touch the current run.
+          # `|| true`: grep exits 1 when only the current run's file exists
+          # (nothing left after filtering), which under `set -o pipefail` would
+          # otherwise fail this step. Pruning is best-effort cleanup.
+          ls -t "$cache_dir"/cosmo-tests-* 2>/dev/null \
+            | grep -v -F -- "cosmo-tests-${GITHUB_RUN_ID}" \
+            | tail -n +6 \
+            | xargs -r rm -f || true
+          echo "Saved cosmo-tests to $cached; cache pruned."
 
       - name: Add Execution Permission
         run: chmod +x ./cosmo-tests

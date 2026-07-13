@@ -3,6 +3,7 @@
 #include "media/RtspDemuxStrategy.h"
 
 #include "util/Log.h"
+#include "util/RtspUrlUtil.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,20 +37,22 @@ util::ErrorEnum RtspDemuxStrategy::OpenInput(AVFormatContext*& fmt_ctx, const st
     av_dict_set(&options, "stimeout", stimeout.c_str(), 0);
     av_dict_set(&options, "fflags", "nobuffer", 0);
 
-    int ret = avformat_open_input(&fmt_ctx, filename.c_str(), nullptr, &options);
+    const std::string normalized_url = util::NormalizeRtspUrl(filename);
+    int ret = avformat_open_input(&fmt_ctx, normalized_url.c_str(), nullptr, &options);
     av_dict_free(&options);
     if (ret != 0 || !fmt_ctx) {
         if (fmt_ctx) {
             avformat_close_input(&fmt_ctx);
             fmt_ctx = nullptr;
         }
-        LOG_WARN("{}Open {} failed. ret:{} [{}]", kTag, filename, ret, GetAvErr(ret));
+        LOG_WARN("{}Open {} failed. ret:{} [{}]", kTag, util::RedactRtspUrl(normalized_url), ret,
+                 GetAvErr(ret));
         if (std::string::npos != GetAvErr(ret).find("Unauthorized")) {
             return util::ErrorEnum::DemuxOpenStreamUnauthorized;
         }
         return util::ErrorEnum::DemuxOpenStreamFail;
     }
-    LOG_INFO("{}Open {}. ", kTag, filename);
+    LOG_INFO("{}Open {}. ", kTag, util::RedactRtspUrl(normalized_url));
     return util::ErrorEnum::Success;
 }
 

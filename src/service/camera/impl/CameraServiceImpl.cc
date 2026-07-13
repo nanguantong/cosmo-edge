@@ -38,6 +38,7 @@
 #include "util/Log.h"
 #include "util/PaginationHelper.h"
 #include "util/PathUtil.h"
+#include "util/RtspUrlUtil.h"
 #include "util/TimeUtil.h"
 #include "util/dto/ChannelStatusDto.h"
 
@@ -122,7 +123,8 @@ namespace {
     }
 
     // Lightweight URL connectivity check (TCP socket probe).
-    bool CheckUrlConnectivity(const std::string& urlStr) {
+    bool CheckUrlConnectivity(const std::string& inputUrl) {
+        const std::string urlStr = util::NormalizeRtspUrl(inputUrl);
         if (urlStr.empty())
             return false;
 
@@ -159,7 +161,7 @@ namespace {
         if (protoPos != std::string::npos) {
             std::string withoutProto = urlStr.substr(protoPos + 3);
             // Strip out auth part user:pass@
-            auto atPos = withoutProto.find("@");
+            auto atPos = withoutProto.rfind('@');
             if (atPos != std::string::npos) {
                 withoutProto = withoutProto.substr(atPos + 1);
             }
@@ -384,7 +386,7 @@ util::ErrorEnum CameraServiceImpl::MakeCameraTask(const CameraEntityPtr& camera,
     task->task_id_        = ChannelAlgIdToTaskId(camera->videoChannelId, task->algorithm_code_);
     task->algorithm_name_ = algData->algorithmName;
     auto taskUnit         = std::make_shared<CameraTaskUnit>(camera->conf_file_path_, camera->videoChannelId,
-                                                     task->algorithm_code_, models);
+                                                             task->algorithm_code_, models);
     if (!taskUnit->IsReady()) {
         auto status = taskUnit->GetStatus();
         LOG_WARN("[{}/{}] Make Task failed, unit status:{}", camera->videoChannelId, task->algorithm_code_,
@@ -620,6 +622,7 @@ void CameraServiceImpl::LoadConfig() {
     cameras_       = detail::CameraConfigPersistence::LoadConfig(conf_file_path_, conf_file_name_);
     int max_number = -1;
     for (const auto& camera : cameras_) {
+        camera->url = util::NormalizeRtspUrl(camera->url);
         LOG_INFO("LoadConfig channel Id {}", camera->videoChannelId);
         InitCameraChannel(camera);
         int current_number = -1;

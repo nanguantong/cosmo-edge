@@ -13,6 +13,7 @@
 #include "util/FileUtil.h"
 #include "util/Log.h"
 #include "util/PaginationHelper.h"
+#include "util/RtspUrlUtil.h"
 #include "util/dto/ChannelStatusDto.h"
 
 namespace cosmo::service {
@@ -96,7 +97,8 @@ util::ErrorEnum CameraServiceImpl::Add(MsgCameraInfo& config, std::string& id) {
             LOG_INFO("camera->url:{}", camera->url);
             util::FileMoveWithRename(config.url, camera->url);
         } else {
-            camera->url = config.url;
+            camera->url = util::NormalizeRtspUrl(config.url);
+            config.url  = camera->url;
         }
 
         camera->channelType = static_cast<int>(config.channelType);
@@ -124,7 +126,8 @@ util::ErrorEnum CameraServiceImpl::Update(MsgCameraInfo& config) {
         camera->channelName    = config.channelName;
         // Local video channels cannot modify URL
         if (MsgCameraType::MsgCameraTypeLocalVideo != static_cast<MsgCameraType>(camera->channelType)) {
-            camera->url = config.url;
+            camera->url = util::NormalizeRtspUrl(config.url);
+            config.url  = camera->url;
         }
         // Update channel URL directly (inlined from CameraTaskMng::SetChannelUrl)
         if (camera->channel_url_ != camera->url) {

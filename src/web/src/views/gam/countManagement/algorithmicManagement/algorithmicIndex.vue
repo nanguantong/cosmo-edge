@@ -291,6 +291,7 @@ export default {
         { label: t('glossary.detection'), value: '3', eventType: 'motorCommodity' },
         { label: t('glossary.countingAnalytics'), value: '8', eventType: 'passengerNumber' },
         { label: t('glossary.countingAnalytics'), value: '9', eventType: 'peopleCountByArea' },
+        { label: t('glossary.vehicleAnalysis'), value: '10', eventType: 'motorCommodity' },
         { label: t('glossary.countingAnalytics'), value: '11', eventType: 'vehicleNumber' }
       ]
     },

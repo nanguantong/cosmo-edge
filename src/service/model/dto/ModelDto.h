@@ -104,6 +104,7 @@ namespace Model {
         std::vector<BmodelFileInfo> bmodelFiles;
         std::string vocabFilePath;
         std::string tokenizerFilePath;
+        std::string characterTableFilePath;
         std::string normalizationMode;
         std::string colorChannel;
     };

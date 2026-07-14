@@ -146,6 +146,7 @@ public:
     /// @param bmodelFiles        List of .bmodel file descriptors.
     /// @param vocabFilePath      Path to vocabulary file (for NLP models).
     /// @param tokenizerFilePath  Path to tokenizer file (for NLP models).
+    /// @param characterTableFilePath Path to the CTC character table (for OCR models).
     /// @param normalizationMode  Input normalization mode.
     /// @param colorChannel       Input color channel order (BGR/RGB).
     /// @return ErrorEnum::kSuccess on success.
@@ -153,7 +154,8 @@ public:
         const std::string& modelCode, const std::string& modelName, const std::string& modelType,
         const std::string& description, const std::vector<cosmo::Model::BmodelFileInfo>& bmodelFiles,
         const std::string& vocabFilePath, const std::string& tokenizerFilePath,
-        const std::string& normalizationMode, const std::string& colorChannel) = 0;
+        const std::string& characterTableFilePath, const std::string& normalizationMode,
+        const std::string& colorChannel) = 0;
 };
 
 }  // namespace cosmo::service

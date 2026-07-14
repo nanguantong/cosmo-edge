@@ -30,7 +30,7 @@ next:
 data/resource/*/model_template
 ```
 
-当前模板文件（两个资源目录内容一致，共 13 个）：
+当前模板文件（两个资源目录内容一致，共 14 个）：
 
 - 检测：`yolov5_det`、`yolov8_det`、`yolov9_det`、`yolov11_det`、`yolov12_det`、`yolo26_det`
 - 分类：`classify`（基于 YOLOv8 的分类模板）
@@ -39,8 +39,27 @@ data/resource/*/model_template
 - 分割：`sam2`
 - 目标定位：`dino`
 - 视觉语言模型：`qwen3vl`、`qwen3_5`
+- 文字识别：`ocr`
 
 > 完整清单以 `data/resource/aiboxresource/model_template/` 与 `data/resource/aiboxresource_x86/model_template/` 目录下的实际文件为准。
+
+## 车牌 OCR 模型包
+
+车牌 OCR 仅识别已经由关键点定位的车牌，不包含整图文字检测。模型包由设备资源管理功能安装，公开仓库只提供 `ocr.json` 模板，不提交权重或私有字典。
+
+每个外部 OCR 包必须包含：
+
+- `config.json`：其中 `model_type` 必须为 `"ocr"`；
+- 当前平台的模型文件：Sophon 为 `.nn`，x86 为 `.onnx`；
+- 配置指定的 `.txt` 字符表文件。
+
+`models[0].params` 必须显式绑定字符表和 CTC 映射：`character_table_file` 只能是模型包根目录中的 `.txt` 文件，`ctc_blank_index` 指定 blank 类别，`ctc_prepend_tokens` 与 `ctc_append_tokens` 分别定义模型首尾的额外类别，`ctc_class_count` 必须等于模型输出的最后一维。字符表与首尾 token 合并后的索引必须逐项匹配 CTC 类别；不匹配会使 OCR 初始化或推理失败，不会静默漏字。通过“新增模型”向导安装时，OCR 模型与字符表必须同时上传，系统会生成这些绑定字段。
+
+旧车牌识别模型 `2000007` 使用 6625 个类别和 6624 行字符表：第 0 项是 blank，系统在配置中追加一个 ASCII 空格作为最后一个类别。解码会丢弃 blank 与相邻重复类别。
+
+PP-OCR 中文识别模型可使用不含 blank 的 6623 行标准字符表；若模型输出为 6625 类，系统会显式配置前置 blank 和末尾 ASCII 空格。
+
+在场景编排中，按“车牌检测/关联 → 车牌四点关键点 → 文字识别 → 事件上报”连接节点。文字识别仅接受严格四点、顺序为左上、左下、右下、右上的车牌四边形；空识别结果不会产生告警。事件上报节点的告警属性请选择“车辆属性”，以在事件中输出 `plateSrc`、`plate` 和矫正后的车牌裁剪图。
 
 ## 布局和组件
 

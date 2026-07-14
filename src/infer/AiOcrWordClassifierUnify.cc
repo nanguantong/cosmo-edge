@@ -2,6 +2,8 @@
 
 #include "infer/AiOcrWordClassifierUnify.h"
 
+#include <exception>
+
 #include "util/Log.h"
 
 namespace cosmo {
@@ -24,15 +26,26 @@ util::ErrorEnum AiOcrWordClassifierUnify::Init() {
         return util::ErrorEnum::Created;
     }
 
-    if (json_path_.empty() || model_path_.empty()) {
-        LOG_ERRO("Model paths are empty. AlgCode:{}", atomic_code_);
+    if (json_path_.empty() || model_path_.empty() || word_dict_path_.empty()) {
+        LOG_ERRO("OCR model paths are empty. AlgCode:{}", atomic_code_);
         return util::ErrorEnum::Failed;
     }
-    classifier_ = std::make_unique<cosmo::nn::DefaultComponent>(json_path_, model_path_, GetDeviceType(),
-                                                                &profiler_, "", word_dict_path_);
+    try {
+        classifier_ = std::make_unique<cosmo::nn::DefaultComponent>(json_path_, model_path_, GetDeviceType(),
+                                                                    &profiler_, "", word_dict_path_);
+    } catch (const std::exception& e) {
+        LOG_ERRO("Init OCR classifier failed. AlgCode:{} Error:{}", atomic_code_, e.what());
+        classifier_.reset();
+        return util::ErrorEnum::AI_INST_CREATEFAILED;
+    }
     LOG_DEBUG("Classifier {} Init", atomic_code_);
 
     max_batch_size_ = static_cast<size_t>(classifier_->GetMaxBatchSize());
+    if (max_batch_size_ == 0) {
+        LOG_ERRO("OCR classifier has invalid max batch size. AlgCode:{}", atomic_code_);
+        classifier_.reset();
+        return util::ErrorEnum::AI_INST_CREATEFAILED;
+    }
     LOG_DEBUG("{} Classifier Max Batch Size {}", atomic_code_, max_batch_size_);
 
     return util::ErrorEnum::Success;
@@ -76,6 +89,15 @@ util::ErrorEnum AiOcrWordClassifierUnify::Classify(const std::vector<VideoFrameP
         LOG_ERRO("{}", "Images Num Not Equal Box Num");
         return util::ErrorEnum::InvalidParam;
     }
+    for (size_t index = 0; index < images.size(); ++index) {
+        const auto& image = images[index];
+        const auto& box   = boxes[index];
+        if (!image || box.x != 0 || box.y != 0 || box.width != static_cast<int>(image->GetWidth()) ||
+            box.height != static_cast<int>(image->GetHeight())) {
+            LOG_ERRO("OCR requires one pre-cropped image per input. Index:{}", index);
+            return util::ErrorEnum::InvalidParam;
+        }
+    }
 
     std::vector<std::shared_ptr<cosmo::nn::Blob>> image_blobs{};
     auto ret = ConvertImagesToBlobs(images, image_blobs);
@@ -84,24 +106,7 @@ util::ErrorEnum AiOcrWordClassifierUnify::Classify(const std::vector<VideoFrameP
         return ret;
     }
 
-    std::vector<std::vector<int>> datas;
-    for (const auto& box : boxes) {
-        std::vector<int> data;
-        data.push_back(box.x);
-        data.push_back(box.y);
-        data.push_back(box.width);
-        data.push_back(box.height);
-        datas.push_back(data);
-    }
-
-    std::vector<std::shared_ptr<cosmo::nn::Blob>> data_blobs{};
-    ret = ConvertDatasToBlobs(datas, data_blobs);
-    if (util::ErrorEnum::Success != ret) {
-        LOG_ERRO("ConvertDatasToBlobs Failed. Ret:{}", ret);
-        return ret;
-    }
-
-    auto status = classifier_->Forward({image_blobs, data_blobs});
+    auto status = classifier_->Forward({image_blobs});
     if (!bool(status)) {
         LOG_ERRO("Forward Failed.({})", status.description());
         return util::ErrorEnum::AI_FORWARD_FAILED;
@@ -208,6 +213,20 @@ util::ErrorEnum AiOcrWordClassifierUnify::GetMaxBatchSize(size_t& value) const {
 util::ErrorEnum AiOcrWordClassifierUnify::Forward(const std::vector<VideoFramePtr>& images,
                                                   const std::vector<std::vector<std::vector<int>>>& datas,
                                                   std::vector<std::vector<char>>& outputs) {
+    if (images.size() != datas.size()) {
+        LOG_ERRO("{}", "OCR input image count does not match crop group count");
+        return util::ErrorEnum::InvalidParam;
+    }
+    for (size_t index = 0; index < images.size(); ++index) {
+        if (!images[index] || datas[index].size() != 1 || datas[index][0].size() != 4 ||
+            datas[index][0][0] != 0 || datas[index][0][1] != 0 ||
+            datas[index][0][2] != static_cast<int>(images[index]->GetWidth()) ||
+            datas[index][0][3] != static_cast<int>(images[index]->GetHeight())) {
+            LOG_ERRO("OCR batch input must contain one pre-cropped image per result. Index:{}", index);
+            return util::ErrorEnum::InvalidParam;
+        }
+    }
+
     std::vector<std::shared_ptr<cosmo::nn::Blob>> image_blobs{};
     auto ret = ConvertImagesToBlobs(images, image_blobs);
     if (util::ErrorEnum::Success != ret) {
@@ -215,14 +234,7 @@ util::ErrorEnum AiOcrWordClassifierUnify::Forward(const std::vector<VideoFramePt
         return ret;
     }
 
-    std::vector<std::shared_ptr<cosmo::nn::Blob>> data_blobs{};
-    ret = ConvertDatasToBlobs(datas, data_blobs);
-    if (util::ErrorEnum::Success != ret) {
-        LOG_ERRO("ConvertDatasToBlobs Failed. Ret:{}", ret);
-        return ret;
-    }
-
-    auto status = classifier_->Forward({image_blobs, data_blobs});
+    auto status = classifier_->Forward({image_blobs});
     if (!bool(status)) {
         LOG_ERRO("Forward Failed.({})", status.description());
         return util::ErrorEnum::AI_FORWARD_FAILED;

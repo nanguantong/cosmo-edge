@@ -189,7 +189,7 @@
         </el-form-item>
 
         <!-- modelSelect 定制化组件  -->
-        <div class="select-table-body" v-if="item.type.includes('modelSelect') && !['modelSelect_dino','modelSelect_sam2','modelSelect_qwen3vl','modelSelect_qwen3_5'].includes(item.type)">
+        <div class="select-table-body" v-if="item.type.includes('modelSelect') && !['modelSelect_dino','modelSelect_ocr','modelSelect_sam2','modelSelect_qwen3vl','modelSelect_qwen3_5'].includes(item.type)">
           <div class="select-table-title">{{ t('glossary.selectLabel') }}</div>
           <el-table :data="labelList" border size="small">
             <el-table-column type="index" :label="t('field.no')" align="center" width="70">

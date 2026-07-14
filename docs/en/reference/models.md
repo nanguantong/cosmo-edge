@@ -39,6 +39,25 @@ The templates currently visible include:
 - feature
 - keypoints
 - Qwen3 / Qwen3VL
+- OCR
+
+## License-Plate OCR Package
+
+OCR recognizes plates already located by landmarks; it does not perform full-image text detection. Install the model package through device resources. This repository provides only the `ocr.json` template and never includes weights or private dictionaries.
+
+Each external OCR package must contain:
+
+- `config.json` with `"model_type": "ocr"`;
+- the current-platform model file (`.nn` for Sophon, `.onnx` for x86);
+- the `.txt` character table named by its configuration.
+
+`models[0].params` must explicitly bind the table and CTC mapping: `character_table_file` must name a root-level `.txt` file, `ctc_blank_index` identifies the blank class, `ctc_prepend_tokens` and `ctc_append_tokens` define additional leading and trailing model classes, and `ctc_class_count` must equal the model output's final dimension. The table plus leading and trailing tokens must match CTC indices exactly; a mismatch fails OCR initialization or inference instead of silently dropping characters. The Add Model wizard requires both the OCR model and its character table and generates these fields.
+
+Legacy license-plate model `2000007` uses 6,625 classes with a 6,624-line table: entry zero is blank and the configuration appends one ASCII space for the final class. Decoding removes blank and consecutive duplicate classes.
+
+A PP-OCR Chinese recognition model may use the standard 6,623-entry table without blank. For a 6,625-class output, the system explicitly prepends blank and appends an ASCII space.
+
+Connect the scene nodes as “plate detection/association → four-point plate landmark → text recognition → event report”. OCR accepts only a strict four-point plate quadrilateral in top-left, bottom-left, bottom-right, top-right order; empty recognition results do not produce an alarm. In the event-report node, select the Vehicle Property alarm attribute to expose `plateSrc`, `plate`, and the rectified plate crop in the event.
 
 ## Layout and Components
 

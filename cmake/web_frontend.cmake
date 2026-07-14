@@ -22,6 +22,10 @@ add_custom_command(
     DEPENDS ${WEB_SRC_FILES}
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${WEB_SRC_DIR} ${WEB_BUILD_DIR}/web_unified
     COMMAND ${CMAKE_COMMAND} -E rm -f ${WEB_BUILD_DIR}/web_unified/package-lock.json
+    # copy_directory dereferences node_modules/.bin symlinks. Restore them when a cached
+    # dependency tree is present so npm can execute ESM command-line tools offline.
+    COMMAND ${CMAKE_COMMAND} -DWEB_SRC_DIR=${WEB_SRC_DIR} -DWEB_STAGING_DIR=${WEB_BUILD_DIR}/web_unified
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/repair_web_node_bins.cmake
     COMMAND ${NPM_EXECUTABLE} install --loglevel=error
     COMMAND chmod -R +x node_modules/.bin
     COMMAND ${NPM_EXECUTABLE} run build

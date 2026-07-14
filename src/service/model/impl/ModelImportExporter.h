@@ -28,6 +28,7 @@ public:
                                           const std::vector<cosmo::Model::BmodelFileInfo>& bmodelFiles,
                                           const std::string& vocabFilePath,
                                           const std::string& tokenizerFilePath,
+                                          const std::string& characterTableFilePath,
                                           const std::string& normalizationMode,
                                           const std::string& colorChannel);
 
@@ -46,8 +47,8 @@ private:
     cosmo::util::ErrorEnum ValidateAddModelInputs(
         const std::string& modelCode, const std::string& modelName, const std::string& modelType,
         const std::vector<cosmo::Model::BmodelFileInfo>& bmodelFiles, const std::string& vocabFilePath,
-        const std::string& tokenizerFilePath, std::string& resolvedModelCode,
-        std::vector<std::string>& bmodelPaths);
+        const std::string& tokenizerFilePath, const std::string& characterTableFilePath,
+        std::string& resolvedModelCode, std::vector<std::string>& bmodelPaths);
 
     cosmo::util::ErrorEnum CollectBmodelInfo(const std::string& modelType,
                                              const std::vector<std::string>& bmodelPaths,
@@ -68,7 +69,12 @@ private:
 
     cosmo::util::ErrorEnum CopyAuxiliaryFiles(const std::string& modelType, const std::string& vocabFilePath,
                                               const std::string& tokenizerFilePath,
+                                              const std::string& characterTableFilePath,
                                               const std::string& modelDir);
+
+    static cosmo::util::ErrorEnum ConfigureOcrCharacterTable(
+        nlohmann::json& config, const std::vector<cosmo::BmodelInfo>& bmodelInfos,
+        const std::string& characterTablePath);
 
     // --- ImportModel helpers (extract method) ---
     cosmo::util::ErrorEnum ImportFlatArchive(const std::string& tempDir, const std::string& modelsDir);

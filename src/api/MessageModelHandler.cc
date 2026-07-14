@@ -38,9 +38,10 @@ Model::MsgListSend MessageModelHandler::Handle(Model::MsgListRecv&& data, std::e
 // Add atomic model
 Model::MsgAddSend MessageModelHandler::Handle(Model::MsgAddRecv&& data, std::error_condition& errc) const {
     Model::MsgAddSend retData{};
-    errc = model_service_.AddAtomicModel(data.modelCode, data.modelName, data.modelType, data.description,
-                                         data.bmodelFiles, data.vocabFilePath, data.tokenizerFilePath,
-                                         data.normalizationMode, data.colorChannel);
+    errc =
+        model_service_.AddAtomicModel(data.modelCode, data.modelName, data.modelType, data.description,
+                                      data.bmodelFiles, data.vocabFilePath, data.tokenizerFilePath,
+                                      data.characterTableFilePath, data.normalizationMode, data.colorChannel);
     return retData;
 }
 

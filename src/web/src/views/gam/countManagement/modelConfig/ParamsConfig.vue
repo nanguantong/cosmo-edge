@@ -70,6 +70,13 @@
               />
 
               <el-input
+                v-else-if="field.type === 'string'"
+                v-model="form[field.key]"
+                :disabled="isReadonlyField(field)"
+                class="field-control"
+              />
+
+              <el-input
                 v-else
                 v-model="arrayText[field.key]"
                 :disabled="isReadonlyField(field)"
@@ -182,17 +189,24 @@
               :disabled="isReadonlyField(field)"
             />
 
-            <el-input
-              v-else-if="field.type === 'textarea'"
+              <el-input
+                v-else-if="field.type === 'textarea'"
               v-model="arrayText[field.key]"
               type="textarea"
               :rows="4"
               :disabled="isReadonlyField(field)"
               class="textarea-control"
               @change="parseArray(field.key)"
-            />
+              />
 
-            <el-input
+              <el-input
+                v-else-if="field.type === 'string'"
+                v-model="form[field.key]"
+                :disabled="isReadonlyField(field)"
+                class="field-control"
+              />
+
+              <el-input
               v-else
               v-model="arrayText[field.key]"
               :disabled="isReadonlyField(field)"
@@ -319,6 +333,11 @@ const FIELD_DEFS = {
     type: 'number',
     numProps: { precision: 2, min: 0.1, max: 5, step: 0.1 }
   },
+  character_table_file: { label: t('glossary.characterTable'), type: 'string' },
+  ctc_blank_index: { label: t('glossary.ctcBlankIndex'), type: 'number', numProps: { min: 0, step: 1 } },
+  ctc_prepend_tokens: { label: t('glossary.ctcPrependTokens'), type: 'textarea' },
+  ctc_append_tokens: { label: t('glossary.ctcAppendTokens'), type: 'textarea' },
+  ctc_class_count: { label: t('glossary.ctcClassCount'), type: 'number', numProps: { min: 1, step: 1 } },
   eos_token_id: { label: 'EOS Token ID', type: 'array' },
   bos_token_id: { label: 'BOS Token ID', type: 'number', numProps: { min: 0, step: 1 } },
   pad_token_id: { label: 'PAD Token ID', type: 'number', numProps: { min: 0, step: 1 } }
@@ -348,6 +367,10 @@ const TYPE_SCHEMA = {
   feature: {
     common: ['use_affine_crop', 'norm_ratio', 'norm_mode', 'output_hw', 'center_index'],
     advanced: ['normalize_mean', 'normalize_scale', 'is_bgr']
+  },
+  ocr: {
+    common: ['input_size', 'character_table_file', 'ctc_blank_index', 'ctc_class_count'],
+    advanced: ['normalize_mean', 'normalize_scale', 'is_bgr', 'ctc_prepend_tokens', 'ctc_append_tokens']
   },
   dino: {
     common: ['input_width', 'input_height', 'text_threshold', 'box_threshold'],
@@ -414,7 +437,14 @@ const commonFields = computed(() => (schema.value?.common || []).map(resolveFiel
 const advancedFields = computed(() => (schema.value?.advanced || []).map(resolveField))
 const allFields = computed(() => [...commonFields.value, ...advancedFields.value])
 const showLabels = computed(() => !!schema.value && !['qwen3vl', 'qwen3_5'].includes(normalizeType.value))
-const readonlyFieldKeys = new Set(['input_size'])
+const readonlyFieldKeys = new Set([
+  'input_size',
+  'character_table_file',
+  'ctc_blank_index',
+  'ctc_prepend_tokens',
+  'ctc_append_tokens',
+  'ctc_class_count'
+])
 const maxLabelCount = 80
 
 const fieldDefault = (field) => {

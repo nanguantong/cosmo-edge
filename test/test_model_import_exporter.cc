@@ -78,7 +78,7 @@ TEST_CASE("ModelImportExporter Tests", "[model]") {
         bmodelFiles.push_back(info);
 
         auto res = importExporter.AddAtomicModel("new_atomic_model", "AtomicName", "qwen3vl", "desc",
-                                                 bmodelFiles, "", tokenizerSrc, "", "");
+                                                 bmodelFiles, "", tokenizerSrc, "", "", "");
         REQUIRE(res == cosmo::util::ErrorEnum::Success);
 
         std::string expectedDir =
@@ -96,6 +96,122 @@ TEST_CASE("ModelImportExporter Tests", "[model]") {
         fs::remove_all(expectedDir);
         fs::remove(bmodelSrc);
         fs::remove(tokenizerSrc);
+    }
+
+    SECTION("OCR character table is required, validated, and copied with a fixed name") {
+        std::string bmodelSrc = "/tmp/cosmo_test_models/ocr_source.bmodel";
+        std::ofstream(bmodelSrc).close();
+        std::vector<cosmo::Model::BmodelFileInfo> bmodelFiles = {{"main", bmodelSrc}};
+        std::string resolvedCode;
+        std::vector<std::string> bmodelPaths;
+
+        auto result = importExporter.ValidateAddModelInputs("", "OcrModel", "ocr", bmodelFiles, "", "", "",
+                                                            resolvedCode, bmodelPaths);
+        REQUIRE(result == cosmo::util::ErrorEnum::InvalidParam);
+
+        std::string invalidTable = "/tmp/cosmo_test_models/character_table.json";
+        std::ofstream(invalidTable) << "[]";
+        result = importExporter.ValidateAddModelInputs("", "OcrModel", "ocr", bmodelFiles, "", "",
+                                                       invalidTable, resolvedCode, bmodelPaths);
+        REQUIRE(result == cosmo::util::ErrorEnum::InvalidParam);
+
+        std::string characterTable = "/tmp/cosmo_test_models/character_table.txt";
+        std::ofstream(characterTable) << "blank\n京\n";
+        result = importExporter.ValidateAddModelInputs("", "OcrModel", "ocr", bmodelFiles, "", "",
+                                                       characterTable, resolvedCode, bmodelPaths);
+        REQUIRE(result == cosmo::util::ErrorEnum::Success);
+
+        std::string modelDir = testModelDir + "/ocr_copy_target";
+        fs::create_directories(modelDir);
+        result = importExporter.CopyAuxiliaryFiles("ocr", "", "", characterTable, modelDir);
+        REQUIRE(result == cosmo::util::ErrorEnum::Success);
+        REQUIRE(fs::exists(modelDir + "/character_table.txt"));
+
+        fs::remove_all(modelDir);
+        fs::remove(bmodelSrc);
+        fs::remove(invalidTable);
+    }
+
+    SECTION("OCR character table config binds the legacy 6624-entry table to 6625 CTC classes") {
+        const std::string characterTable = "/tmp/cosmo_test_models/legacy_character_table.txt";
+        {
+            std::ofstream table(characterTable);
+            table << "blank\n";
+            for (int index = 1; index < 6624; ++index)
+                table << "token_" << index << '\n';
+        }
+
+        cosmo::BmodelInfo info;
+        info.valid = true;
+        cosmo::BmodelNetworkInfo network;
+        network.outputs.push_back({"logits", {1, 40, 6625}, 0});
+        info.networks.push_back(network);
+        nlohmann::json config = {{"models", {{{"params", nlohmann::json::object()}}}}};
+
+        auto result = importExporter.ConfigureOcrCharacterTable(config, {info}, characterTable);
+        REQUIRE(result == cosmo::util::ErrorEnum::Success);
+        const auto& params = config["models"][0]["params"];
+        REQUIRE(params["character_table_file"].get<std::string>() == "character_table.txt");
+        REQUIRE(params["ctc_blank_index"].get<int>() == 0);
+        REQUIRE(params["ctc_class_count"].get<int>() == 6625);
+        REQUIRE(params["ctc_prepend_tokens"].empty());
+        REQUIRE(params["ctc_append_tokens"] == nlohmann::json::array({" "}));
+
+        fs::remove(characterTable);
+    }
+
+    SECTION("PP-OCR character table prepends blank and appends space for 6625 classes") {
+        const std::string characterTable = "/tmp/cosmo_test_models/ppocr_character_table.txt";
+        {
+            std::ofstream table(characterTable);
+            for (int index = 0; index < 6623; ++index)
+                table << "token_" << index << '\n';
+        }
+
+        cosmo::BmodelInfo info;
+        info.valid = true;
+        cosmo::BmodelNetworkInfo network;
+        network.outputs.push_back({"logits", {1, 40, 6625}, 0});
+        info.networks.push_back(network);
+        nlohmann::json config = {{"models", {{{"params", nlohmann::json::object()}}}}};
+
+        auto result = importExporter.ConfigureOcrCharacterTable(config, {info}, characterTable);
+        REQUIRE(result == cosmo::util::ErrorEnum::Success);
+        const auto& params = config["models"][0]["params"];
+        REQUIRE(params["ctc_prepend_tokens"] == nlohmann::json::array({""}));
+        REQUIRE(params["ctc_append_tokens"] == nlohmann::json::array({" "}));
+        REQUIRE(params["ctc_class_count"].get<int>() == 6625);
+
+        fs::remove(characterTable);
+    }
+
+    SECTION("OCR character table config rejects mismatched tables and dynamic class dimensions") {
+        const std::string characterTable = "/tmp/cosmo_test_models/character_table_exact.txt";
+        std::ofstream(characterTable) << "blank\nA\nB\n";
+        nlohmann::json config = {{"models", {{{"params", nlohmann::json::object()}}}}};
+
+        cosmo::BmodelInfo matchingInfo;
+        matchingInfo.valid = true;
+        cosmo::BmodelNetworkInfo matchingNetwork;
+        matchingNetwork.outputs.push_back({"logits", {1, 40, 3}, 0});
+        matchingInfo.networks.push_back(matchingNetwork);
+        auto result = importExporter.ConfigureOcrCharacterTable(config, {matchingInfo}, characterTable);
+        REQUIRE(result == cosmo::util::ErrorEnum::Success);
+        REQUIRE(config["models"][0]["params"]["ctc_append_tokens"].empty());
+
+        cosmo::BmodelInfo dynamicInfo;
+        dynamicInfo.valid = true;
+        cosmo::BmodelNetworkInfo dynamicNetwork;
+        dynamicNetwork.outputs.push_back({"logits", {1, 40, -1}, 0});
+        dynamicInfo.networks.push_back(dynamicNetwork);
+        result = importExporter.ConfigureOcrCharacterTable(config, {dynamicInfo}, characterTable);
+        REQUIRE(result == cosmo::util::ErrorEnum::InvalidParam);
+
+        std::ofstream(characterTable, std::ios::trunc) << "blank\n";
+        result = importExporter.ConfigureOcrCharacterTable(config, {matchingInfo}, characterTable);
+        REQUIRE(result == cosmo::util::ErrorEnum::InvalidParam);
+
+        fs::remove(characterTable);
     }
 
     SECTION("classify ONNX dynamic batch keeps concrete class count") {

@@ -96,7 +96,7 @@ struct AiAttribute {
     float confidence{0.0};    // Label confidence
 };
 
-// OCR result (reserved — type declared in AiCommon.h but not yet instantiated)
+// OCR result attached to a detected target by the landmark-driven OCR action.
 struct AiOcrValue {
     std::string atomic_code;  // Code
     std::string value;        // Label

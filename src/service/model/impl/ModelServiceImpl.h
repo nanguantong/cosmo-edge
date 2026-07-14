@@ -69,6 +69,7 @@ public:
                                           const std::vector<cosmo::Model::BmodelFileInfo>& bmodelFiles,
                                           const std::string& vocabFilePath,
                                           const std::string& tokenizerFilePath,
+                                          const std::string& characterTableFilePath,
                                           const std::string& normalizationMode,
                                           const std::string& colorChannel) override;
 

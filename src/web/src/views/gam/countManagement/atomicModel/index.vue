@@ -143,6 +143,14 @@
             </template>
           </el-upload>
         </el-form-item>
+        <el-form-item v-if="addModelForm.modelType === 'ocr'" :label="t('glossary.characterTable')" prop="characterTableFile">
+          <el-upload ref="uploadCharacterTableFileRef" action="#" :file-list="addModelForm.characterTableFileList" :limit="1" :auto-upload="false" accept=".txt" :on-change="handleCharacterTableFileChange" :on-remove="handleCharacterTableFileRemove">
+            <el-button size="small" type="primary">{{ t('action.browse') }}</el-button>
+            <template #tip>
+              <div class="upload-warn">{{ t('glossary.characterTableTip') }}</div>
+            </template>
+          </el-upload>
+        </el-form-item>
         <!-- qwen3vl/qwen3_5 模型：tokenizer.json -->
         <el-form-item v-if="addModelForm.modelType === 'qwen3vl' || addModelForm.modelType === 'qwen3_5'" label="tokenizer.json" prop="tokenizerFile">
           <el-upload ref="uploadTokenizerFileRef" action="#" :file-list="addModelForm.tokenizerFileList" :limit="1" :auto-upload="false" accept=".json" :on-change="handleTokenizerFileChange" :on-remove="handleTokenizerFileRemove">
@@ -359,14 +367,14 @@ const allModelsCount = ref(0)
 const subTypeToMain = {
   yolov5_det: 'detect', yolov8_det: 'detect', yolov9_det: 'detect',
   yolov11_det: 'detect', yolov12_det: 'detect', yolo26_det: 'detect',
-  classify: 'classify', keypoints: 'keypoints', feature: 'feature',
+  classify: 'classify', keypoints: 'keypoints', feature: 'feature', ocr: 'ocr',
   dino: 'foundation', sam2: 'foundation', qwen3vl: 'foundation', qwen3_5: 'foundation'
 }
 
 const loadModelTypes = () => {
   const subTypes = Object.keys(subTypeToMain)
   const filePath = ''
-  const byType = { detect: [], classify: [], keypoints: [], feature: [], foundation: [] }
+  const byType = { detect: [], classify: [], keypoints: [], feature: [], ocr: [], foundation: [] }
   const seen = new Set()
 
   const promises = subTypes.map(st =>
@@ -430,6 +438,7 @@ const modelTypeTabs = computed(() => {
     { label: t('glossary.modelTypeClassify'), value: 'classify', count: (byType.classify || []).length },
     { label: t('glossary.modelTypeKeypoints'), value: 'keypoints', count: (byType.keypoints || []).length },
     { label: t('glossary.modelTypeFeature'), value: 'feature', count: (byType.feature || []).length },
+    { label: t('glossary.modelTypeOcr'), value: 'ocr', count: (byType.ocr || []).length },
     { label: t('glossary.modelTypeFoundation'), value: 'foundation', count: (byType.foundation || []).length }
   ]
 })
@@ -440,12 +449,12 @@ const getModelTypeLabel = (model) => {
 }
 const getModelTypeColor = (model) => {
   const t = getModelMainType(model)
-  const map = { detect: 'tag-detect', classify: 'tag-classify', keypoints: 'tag-keypoints', feature: 'tag-feature', foundation: 'tag-foundation' }
+  const map = { detect: 'tag-detect', classify: 'tag-classify', keypoints: 'tag-keypoints', feature: 'tag-feature', ocr: 'tag-ocr', foundation: 'tag-foundation' }
   return map[t] || 'tag-detect'
 }
 const getModelIconClass = (model) => {
   const t = getModelMainType(model)
-  const map = { detect: 'icon-blue', classify: 'icon-green', keypoints: 'icon-cyan', feature: 'icon-purple', foundation: 'icon-gradient' }
+  const map = { detect: 'icon-blue', classify: 'icon-green', keypoints: 'icon-cyan', feature: 'icon-purple', ocr: 'icon-amber', foundation: 'icon-gradient' }
   return map[t] || 'icon-blue'
 }
 
@@ -459,6 +468,8 @@ const modelSvgMap = {
   keypoints: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4" r="2.5"/><path d="M12 6.5v4"/><path d="M12 10.5l-5 3.5"/><path d="M12 10.5l5 3.5"/><path d="M7 14l-2 6"/><path d="M17 14l2 6"/><circle cx="7" cy="14" r="1.2"/><circle cx="17" cy="14" r="1.2"/><circle cx="5" cy="20" r="1.2"/><circle cx="19" cy="20" r="1.2"/></svg>',
   // 特征提取：指纹/DNA 双螺旋
   feature: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M6 6c3 0 3 4 6 4s3-4 6-4"/><path d="M6 14c3 0 3 4 6 4s3-4 6-4"/><circle cx="6" cy="6" r="1"/><circle cx="18" cy="6" r="1"/><circle cx="6" cy="14" r="1"/><circle cx="18" cy="14" r="1"/></svg>',
+  // OCR：文字框
+  ocr: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h10M7 13h6M7 17h3"/></svg>',
   // 大模型：星光/AI 大脑
   foundation: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2 5 5 1-4 3.5 1 5.5-4-3-4 3 1-5.5L5 8l5-1 2-5z"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 18h10"/></svg>',
   // 默认：立方体
@@ -566,6 +577,7 @@ const uploadModelFileRef = ref(null)
 const uploadEncoderFileRef = ref(null)
 const uploadDecoderFileRef = ref(null)
 const uploadVocabFileRef = ref(null)
+const uploadCharacterTableFileRef = ref(null)
 const uploadTokenizerFileRef = ref(null)
 
 const addModelForm = reactive({
@@ -581,6 +593,8 @@ const addModelForm = reactive({
   decoderFileList: [],
   vocabFile: '',
   vocabFileList: [],
+  characterTableFile: '',
+  characterTableFileList: [],
   tokenizerFile: '',
   tokenizerFileList: [],
   normalizationMode: '0-1',
@@ -625,6 +639,11 @@ const modelTypeGroups = computed(() => [
     label: t('glossary.featureAlg'),
     value: 'feature',
     children: [{ label: 'feature', value: 'feature' }]
+  },
+  {
+    label: t('glossary.ocrAlg'),
+    value: 'ocr',
+    children: [{ label: 'ocr', value: 'ocr' }]
   },
   {
     label: t('glossary.foundationAlg'),
@@ -738,6 +757,22 @@ const addModelRules = {
           addModelForm.vocabFileList.length === 0
         ) {
           callback(new Error(t('validate.uploadVocabFile')))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'change'
+    }
+  ],
+  characterTableFile: [
+    {
+      validator: (rule, value, callback) => {
+        if (addModelForm.modelType !== 'ocr') {
+          callback()
+          return
+        }
+        if (!addModelForm.characterTableFileList || addModelForm.characterTableFileList.length === 0) {
+          callback(new Error(t('validate.uploadCharacterTableFile')))
         } else {
           callback()
         }
@@ -1100,11 +1135,14 @@ const uploadAlgorithmicClosed = () => {
   addModelForm.decoderFile = ''
   addModelForm.vocabFileList = []
   addModelForm.vocabFile = ''
+  addModelForm.characterTableFileList = []
+  addModelForm.characterTableFile = ''
   addModelForm.tokenizerFileList = []
   addModelForm.tokenizerFile = ''
   addModelForm.normalizationMode = '0-1'
   addModelForm.colorChannel = 'rgb'
   addModelFormRef.value && addModelFormRef.value.resetFields()
+  uploadCharacterTableFileRef.value && uploadCharacterTableFileRef.value.clearFiles()
 }
 
 const handleModelTypeChange = () => {
@@ -1116,6 +1154,8 @@ const handleModelTypeChange = () => {
   addModelForm.decoderFile = ''
   addModelForm.vocabFileList = []
   addModelForm.vocabFile = ''
+  addModelForm.characterTableFileList = []
+  addModelForm.characterTableFile = ''
   addModelForm.tokenizerFileList = []
   addModelForm.tokenizerFile = ''
   addModelForm.normalizationMode = '0-1'
@@ -1125,6 +1165,7 @@ const handleModelTypeChange = () => {
     uploadEncoderFileRef.value && uploadEncoderFileRef.value.clearFiles()
     uploadDecoderFileRef.value && uploadDecoderFileRef.value.clearFiles()
     uploadVocabFileRef.value && uploadVocabFileRef.value.clearFiles()
+    uploadCharacterTableFileRef.value && uploadCharacterTableFileRef.value.clearFiles()
     uploadTokenizerFileRef.value && uploadTokenizerFileRef.value.clearFiles()
   })
 }
@@ -1177,6 +1218,19 @@ const handleVocabFileRemove = (file, fileList) => {
   addModelForm.vocabFile =
     fileList && fileList.length > 0 ? 'file_selected' : ''
   addModelFormRef.value && addModelFormRef.value.validateField('vocabFile')
+}
+const handleCharacterTableFileChange = (file, fileList) => {
+  addModelForm.characterTableFileList =
+    fileList.length > 0 ? [fileList[fileList.length - 1]] : []
+  addModelForm.characterTableFile =
+    addModelForm.characterTableFileList.length > 0 ? 'file_selected' : ''
+  addModelFormRef.value && addModelFormRef.value.validateField('characterTableFile')
+}
+const handleCharacterTableFileRemove = (file, fileList) => {
+  addModelForm.characterTableFileList = fileList || []
+  addModelForm.characterTableFile =
+    fileList && fileList.length > 0 ? 'file_selected' : ''
+  addModelFormRef.value && addModelFormRef.value.validateField('characterTableFile')
 }
 const handleTokenizerFileChange = (file, fileList) => {
   addModelForm.tokenizerFileList =
@@ -1339,6 +1393,26 @@ const sureAddModel = async () => {
         return
       }
       addModelParams.vocabFilePath = await uploadSingleFile(vocabFile)
+    }
+    if (addModelForm.modelType === 'ocr') {
+      if (!addModelForm.characterTableFileList || addModelForm.characterTableFileList.length === 0) {
+        proxy.$message.warning(t('validate.ocrRequiresCharacterTable'))
+        addModelLoading.value = false
+        return
+      }
+      const characterTableFile =
+        addModelForm.characterTableFileList[0].raw || addModelForm.characterTableFileList[0]
+      if (!characterTableFile.name || !characterTableFile.name.toLowerCase().endsWith('.txt')) {
+        proxy.$message.warning(t('validate.characterTableFormatError'))
+        addModelLoading.value = false
+        return
+      }
+      addModelParams.characterTableFilePath = await uploadSingleFile(characterTableFile)
+      if (!addModelParams.characterTableFilePath) {
+        proxy.$message.error(t('validate.characterTableUploadFailed'))
+        addModelLoading.value = false
+        return
+      }
     }
     if (addModelForm.modelType === 'qwen3vl' || addModelForm.modelType === 'qwen3_5') {
       if (
@@ -1516,6 +1590,7 @@ onMounted(() => {
   &.icon-green { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
   &.icon-cyan { background: rgba(6, 182, 212, 0.1); color: #06b6d4; }
   &.icon-purple { background: rgba(66, 153, 225, 0.1); color: #4299e1; }
+  &.icon-amber { background: rgba(245, 158, 11, 0.1); color: #d97706; }
   &.icon-gradient { background: linear-gradient(135deg, rgba(124, 58, 237, 0.1), rgba(249, 115, 22, 0.1)); color: #2b6cb0; }
 }
 
@@ -1556,6 +1631,7 @@ onMounted(() => {
   &.tag-classify { background: #dcfce7; color: #16a34a; }
   &.tag-keypoints { background: #cffafe; color: #0891b2; }
   &.tag-feature { background: #ebf8ff; color: #2b6cb0; }
+  &.tag-ocr { background: #fef3c7; color: #b45309; }
   &.tag-foundation { background: linear-gradient(135deg, #ebf8ff, #fff7ed); color: #2b6cb0; }
 }
 

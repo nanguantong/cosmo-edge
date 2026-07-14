@@ -23,6 +23,125 @@
 
 namespace cosmo::service {
 
+namespace {
+
+    bool IsTextFile(const std::string& path) {
+        std::string extension = std::filesystem::path(path).extension().string();
+        std::transform(extension.begin(), extension.end(), extension.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return extension == ".txt";
+    }
+
+    bool CountCharacterTableEntries(const std::string& path, size_t& entry_count) {
+        entry_count = 0;
+        std::ifstream stream(path);
+        if (!stream.is_open())
+            return false;
+
+        std::string line;
+        while (std::getline(stream, line)) {
+            if (!line.empty() && line.back() == '\r')
+                line.pop_back();
+            entry_count++;
+        }
+        return entry_count > 0;
+    }
+
+    bool HasLeadingBlankToken(const std::string& path) {
+        std::ifstream stream(path);
+        std::string token;
+        if (!stream.is_open() || !std::getline(stream, token))
+            return false;
+
+        auto trim = [](std::string& value) {
+            const auto first = value.find_first_not_of(" \t\r\n");
+            if (first == std::string::npos) {
+                value.clear();
+                return;
+            }
+            const auto last = value.find_last_not_of(" \t\r\n");
+            value           = value.substr(first, last - first + 1);
+        };
+        trim(token);
+        if (!token.empty() && token.back() == ',') {
+            token.pop_back();
+            trim(token);
+        }
+        if (token.size() >= 2 && token.front() == '"' && token.back() == '"')
+            token = token.substr(1, token.size() - 2);
+        std::transform(token.begin(), token.end(), token.begin(),
+                       [](unsigned char value) { return static_cast<char>(std::tolower(value)); });
+        return token.empty() || token == "blank";
+    }
+
+    int GetOcrClassCount(const std::vector<cosmo::BmodelInfo>& bmodel_infos) {
+        if (bmodel_infos.size() != 1 || !bmodel_infos[0].valid || bmodel_infos[0].networks.empty())
+            return 0;
+
+        const auto& outputs = bmodel_infos[0].networks[0].outputs;
+        if (outputs.size() != 1 || outputs[0].shape.empty())
+            return 0;
+
+        const int class_count = outputs[0].shape.back();
+        return class_count > 0 ? class_count : 0;
+    }
+
+}  // namespace
+
+util::ErrorEnum ModelImportExporter::ConfigureOcrCharacterTable(
+    nlohmann::json& config, const std::vector<cosmo::BmodelInfo>& bmodel_infos,
+    const std::string& character_table_path) {
+    size_t entry_count = 0;
+    if (!CountCharacterTableEntries(character_table_path, entry_count)) {
+        LOG_WARN("{}", "[AddModel] OCR character table is empty or unreadable");
+        return util::ErrorEnum::InvalidParam;
+    }
+
+    const int class_count = GetOcrClassCount(bmodel_infos);
+    if (class_count == 0) {
+        LOG_WARN("{}", "[AddModel] OCR model requires one output with a static class dimension");
+        return util::ErrorEnum::InvalidParam;
+    }
+
+    nlohmann::json prepended_tokens = nlohmann::json::array();
+    nlohmann::json appended_tokens  = nlohmann::json::array();
+    const bool has_leading_blank    = HasLeadingBlankToken(character_table_path);
+    if (entry_count == static_cast<size_t>(class_count)) {
+        // The uploaded table already contains every CTC class.
+    } else if (entry_count + 1 == static_cast<size_t>(class_count)) {
+        if (has_leading_blank) {
+            // Legacy license-plate table: blank is present and the final class is a space.
+            appended_tokens.push_back(" ");
+        } else {
+            // Standard CTC table: the model reserves class zero for blank.
+            prepended_tokens.push_back("");
+        }
+    } else if (entry_count + 2 == static_cast<size_t>(class_count) && !has_leading_blank) {
+        // PP-OCR Chinese table: CTC prepends blank and use_space_char appends ASCII space.
+        prepended_tokens.push_back("");
+        appended_tokens.push_back(" ");
+    } else if (entry_count != static_cast<size_t>(class_count)) {
+        LOG_WARN("[AddModel] OCR character table entries {} do not match output classes {}", entry_count,
+                 class_count);
+        return util::ErrorEnum::InvalidParam;
+    }
+
+    if (!config.contains("models") || !config["models"].is_array() || config["models"].empty()) {
+        LOG_WARN("{}", "[AddModel] OCR template has no model configuration");
+        return util::ErrorEnum::InvalidParam;
+    }
+
+    auto& params = config["models"][0]["params"];
+    if (!params.is_object())
+        params = nlohmann::json::object();
+    params["character_table_file"] = "character_table.txt";
+    params["ctc_blank_index"]      = 0;
+    params["ctc_prepend_tokens"]   = std::move(prepended_tokens);
+    params["ctc_append_tokens"]    = std::move(appended_tokens);
+    params["ctc_class_count"]      = class_count;
+    return util::ErrorEnum::Success;
+}
+
 // JSON helpers moved to ModelAddModel_Json.cc
 
 // ============================================================
@@ -32,8 +151,8 @@ namespace cosmo::service {
 util::ErrorEnum ModelImportExporter::ValidateAddModelInputs(
     const std::string& modelCode, const std::string& modelName, const std::string& modelType,
     const std::vector<cosmo::Model::BmodelFileInfo>& bmodel_files, const std::string& vocabFilePath,
-    const std::string& tokenizerFilePath, std::string& resolved_model_code,
-    std::vector<std::string>& bmodel_paths) {
+    const std::string& tokenizerFilePath, const std::string& characterTableFilePath,
+    std::string& resolved_model_code, std::vector<std::string>& bmodel_paths) {
     namespace fs = std::filesystem;
 
     resolved_model_code = generate_unique_model_code_();
@@ -75,6 +194,23 @@ util::ErrorEnum ModelImportExporter::ValidateAddModelInputs(
     }
     if ((modelType == "qwen3vl" || modelType == "qwen3_5") && tokenizerFilePath.empty()) {
         LOG_WARN("{}", "[AddModel] This model type requires a tokenizer.json file");
+        return util::ErrorEnum::InvalidParam;
+    }
+    if (modelType == "ocr") {
+        if (characterTableFilePath.empty()) {
+            LOG_WARN("{}", "[AddModel] OCR model requires a character table");
+            return util::ErrorEnum::InvalidParam;
+        }
+        if (!IsTextFile(characterTableFilePath)) {
+            LOG_WARN("[AddModel] OCR character table must be a .txt file: {}", characterTableFilePath);
+            return util::ErrorEnum::InvalidParam;
+        }
+        if (!fs::is_regular_file(characterTableFilePath) || fs::file_size(characterTableFilePath) == 0) {
+            LOG_WARN("[AddModel] OCR character table does not exist or is empty: {}", characterTableFilePath);
+            return util::ErrorEnum::FileNotExist;
+        }
+    } else if (!characterTableFilePath.empty()) {
+        LOG_WARN("[AddModel] Only OCR models may include a character table: {}", modelType);
         return util::ErrorEnum::InvalidParam;
     }
 
@@ -218,6 +354,7 @@ util::ErrorEnum ModelImportExporter::WriteNnFile(const std::string& modelType,
 util::ErrorEnum ModelImportExporter::CopyAuxiliaryFiles(const std::string& modelType,
                                                         const std::string& vocabFilePath,
                                                         const std::string& tokenizerFilePath,
+                                                        const std::string& characterTableFilePath,
                                                         const std::string& model_dir) {
     namespace fs = std::filesystem;
 
@@ -269,6 +406,21 @@ util::ErrorEnum ModelImportExporter::CopyAuxiliaryFiles(const std::string& model
         }
     }
 
+    if (modelType == "ocr") {
+        std::string dest_table = model_dir + "/character_table.txt";
+        try {
+            fs::copy_file(characterTableFilePath, dest_table, fs::copy_options::overwrite_existing);
+            LOG_INFO("[AddModel] Copied OCR character table to {}", dest_table);
+        } catch (const std::exception& e) {
+            try {
+                fs::remove_all(model_dir);
+            } catch (const std::exception&) {
+            }
+            LOG_WARN("[AddModel] Failed to copy OCR character table: {}", e.what());
+            return util::ErrorEnum::SysErr;
+        }
+    }
+
     return util::ErrorEnum::Success;
 }
 
@@ -279,7 +431,8 @@ util::ErrorEnum ModelImportExporter::AddAtomicModel(
     const std::string& modelCode, const std::string& modelName, const std::string& modelType,
     const std::string& description, const std::vector<cosmo::Model::BmodelFileInfo>& bmodel_files,
     const std::string& vocabFilePath, const std::string& tokenizerFilePath,
-    const std::string& normalizationMode, const std::string& colorChannel) {
+    const std::string& characterTableFilePath, const std::string& normalizationMode,
+    const std::string& colorChannel) {
     namespace fs = std::filesystem;
 
     const std::string models_dir   = get_model_path_();
@@ -295,6 +448,8 @@ util::ErrorEnum ModelImportExporter::AddAtomicModel(
         temp_files_to_cleanup.push_back(vocabFilePath);
     if (!tokenizerFilePath.empty())
         temp_files_to_cleanup.push_back(tokenizerFilePath);
+    if (!characterTableFilePath.empty())
+        temp_files_to_cleanup.push_back(characterTableFilePath);
 
     auto cleanup_and_return = [&](util::ErrorEnum err) -> util::ErrorEnum {
         cosmo::BmodelTool::CleanupTempFiles(temp_files_to_cleanup);
@@ -304,8 +459,9 @@ util::ErrorEnum ModelImportExporter::AddAtomicModel(
     // 1-2. Validate inputs
     std::string resolved_model_code;
     std::vector<std::string> bmodel_paths;
-    auto err = ValidateAddModelInputs(modelCode, modelName, modelType, bmodel_files, vocabFilePath,
-                                      tokenizerFilePath, resolved_model_code, bmodel_paths);
+    auto err =
+        ValidateAddModelInputs(modelCode, modelName, modelType, bmodel_files, vocabFilePath,
+                               tokenizerFilePath, characterTableFilePath, resolved_model_code, bmodel_paths);
     if (err != util::ErrorEnum::Success)
         return cleanup_and_return(err);
 
@@ -340,6 +496,12 @@ util::ErrorEnum ModelImportExporter::AddAtomicModel(
     err = CollectBmodelInfo(modelType, bmodel_paths, bmodel_infos, use_template_defaults);
     if (err != util::ErrorEnum::Success)
         return cleanup_and_return(err);
+
+    if (modelType == "ocr") {
+        err = ConfigureOcrCharacterTable(templateDoc, bmodel_infos, characterTableFilePath);
+        if (err != util::ErrorEnum::Success)
+            return cleanup_and_return(err);
+    }
 
     // 5. Calculate version number
     std::string version_str = CalculateNextVersion(models_dir, resolved_model_code);
@@ -397,7 +559,7 @@ util::ErrorEnum ModelImportExporter::AddAtomicModel(
     }
 
     // 9.1 Copy auxiliary files
-    err = CopyAuxiliaryFiles(modelType, vocabFilePath, tokenizerFilePath, model_dir);
+    err = CopyAuxiliaryFiles(modelType, vocabFilePath, tokenizerFilePath, characterTableFilePath, model_dir);
     if (err != util::ErrorEnum::Success)
         return cleanup_and_return(err);
 

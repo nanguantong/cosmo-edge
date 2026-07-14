@@ -120,6 +120,7 @@ void TaskBase::RegisterMngProviders() {
         &classify_area_mng_adapter_,
         &classify_attr_mng_adapter_,
         &landmark_mng_adapter_,
+        &ocr_mng_adapter_,
         &recognizer_mng_,
         &ai_video_quality_mng_adapter_,
         &filter_mng_,

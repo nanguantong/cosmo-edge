@@ -6,6 +6,7 @@
 
 #include "nn/core/shared_resource.h"
 #include "nn/pipeline/pipeline_utils.h"
+#include "util/Log.h"
 
 #ifdef COSMO_NN_USE_SOPHON_BACKEND
 #include "nn/device/sophon/qwen3vl/qwen3vl_runner_factory.h"
@@ -541,6 +542,9 @@ Status SegmentationPipeline::ParseSegmentationOutput(std::vector<std::vector<uin
 Status OcrPipeline::Init(const PipelineConfig& config, const std::string& model_path, DeviceType device_type,
                          int device_id, IProfiler* profiler, const std::string& tokenizer_path,
                          const std::string& word_table_path, bool use_skip) {
+    if (config.models.size() != 1)
+        return Status(COSMO_NN_ERR_PARAM, "OCR requires exactly one model");
+
     model_info_.algorithmcode = config.algorithm_code;
     model_info_.reduce        = config.reduce;
     model_info_.type          = "ocr";
@@ -584,13 +588,53 @@ Status OcrPipeline::Init(const PipelineConfig& config, const std::string& model_
         model_info_.models.push_back(std::move(model));
     }
 
-    if (!word_table_path.empty()) {
-        std::ifstream ifs(word_table_path);
-        if (ifs.is_open()) {
-            std::string line;
-            while (std::getline(ifs, line))
-                ocr_words_.push_back(line);
+    const nlohmann::json params = pipeline_utils::ParseJsonObject(config.models[0].params_json);
+    ctc_config_.blank_index     = pipeline_utils::ReadInt(params, "ctc_blank_index", -1);
+    ctc_config_.class_count     = pipeline_utils::ReadInt(params, "ctc_class_count", 0);
+    if (ctc_config_.blank_index < 0 || ctc_config_.class_count <= 0 || word_table_path.empty())
+        return Status(COSMO_NN_ERR_PARAM, "OCR CTC configuration is incomplete");
+
+    std::ifstream ifs(word_table_path);
+    if (!ifs.is_open())
+        return Status(COSMO_NN_ERR_PARAM, "OCR character table cannot be opened");
+    ocr_words_.clear();
+    std::string line;
+    while (std::getline(ifs, line)) {
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+        ocr_words_.push_back(line);
+    }
+    if (ocr_words_.empty())
+        return Status(COSMO_NN_ERR_PARAM, "OCR character table is empty");
+
+    const auto add_ctc_tokens = [&params](const char* key, bool prepend,
+                                          std::vector<std::string>& words) -> Status {
+        if (!params.contains(key))
+            return COSMO_NN_OK;
+        if (!params[key].is_array())
+            return Status(COSMO_NN_ERR_PARAM, "OCR CTC tokens must be an array");
+
+        std::vector<std::string> tokens;
+        for (const auto& token : params[key]) {
+            if (!token.is_string())
+                return Status(COSMO_NN_ERR_PARAM, "OCR CTC token must be a string");
+            tokens.push_back(token.get<std::string>());
         }
+        if (prepend)
+            words.insert(words.begin(), tokens.begin(), tokens.end());
+        else
+            words.insert(words.end(), tokens.begin(), tokens.end());
+        return COSMO_NN_OK;
+    };
+    auto status = add_ctc_tokens("ctc_prepend_tokens", true, ocr_words_);
+    if (!status)
+        return status;
+    status = add_ctc_tokens("ctc_append_tokens", false, ocr_words_);
+    if (!status)
+        return status;
+    if (ctc_config_.blank_index >= ctc_config_.class_count ||
+        ocr_words_.size() != static_cast<size_t>(ctc_config_.class_count)) {
+        return Status(COSMO_NN_ERR_PARAM, "OCR character table does not match CTC classes");
     }
 
     InitThresholdsAndLabels();
@@ -602,6 +646,47 @@ Status OcrPipeline::Forward(std::initializer_list<std::vector<std::shared_ptr<Bl
     return RunGraph(inputs);
 }
 
+Status DecodeOcrCtc(const float* logits, int batch, int time, int classes,
+                    const std::vector<std::string>& words, const OcrCtcConfig& config,
+                    std::vector<std::vector<char>>& results) {
+    results.clear();
+    if (!logits || batch <= 0 || time <= 0 || classes <= 0)
+        return Status(COSMO_NN_ERR_NET, "OCR output tensor dimensions must be positive");
+    if (config.class_count != classes || config.blank_index < 0 || config.blank_index >= classes ||
+        words.size() != static_cast<size_t>(classes)) {
+        return Status(COSMO_NN_ERR_NET, "OCR character table does not match output classes");
+    }
+
+    results.resize(batch);
+    for (int i = 0; i < batch; i++) {
+        const float* batch_data = logits + static_cast<size_t>(i) * time * classes;
+        std::vector<int> indexes;
+        for (int j = 0; j < time; j++) {
+            auto row   = batch_data + j * classes;
+            int maxIdx = static_cast<int>(std::distance(row, std::max_element(row, row + classes)));
+            indexes.push_back(maxIdx);
+        }
+        std::vector<int> filtered;
+        int prev = -1;
+        for (int idx : indexes) {
+            if (idx == config.blank_index) {
+                prev = config.blank_index;
+                continue;
+            }
+            if (idx == prev)
+                continue;
+            prev = idx;
+            filtered.push_back(idx);
+        }
+        std::string str;
+        for (int idx : filtered) {
+            str.append(words[idx]);
+        }
+        results[i] = std::vector<char>(str.begin(), str.end());
+    }
+    return COSMO_NN_OK;
+}
+
 Status OcrPipeline::ParseOcrOutput(std::vector<std::vector<char>>& results) {
     results.clear();
     auto output_blobs = GetGraphOutput();
@@ -611,40 +696,14 @@ Status OcrPipeline::ParseOcrOutput(std::vector<std::vector<char>>& results) {
     auto blob   = output_blobs.at(0);
     auto desc   = blob->GetBlobDesc();
     auto handle = blob->GetHandle();
-    float* data = reinterpret_cast<float*>(handle.base);
+    if (desc.data_type != DataType::DATA_TYPE_FLOAT || desc.dims.size() != 3 || !handle.base)
+        return Status(COSMO_NN_ERR_NET, "OCR output must be a non-null float32 [batch,time,class] tensor");
 
-    const int batch = desc.dims.at(0);
-    const int H     = desc.dims.at(1);
-    const int W     = desc.dims.at(2);
-
-    results.resize(batch);
-    for (int i = 0; i < batch; i++) {
-        std::vector<int> indexes;
-        for (int j = 0; j < H; j++) {
-            auto row   = data + j * W;
-            int maxIdx = static_cast<int>(std::distance(row, std::max_element(row, row + W)));
-            indexes.push_back(maxIdx);
-        }
-        std::vector<int> filtered;
-        int prev = -1;
-        for (int idx : indexes) {
-            if (idx == 0) {
-                prev = 0;
-                continue;
-            }
-            if (idx == prev)
-                continue;
-            prev = idx;
-            filtered.push_back(idx);
-        }
-        std::string str;
-        for (int idx : filtered)
-            if (static_cast<size_t>(idx) < ocr_words_.size())
-                str.append(ocr_words_[idx]);
-        results[i] = std::vector<char>(str.begin(), str.end());
-        data += H * W;
-    }
-    return COSMO_NN_OK;
+    const int batch   = desc.dims.at(0);
+    const int time    = desc.dims.at(1);
+    const int classes = desc.dims.at(2);
+    return DecodeOcrCtc(reinterpret_cast<const float*>(handle.base), batch, time, classes, ocr_words_,
+                        ctc_config_, results);
 }
 
 // ===================== Auto-Registration ==================================

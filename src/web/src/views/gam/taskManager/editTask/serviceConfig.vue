@@ -223,6 +223,7 @@ const algorithmCategoryOptions = computed(() => [
   { label: t('glossary.detection'), value: '3' },
   { label: t('glossary.countingAnalytics'), value: '8' },
   { label: t('glossary.countingAnalytics'), value: '9' },
+  { label: t('glossary.vehicleAnalysis'), value: '10' },
   { label: t('glossary.countingAnalytics'), value: '11' }
 ])
 const warningVisible = ref(false)

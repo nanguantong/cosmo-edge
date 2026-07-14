@@ -67,15 +67,16 @@ void from_json(const nlohmann::json& j, MsgListRecv& v) {
 
 void to_json(nlohmann::json& j, const MsgAddRecv& v) {
     to_json(j, static_cast<const MsgRecvHead&>(v));
-    j["modelCode"]         = v.modelCode;
-    j["modelName"]         = v.modelName;
-    j["modelType"]         = v.modelType;
-    j["description"]       = v.description;
-    j["bmodelFiles"]       = v.bmodelFiles;
-    j["vocabFilePath"]     = v.vocabFilePath;
-    j["tokenizerFilePath"] = v.tokenizerFilePath;
-    j["normalizationMode"] = v.normalizationMode;
-    j["colorChannel"]      = v.colorChannel;
+    j["modelCode"]              = v.modelCode;
+    j["modelName"]              = v.modelName;
+    j["modelType"]              = v.modelType;
+    j["description"]            = v.description;
+    j["bmodelFiles"]            = v.bmodelFiles;
+    j["vocabFilePath"]          = v.vocabFilePath;
+    j["tokenizerFilePath"]      = v.tokenizerFilePath;
+    j["characterTableFilePath"] = v.characterTableFilePath;
+    j["normalizationMode"]      = v.normalizationMode;
+    j["colorChannel"]           = v.colorChannel;
 }
 
 void from_json(const nlohmann::json& j, MsgAddRecv& v) {
@@ -87,6 +88,7 @@ void from_json(const nlohmann::json& j, MsgAddRecv& v) {
     JSON_OPT(j, v, bmodelFiles);
     JSON_OPT(j, v, vocabFilePath);
     JSON_OPT(j, v, tokenizerFilePath);
+    JSON_OPT(j, v, characterTableFilePath);
     JSON_OPT(j, v, normalizationMode);
     JSON_OPT(j, v, colorChannel);
 }

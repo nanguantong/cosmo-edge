@@ -47,12 +47,12 @@ public:
                cosmo::util::ErrorEnum(const std::string&, const std::string&, std::string&, std::string&),
                override);
     MAKE_MOCK1(ImportModel, cosmo::util::ErrorEnum(const std::string&), override);
-    MAKE_MOCK9(AddAtomicModel,
-               cosmo::util::ErrorEnum(const std::string&, const std::string&, const std::string&,
-                                      const std::string&, const std::vector<cosmo::Model::BmodelFileInfo>&,
-                                      const std::string&, const std::string&, const std::string&,
-                                      const std::string&),
-               override);
+    MAKE_MOCK10(AddAtomicModel,
+                cosmo::util::ErrorEnum(const std::string&, const std::string&, const std::string&,
+                                       const std::string&, const std::vector<cosmo::Model::BmodelFileInfo>&,
+                                       const std::string&, const std::string&, const std::string&,
+                                       const std::string&, const std::string&),
+                override);
     MAKE_MOCK2(SetModelPathMapping, void(const std::string&, const std::string&), override);
     MAKE_MOCK1(GetModelPathMapping, std::string(const std::string&), override);
     MAKE_MOCK3(GetModelCfg, bool(const std::string&, std::string&, std::string&), override);

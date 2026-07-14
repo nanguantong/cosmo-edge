@@ -4,8 +4,10 @@
 // clang-format on
 
 #include <filesystem>
+#include <fstream>
 #include <vector>
 
+#include "nlohmann/json.hpp"
 #include "service/system/IAppInfoService.h"
 #include "util/Log.h"
 #include "util/NnBackendConstants.h"
@@ -38,6 +40,50 @@ namespace {
             }
         }
         return files;
+    }
+
+    bool ResolveOcrCharacterTable(const std::string& directory, const std::string& cfg_path,
+                                  std::string& word_dict_path) {
+        std::ifstream stream(cfg_path);
+        if (!stream.is_open()) {
+            LOG_WARN("Cannot open OCR config: {}", cfg_path);
+            return false;
+        }
+
+        nlohmann::json config;
+        try {
+            stream >> config;
+        } catch (const std::exception& e) {
+            LOG_WARN("Cannot parse OCR config {}: {}", cfg_path, e.what());
+            return false;
+        }
+
+        if (!config.contains("models") || !config["models"].is_array() || config["models"].empty()) {
+            LOG_WARN("OCR config has no model definition: {}", cfg_path);
+            return false;
+        }
+        const auto& model = config["models"][0];
+        if (!model.contains("params") || !model["params"].is_object() ||
+            !model["params"].contains("character_table_file") ||
+            !model["params"]["character_table_file"].is_string()) {
+            LOG_WARN("OCR config has no character table binding: {}", cfg_path);
+            return false;
+        }
+
+        const std::filesystem::path table_name = model["params"]["character_table_file"].get<std::string>();
+        if (table_name.empty() || table_name.has_parent_path() || table_name.filename() != table_name ||
+            table_name.extension() != ".txt") {
+            LOG_WARN("OCR character table must be a .txt file in the package root: {}", table_name.string());
+            return false;
+        }
+
+        const std::filesystem::path table_path = std::filesystem::path(directory) / table_name;
+        if (!std::filesystem::is_regular_file(table_path)) {
+            LOG_WARN("OCR character table is missing: {}", table_path.string());
+            return false;
+        }
+        word_dict_path = table_path.string();
+        return true;
     }
 
 }  // namespace
@@ -108,8 +154,7 @@ bool ModelPathMapper::GetModelCfg(const std::string& algCode, std::string& cfgPa
         std::string path = cosmo::path::GetResourcePath();
         cfgPath          = (std::filesystem::path(path) / (algCode + ".json")).string();
         modelPath        = (std::filesystem::path(path) / (algCode + cosmo::util::kModelFileExt)).string();
-        wordDictPath     = (std::filesystem::path(path) / (algCode + ".txt")).string();
-        return true;
+        return ResolveOcrCharacterTable(path, cfgPath, wordDictPath);
     }
 
     std::shared_lock<std::shared_mutex> lock(mtx_);
@@ -130,14 +175,11 @@ bool ModelPathMapper::GetModelCfg(const std::string& algCode, std::string& cfgPa
         return false;
     }
 
-    auto dict_res = GetFileWithExtension(directory, ".txt");
-    if (dict_res.size() < 1) {
-        LOG_INFO("No Word Dict File. Directory:{}", directory);
+    if (!ResolveOcrCharacterTable(directory, cfgPath, wordDictPath)) {
         return false;
     }
 
     modelPath = model_res.size() > 1 ? directory : (std::filesystem::path(directory) / model_res[0]).string();
-    wordDictPath = (std::filesystem::path(directory) / dict_res[0]).string();
     LOG_INFO("algCode:{}, modelPath:{}, cfgPath:{}, wordDictPath:{}", algCode, modelPath, cfgPath,
              wordDictPath);
     return true;

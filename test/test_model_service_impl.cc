@@ -173,6 +173,60 @@ TEST_CASE("ModelServiceImpl: 模型服务核心逻辑", "[model-service]") {
             // 无效映射返回空字符串
             REQUIRE(sut.GetModelPathMapping("invalid_code") == "");
         }
+
+        SECTION("OCR 模型包路径必须使用配置绑定的字符表") {
+            const auto modelDir =
+                std::filesystem::path(testModelsDir) /
+                (std::string(cosmo::util::kPlatformDirPrefix) + "test_model_001_TestModel_V1.0.0");
+            const auto modelFile = modelDir / ("model" + std::string(cosmo::util::kModelFileExt));
+            const auto dictFile  = modelDir / "character_table.txt";
+            std::ofstream(modelFile).close();
+            {
+                std::ofstream config(modelDir / "config.json");
+                config
+                    << R"({"algorithm_code":"test_model_001","model_type":"ocr","models":[{"name":"TestModel","params":{"character_table_file":"character_table.txt"}}]})";
+            }
+            {
+                std::ofstream dict(dictFile);
+                dict << "\nA\n";
+            }
+            sut.SetModelPathMapping("test_model_001", modelDir.string());
+
+            std::string configPath;
+            std::string resolvedModelPath;
+            std::string dictionaryPath;
+            REQUIRE(sut.GetModelCfg("test_model_001", configPath, resolvedModelPath, dictionaryPath));
+            REQUIRE(configPath == (modelDir / "config.json").string());
+            REQUIRE(resolvedModelPath == modelFile.string());
+            REQUIRE(dictionaryPath == dictFile.string());
+
+            std::filesystem::remove(dictFile);
+            REQUIRE_FALSE(sut.GetModelCfg("test_model_001", configPath, resolvedModelPath, dictionaryPath));
+
+            std::ofstream(dictFile).close();
+            std::ofstream(modelDir / "duplicate.txt").close();
+            REQUIRE(sut.GetModelCfg("test_model_001", configPath, resolvedModelPath, dictionaryPath));
+
+            {
+                std::ofstream config(modelDir / "config.json");
+                config
+                    << R"({"algorithm_code":"test_model_001","model_type":"ocr","models":[{"name":"TestModel","params":{"character_table_file":"../duplicate.txt"}}]})";
+            }
+            REQUIRE_FALSE(sut.GetModelCfg("test_model_001", configPath, resolvedModelPath, dictionaryPath));
+        }
+
+        SECTION("OCR 模型包缺少配置时路径解析失败") {
+            const auto missingConfigDir = std::filesystem::path(testModelsDir) / "missing_config";
+            std::filesystem::create_directories(missingConfigDir);
+            std::ofstream(missingConfigDir / ("model" + std::string(cosmo::util::kModelFileExt))).close();
+            std::ofstream(missingConfigDir / "dictionary.txt").close();
+            sut.SetModelPathMapping("missing_config", missingConfigDir.string());
+
+            std::string configPath;
+            std::string resolvedModelPath;
+            std::string dictionaryPath;
+            REQUIRE_FALSE(sut.GetModelCfg("missing_config", configPath, resolvedModelPath, dictionaryPath));
+        }
     }
 
     std::filesystem::remove_all(testBaseDir);

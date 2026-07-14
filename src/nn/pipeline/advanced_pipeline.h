@@ -1,8 +1,21 @@
 #pragma once
 
+#include <string>
+#include <vector>
+
 #include "nn/pipeline/model_pipeline.h"
 
 namespace cosmo::nn {
+
+struct OcrCtcConfig {
+    int blank_index{0};
+    int class_count{0};
+};
+
+// Decode CTC logits laid out as [batch, time, classes].
+Status DecodeOcrCtc(const float* logits, int batch, int time, int classes,
+                    const std::vector<std::string>& words, const OcrCtcConfig& config,
+                    std::vector<std::vector<char>>& results);
 
 class SAM2Pipeline : public ModelPipeline {
 public:
@@ -126,6 +139,7 @@ public:
 
 private:
     int max_batch_ = 1;
+    OcrCtcConfig ctc_config_;
 };
 
 }  // namespace cosmo::nn

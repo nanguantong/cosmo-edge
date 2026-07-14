@@ -27,6 +27,7 @@
 #include "flow/landmark/AiLandmarkMng.h"
 #include "flow/logical/FaceLogicMng.h"
 #include "flow/logical/LogicalJudgmentMng.h"
+#include "flow/ocr/AiOcrMng.h"
 #include "flow/qwen3vl/Qwen3VLMng.h"
 #include "flow/recognizer/AiRecognizerMng.h"
 #include "flow/sam2/Sam2SegmentMng.h"
@@ -134,6 +135,7 @@ private:
     AiClassifyAreaMng classify_area_mng_;      // Area classification management instance
     AiClassifyAttrMng classify_attr_mng_;      // Attribute management instance
     AiLandmarkMng landmark_mng_;               // Landmark management instance
+    AiOcrMng ocr_mng_;                         // Landmark-driven license plate OCR management instance
     AiRecognizerMng recognizer_mng_;           // Recognition management instance
     AiVideoQualityMng ai_video_quality_mng_;   // Video diagnosis management instance
     TargetFilterMng filter_mng_;               // Filtering management instance
@@ -153,6 +155,7 @@ private:
     MngStatusAdapter<AiClassifyAreaMng> classify_area_mng_adapter_{classify_area_mng_};
     MngStatusAdapter<AiClassifyAttrMng> classify_attr_mng_adapter_{classify_attr_mng_};
     MngStatusAdapter<AiLandmarkMng> landmark_mng_adapter_{landmark_mng_};
+    MngStatusAdapter<AiOcrMng> ocr_mng_adapter_{ocr_mng_};
     MngStatusAdapter<AiVideoQualityMng> ai_video_quality_mng_adapter_{ai_video_quality_mng_};
     MngStatusAdapter<AiTrackMng> track_mng_adapter_{track_mng_};
     MngStatusAdapter<TargetChooseBestMng> target_choose_best_mng_adapter_{target_choose_best_mng_};

@@ -2,6 +2,8 @@
 
 #include "service/event/impl/EventNotifierImpl.h"
 
+#include <future>
+
 #include "App.h"
 #include "util/JsonStructUtil.h"
 #include "util/Log.h"
@@ -27,6 +29,7 @@ EventNotifierImpl::EventNotifierImpl() : ws_event_que_("EventNotifier WS QUE", 1
 
 EventNotifierImpl::~EventNotifierImpl() {
     ws_event_que_.Stop();
+    StopServer();
     LOG_INFO("{}", "EventNotifierImpl Destroy");
 }
 
@@ -35,7 +38,14 @@ EventNotifierImpl::~EventNotifierImpl() {
 // ---------------------------------------------------------------------------
 
 bool EventNotifierImpl::InitializeWebSocket(const std::string& hostIp, int port) {
-    server_thread_ = std::thread([this, hostIp, port]() { StartServer(hostIp, port); });
+    {
+        std::lock_guard<std::mutex> lock(server_mtx_);
+        if (server_state_ != ServerState::kStopped || server_thread_.joinable()) {
+            LOG_WARN("{}", "uWebSockets server is already initialized");
+            return false;
+        }
+        server_state_ = ServerState::kStarting;
+    }
 
     ws_event_que_.SetProcessor([this](cosmo::CMsgOnEventsReq&& data) {
         std::string json_str;
@@ -45,6 +55,7 @@ bool EventNotifierImpl::InitializeWebSocket(const std::string& hostIp, int port)
             LOG_ERRO("{}", "cosmo::util::EncodeJson StructToJson failed");
         }
     });
+    server_thread_ = std::thread([this, hostIp, port]() { StartServer(hostIp, port); });
     return true;
 }
 
@@ -54,6 +65,10 @@ void EventNotifierImpl::ShutdownWebSocket() {
 
 bool EventNotifierImpl::StartServer(const std::string& ip, int port) {
     LOG_INFO("{}", "uWebSockets server start.");
+    {
+        std::lock_guard<std::mutex> lock(server_mtx_);
+        loop_ = uWS::Loop::get();
+    }
     http_app_ = std::make_unique<uWS::TemplatedApp<false>>();
     http_app_
         ->any("/*",
@@ -75,12 +90,30 @@ bool EventNotifierImpl::StartServer(const std::string& ip, int port) {
     });
     if (http_socket_) {
         LOG_INFO("Start uWebSockets server, {}:{}", ip, port);
+        {
+            std::lock_guard<std::mutex> lock(server_mtx_);
+            server_state_ = ServerState::kRunning;
+        }
+        server_state_cv_.notify_all();
         // Construct, run, and destroy must happen on the same thread
         http_app_->run();
         http_app_.reset();
+        {
+            std::lock_guard<std::mutex> lock(server_mtx_);
+            loop_         = nullptr;
+            server_state_ = ServerState::kStopped;
+        }
+        server_state_cv_.notify_all();
         LOG_INFO("uWebSockets server stopped, {}:{}", ip, port);
         return true;
     }
+    http_app_.reset();
+    {
+        std::lock_guard<std::mutex> lock(server_mtx_);
+        loop_         = nullptr;
+        server_state_ = ServerState::kStopped;
+    }
+    server_state_cv_.notify_all();
     LOG_ERRO("Start uWebSockets server failed, {}:{}", ip, port);
     return false;
 }
@@ -92,8 +125,9 @@ void EventNotifierImpl::InitWebSocketServer(const std::function<void(std::string
          // open
          [this](auto ws, auto req) {
              LOG_INFO("Recv a websocket request, url: {}, host: {}", req->getUrl(), req->getHeader("host"));
-             std::lock_guard<std::mutex> lock(ws_mtx_);
              ws_connections_[cosmo::util::ToLower(req->getUrl())].push_back(ws);
+             ++ws_connection_count_;
+             has_ws_connection_.store(true, std::memory_order_release);
          },
          // message
          [onMessage](auto* /*ws*/, std::string_view message, uWS::OpCode /*opCode*/) { onMessage(message); },
@@ -107,46 +141,57 @@ void EventNotifierImpl::InitWebSocketServer(const std::function<void(std::string
          [this](auto* closed_ws, int code, std::string_view message) {
              LOG_INFO("A websocket disconnect, code:{}, message: \"{}\"", code,
                       message.data() ? message : std::string_view{});
-             std::lock_guard<std::mutex> lock(ws_mtx_);
              for (auto& it_map : ws_connections_) {
                  auto it_vec = find(it_map.second.begin(), it_map.second.end(), closed_ws);
                  if (it_vec != it_map.second.end()) {
                      it_map.second.erase(it_vec);
+                     --ws_connection_count_;
+                     has_ws_connection_.store(ws_connection_count_ != 0, std::memory_order_release);
                      LOG_INFO("Remove a websocket connection, Url: {}", it_map.first);
+                     break;
                  }
              }
          }});
 }
 
 void EventNotifierImpl::StopServer() {
-    // Stop and clean up websocket server resources
+    std::lock_guard<std::mutex> shutdown_lock(shutdown_mtx_);
+    uWS::Loop* loop = nullptr;
     {
-        // close() is called synchronously, so move data first
-        std::unique_lock<std::mutex> lock(ws_mtx_);
-        auto tmp = std::move(ws_connections_);
-        lock.unlock();
-        // Send close to all clients
-        if (!tmp.empty()) {
-            LOG_INFO("{}", "Closing websocket...");
-        }
-        for (auto& it_map : tmp) {
-            for (auto& it_vec : it_map.second) {
-                it_vec->end(0);
-            }
-        }
-        if (http_socket_) {
-            us_listen_socket_close(0, http_socket_);
-            http_socket_ = nullptr;
+        std::unique_lock<std::mutex> lock(server_mtx_);
+        server_state_cv_.wait(lock, [this]() { return server_state_ != ServerState::kStarting; });
+        if (server_state_ == ServerState::kRunning) {
+            server_state_ = ServerState::kStopping;
+            loop          = loop_;
         }
     }
 
+    if (loop) {
+        std::promise<void> close_completed;
+        auto close_future = close_completed.get_future();
+        loop->defer([this, close_completed = std::move(close_completed)]() mutable {
+            CloseWebSocketServerOnLoop();
+            close_completed.set_value();
+        });
+        close_future.wait();
+    }
     if (server_thread_.joinable()) {
         server_thread_.join();
     }
 }
 
 void EventNotifierImpl::SendWebSocketMsg(std::string_view url, std::string_view msg) {
-    std::lock_guard<std::mutex> lock(ws_mtx_);
+    std::lock_guard<std::mutex> lock(server_mtx_);
+    if (server_state_ != ServerState::kRunning) {
+        return;
+    }
+    auto url_copy = std::string(url);
+    auto msg_copy = std::string(msg);
+    loop_->defer(
+        [this, url = std::move(url_copy), msg = std::move(msg_copy)]() { SendWebSocketMsgOnLoop(url, msg); });
+}
+
+void EventNotifierImpl::SendWebSocketMsgOnLoop(std::string_view url, std::string_view msg) {
     auto it_map = ws_connections_.find(cosmo::util::ToLower(url));
     if (it_map != ws_connections_.end()) {
         for (auto& ws : it_map->second) {
@@ -157,10 +202,26 @@ void EventNotifierImpl::SendWebSocketMsg(std::string_view url, std::string_view 
     }
 }
 
+void EventNotifierImpl::CloseWebSocketServerOnLoop() {
+    auto connections     = std::move(ws_connections_);
+    ws_connection_count_ = 0;
+    has_ws_connection_.store(false, std::memory_order_release);
+    if (!connections.empty()) {
+        LOG_INFO("{}", "Closing websocket...");
+    }
+    for (auto& it_map : connections) {
+        for (auto* ws : it_map.second) {
+            ws->end(0);
+        }
+    }
+    if (http_socket_) {
+        us_listen_socket_close(0, http_socket_);
+        http_socket_ = nullptr;
+    }
+}
+
 bool EventNotifierImpl::HasWebSocketConnect(std::string_view url) {
-    std::lock_guard<std::mutex> lock(ws_mtx_);
-    auto it_map = ws_connections_.find(cosmo::util::ToLower(url));
-    return it_map != ws_connections_.end() && !it_map->second.empty();
+    return url == kWebSocketUrl && has_ws_connection_.load(std::memory_order_acquire);
 }
 
 // ---------------------------------------------------------------------------

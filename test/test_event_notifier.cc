@@ -23,10 +23,6 @@ TEST_CASE("EventNotifierImpl: SetEventPostQue and push without processor", "[Eve
 TEST_CASE("EventNotifierImpl: WebSocket and Events", "[EventNotifier]") {
     EventNotifierImpl notifier;
 
-    // NOTE: InitializeWebSocket and ShutdownWebSocket are not tested here because
-    // uWebSockets' us_listen_socket_close is not thread-safe when called from a different thread,
-    // which causes a deadlock in the test environment.
-
     SECTION("Event queues concurrent push") {
         cosmo::AsyncQueue<cosmo::CMsgOnEventsReq> eventQue("test_que", 1000);
         notifier.SetEventPostQue(eventQue);
@@ -60,4 +56,11 @@ TEST_CASE("EventNotifierImpl: WebSocket and Events", "[EventNotifier]") {
 
         REQUIRE(processCount.load() == 100);
     }
+}
+
+TEST_CASE("EventNotifierImpl: WebSocket shutdown is deferred to server loop", "[EventNotifier]") {
+    EventNotifierImpl notifier;
+
+    REQUIRE(notifier.InitializeWebSocket("127.0.0.1", 0));
+    REQUIRE_NOTHROW(notifier.ShutdownWebSocket());
 }

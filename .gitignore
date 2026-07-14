@@ -4,6 +4,7 @@
 .agent
 .antigravitycli
 .claude
+/.codex/
 CLAUDE.md
 AGENTS.md
 build

@@ -3,6 +3,7 @@
 #include "util/FileUtil.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -348,22 +349,40 @@ bool RemoveFile(const std::string& file_name) {
 }
 
 std::string FindPrefixedJsonFile(const std::string& dir, const std::string& prefix) {
-    const std::string search_prefix = prefix + "_";
     std::error_code ec;
     if (!fs::is_directory(dir, ec)) {
         return "";
     }
-    for (const auto& entry : fs::directory_iterator(dir, ec)) {
-        if (!entry.is_regular_file(ec))
-            continue;
-        const std::string filename = entry.path().filename().string();
-        if (filename.size() > search_prefix.size() + 5 &&
-            filename.compare(0, search_prefix.size(), search_prefix) == 0 &&
-            filename.compare(filename.size() - 5, 5, ".json") == 0) {
-            return entry.path().string();
+
+    const auto find_with_prefix = [&dir](const std::string& candidate) {
+        const std::string search_prefix = candidate + "_";
+        std::error_code iter_ec;
+        for (const auto& entry : fs::directory_iterator(dir, iter_ec)) {
+            if (!entry.is_regular_file(iter_ec))
+                continue;
+            const std::string filename = entry.path().filename().string();
+            if (filename.size() > search_prefix.size() + 5 &&
+                filename.compare(0, search_prefix.size(), search_prefix) == 0 &&
+                filename.compare(filename.size() - 5, 5, ".json") == 0) {
+                return entry.path().string();
+            }
         }
+        return std::string{};
+    };
+
+    auto result = find_with_prefix(prefix);
+    if (!result.empty()) {
+        return result;
     }
-    return "";
+
+    const auto first_non_zero = prefix.find_first_not_of('0');
+    const bool is_numeric =
+        !prefix.empty() &&
+        std::all_of(prefix.begin(), prefix.end(), [](unsigned char ch) { return std::isdigit(ch) != 0; });
+    if (!is_numeric || first_non_zero == 0) {
+        return "";
+    }
+    return find_with_prefix(first_non_zero == std::string::npos ? "0" : prefix.substr(first_non_zero));
 }
 
 }  // namespace cosmo::util

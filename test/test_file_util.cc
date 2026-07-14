@@ -188,6 +188,7 @@ TEST_CASE("FileUtil: FindPrefixedJsonFile", "[file-util]") {
     REQUIRE_FALSE(dir.empty());
 
     WriteFile(dir + "/config_v1.json", "{}");
+    WriteFile(dir + "/29_plate.json", "{}");
 
     SECTION("Found with prefix") {
         auto result = FindPrefixedJsonFile(dir, "config");
@@ -197,6 +198,11 @@ TEST_CASE("FileUtil: FindPrefixedJsonFile", "[file-util]") {
     SECTION("Not found returns empty") {
         auto result = FindPrefixedJsonFile(dir, "nonexistent");
         REQUIRE(result.empty());
+    }
+
+    SECTION("Numeric prefix falls back without leading zeros") {
+        auto result = FindPrefixedJsonFile(dir, "029");
+        REQUIRE(GetFileName(result) == "29_plate.json");
     }
 
     CleanupTestDir(dir);

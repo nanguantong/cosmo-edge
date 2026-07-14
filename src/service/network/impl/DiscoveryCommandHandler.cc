@@ -447,15 +447,26 @@ void DeviceDiscoveryServiceImpl::HandleModifyNetCard(InternalMsg&& data) {
         info.gateway  = recv_data.netCard.gateway;
         if (ServiceRegistry::Instance().Get<INetworkService>().SearchSetNewInfo(info, recv_data.netCard.dns1,
                                                                                 recv_data.netCard.dns2)) {
-            // Join any previous netcard config thread before starting a new one
-            if (netcard_thread_.joinable()) {
-                netcard_thread_.join();
+            std::thread previous_netcard_thread;
+            {
+                std::lock_guard<std::mutex> lock(thread_mtx_);
+                if (!stop_.load(std::memory_order_acquire)) {
+                    previous_netcard_thread = std::move(netcard_thread_);
+                }
             }
-            netcard_thread_ = std::thread([info, DNS]() {
-                std::this_thread::sleep_for(cosmo::timing::kOneSecondInterval);
-                platform::DoNetCard(info);
-                platform::DnsEffect(DNS);
-            });
+            if (previous_netcard_thread.joinable()) {
+                previous_netcard_thread.join();
+            }
+            {
+                std::lock_guard<std::mutex> lock(thread_mtx_);
+                if (!stop_.load(std::memory_order_acquire)) {
+                    netcard_thread_ = std::thread([info, DNS]() {
+                        std::this_thread::sleep_for(cosmo::timing::kOneSecondInterval);
+                        platform::DoNetCard(info);
+                        platform::DnsEffect(DNS);
+                    });
+                }
+            }
         }
     } while (false);
 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include <atomic>
+#include <mutex>
 #include <string>
 #include <thread>
 
@@ -61,6 +62,7 @@ private:
     std::string multicast_ip_;
     int multicast_port_;
     int socket_fd_{0};
+    std::mutex thread_mtx_;
     std::thread init_thread_;
     std::thread recv_thread_;
     std::thread netcard_thread_;

@@ -22,6 +22,16 @@
 
 namespace cosmo::service {
 
+namespace {
+
+    void JoinThread(std::thread thread) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+
+}  // namespace
+
 // Internal error codes for multicast init.
 enum class DiscoveryError {
     Success = 0,
@@ -46,23 +56,37 @@ DeviceDiscoveryServiceImpl::~DeviceDiscoveryServiceImpl() {
 }
 
 void DeviceDiscoveryServiceImpl::Start() {
-    stop_.store(false, std::memory_order_release);
+    std::lock_guard<std::mutex> lock(thread_mtx_);
+    if (stop_.load(std::memory_order_acquire) || init_thread_.joinable()) {
+        return;
+    }
+
     // Async init: retry in background thread to avoid blocking main process startup.
     init_thread_ = std::thread([this]() { InitLoop(); });
 }
 
 void DeviceDiscoveryServiceImpl::Stop() {
     stop_.store(true, std::memory_order_release);
+
+    probe_queue_.Stop();
+    async_queue_.Stop();
+    probe_queue_.stop();
+    async_queue_.stop();
+
+    std::thread init_thread;
+    std::thread recv_thread;
+    std::thread netcard_thread;
+    {
+        std::lock_guard<std::mutex> lock(thread_mtx_);
+        init_thread.swap(init_thread_);
+        recv_thread.swap(recv_thread_);
+        netcard_thread.swap(netcard_thread_);
+    }
+
+    JoinThread(std::move(init_thread));
+    JoinThread(std::move(recv_thread));
+    JoinThread(std::move(netcard_thread));
     CloseSocket();
-    if (init_thread_.joinable()) {
-        init_thread_.join();
-    }
-    if (recv_thread_.joinable()) {
-        recv_thread_.join();
-    }
-    if (netcard_thread_.joinable()) {
-        netcard_thread_.join();
-    }
 }
 
 void DeviceDiscoveryServiceImpl::InitLoop() {
@@ -70,7 +94,8 @@ void DeviceDiscoveryServiceImpl::InitLoop() {
     while (!stop_.load(std::memory_order_acquire)) {
         if (0 == InitMulticast()) {
             // Init succeeded, start receive loop.
-            if (!recv_thread_.joinable()) {
+            std::lock_guard<std::mutex> lock(thread_mtx_);
+            if (!stop_.load(std::memory_order_acquire) && !recv_thread_.joinable()) {
                 recv_thread_ = std::thread([this]() { RecvLoop(); });
             }
             LOG_INFO("{}", "device discovery service started successfully");
@@ -119,6 +144,14 @@ int DeviceDiscoveryServiceImpl::InitMulticast() {
     unsigned char ttl = 32;
     if (setsockopt(socket_fd_, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl)) < 0) {
         LOG_ERRO("setsockopt IP_MULTICAST_TTL failed, errno {}, errorMsg {}", errno, strerror(errno));
+        return static_cast<int>(DiscoveryError::Socket_SetoptFailed);
+    }
+
+    struct timeval recv_timeout {
+        1, 0
+    };
+    if (setsockopt(socket_fd_, SOL_SOCKET, SO_RCVTIMEO, &recv_timeout, sizeof(recv_timeout)) < 0) {
+        LOG_ERRO("setsockopt SO_RCVTIMEO failed, errno {}, errorMsg {}", errno, strerror(errno));
         return static_cast<int>(DiscoveryError::Socket_SetoptFailed);
     }
 
@@ -197,13 +230,11 @@ void DeviceDiscoveryServiceImpl::CloseSocket() {
             LOG_ERRO("setsockopt {} IP_DROP_MEMBERSHIP failed, errno {}, errorMsg {}", socket_fd_, errno,
                      strerror(errno));
         }
-        // Close socket
-        // if (close(socket_fd_))
-        if (shutdown(socket_fd_, SHUT_RDWR) < 0)  // Wake up blocking recvfrom
-        {
-            LOG_ERRO("shutdown {} failed, errno {}, errorMsg {}", socket_fd_, errno, strerror(errno));
+        if (close(socket_fd_) < 0) {
+            LOG_ERRO("close {} failed, errno {}, errorMsg {}", socket_fd_, errno, strerror(errno));
         }
         socket_fd_ = 0;
+        inited_.store(false, std::memory_order_release);
     } else {
         LOG_INFO("{}", "socket uninitialized");
     }
@@ -227,11 +258,16 @@ void DeviceDiscoveryServiceImpl::RecvLoop() {
             recvfrom(socket_fd_, msgBuf, sizeof(msgBuf), 0, reinterpret_cast<struct sockaddr*>(&peeraddr),
                      reinterpret_cast<socklen_t*>(&addrlen));
         if (bytes <= 0) {
+            if (stop_.load(std::memory_order_acquire)) {
+                break;
+            }
             LOG_ERRO("recvfrom mutlicast errno {}, errorMsg {}", errno, strerror(errno));
             // Prevent high CPU usage from continuous errors
             std::this_thread::sleep_for(cosmo::timing::kOneSecondInterval);
             // Receive error — possibly due to local IP address change
-            JoinMulticastGroup();
+            if (!stop_.load(std::memory_order_acquire)) {
+                JoinMulticastGroup();
+            }
             continue;
         }
 

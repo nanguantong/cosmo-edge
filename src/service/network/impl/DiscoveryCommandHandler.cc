@@ -460,10 +460,13 @@ void DeviceDiscoveryServiceImpl::HandleModifyNetCard(InternalMsg&& data) {
             {
                 std::lock_guard<std::mutex> lock(thread_mtx_);
                 if (!stop_.load(std::memory_order_acquire)) {
-                    netcard_thread_ = std::thread([info, DNS]() {
+                    netcard_thread_ = std::thread([this, info, DNS]() {
                         std::this_thread::sleep_for(cosmo::timing::kOneSecondInterval);
                         platform::DoNetCard(info);
                         platform::DnsEffect(DNS);
+                        if (!stop_.load(std::memory_order_acquire)) {
+                            restart_requested_.store(true, std::memory_order_release);
+                        }
                     });
                 }
             }

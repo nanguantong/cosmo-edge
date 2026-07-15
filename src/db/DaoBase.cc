@@ -3,34 +3,67 @@
 #include "db/DaoBase.h"
 
 #include <SQLiteCpp/SQLiteCpp.h>
+#include <sqlite3.h>
 
 #include <algorithm>
+#include <stdexcept>
+#include <utility>
 
 #include "util/Log.h"
 
 namespace cosmo::db {
 
-DaoBase::DaoBase(SQLite::Database& db) : db_(&db) {}
+DaoBase::ConnectionMutex::ConnectionMutex(sqlite3_mutex* mutex) : mutex_(mutex) {
+    if (mutex_ == nullptr) {
+        throw std::invalid_argument("DaoBase requires a serialized SQLite connection");
+    }
+}
+
+void DaoBase::ConnectionMutex::lock() {
+    sqlite3_mutex_enter(mutex_);
+}
+
+void DaoBase::ConnectionMutex::unlock() {
+    sqlite3_mutex_leave(mutex_);
+}
+
+DaoBase::DaoBase(SQLite::Database& db) : db_(&db), connection_mutex_(sqlite3_db_mutex(db.getHandle())) {}
 
 void DaoBase::Begin() {
-    if (!is_transaction_active_) {
-        db_->exec("BEGIN IMMEDIATE");
-        is_transaction_active_ = true;
+    std::unique_lock<ConnectionMutex> connection_lock(connection_mutex_);
+    if (is_transaction_active_) {
+        return;
     }
+
+    if (sqlite3_get_autocommit(db_->getHandle()) == 0) {
+        throw std::logic_error("Nested transactions on a shared SQLite connection are not supported");
+    }
+
+    db_->exec("BEGIN IMMEDIATE");
+    is_transaction_active_ = true;
+    transaction_lock_      = std::move(connection_lock);
 }
 
 void DaoBase::Commit() {
-    if (is_transaction_active_) {
-        db_->exec("COMMIT");
-        is_transaction_active_ = false;
+    std::unique_lock<ConnectionMutex> connection_lock(connection_mutex_);
+    if (!is_transaction_active_) {
+        return;
     }
+
+    db_->exec("COMMIT");
+    is_transaction_active_ = false;
+    transaction_lock_.unlock();
 }
 
 void DaoBase::Rollback() {
-    if (is_transaction_active_) {
-        db_->exec("ROLLBACK");
-        is_transaction_active_ = false;
+    std::unique_lock<ConnectionMutex> connection_lock(connection_mutex_);
+    if (!is_transaction_active_) {
+        return;
     }
+
+    db_->exec("ROLLBACK");
+    is_transaction_active_ = false;
+    transaction_lock_.unlock();
 }
 
 SQLite::Database& DaoBase::Db() {

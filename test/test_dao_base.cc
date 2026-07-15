@@ -5,9 +5,13 @@
 
 #include <SQLiteCpp/SQLiteCpp.h>
 
+#include <chrono>
+#include <future>
 #include <memory>
+#include <stdexcept>
 
 #include "db/DaoBase.h"
+#include "db/TransactionGuard.h"
 
 namespace cosmo::test {
 
@@ -27,7 +31,58 @@ public:
 namespace {
 
     SQLite::Database MakeInMemoryDb() {
-        return SQLite::Database(":memory:", SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE);
+        return SQLite::Database(":memory:",
+                                SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE | SQLite::OPEN_FULLMUTEX);
+    }
+
+    void VerifyTransactionsAreSerialized(TestableDao& first_dao, TestableDao& second_dao,
+                                         SQLite::Database& sqlite_db) {
+        using namespace std::chrono_literals;
+
+        std::promise<void> release_first;
+        auto release_first_future = release_first.get_future().share();
+        std::promise<void> first_started;
+        auto first_started_future = first_started.get_future();
+        std::promise<void> second_started;
+        auto second_started_future = second_started.get_future();
+
+        auto first_result = std::async(std::launch::async, [&]() {
+            db::TransactionGuard guard(first_dao);
+            sqlite_db.exec("INSERT INTO t_transaction_lock VALUES (1)");
+            first_started.set_value();
+            release_first_future.wait();
+            guard.Commit();
+        });
+
+        const auto first_status = first_started_future.wait_for(2s);
+        std::future<void> second_result;
+        bool second_was_blocked{false};
+        if (first_status == std::future_status::ready) {
+            second_result      = std::async(std::launch::async, [&]() {
+                db::TransactionGuard guard(second_dao);
+                second_started.set_value();
+                sqlite_db.exec("INSERT INTO t_transaction_lock VALUES (2)");
+            });
+            second_was_blocked = second_started_future.wait_for(100ms) == std::future_status::timeout;
+        }
+
+        release_first.set_value();
+        const auto first_completed  = first_result.wait_for(2s) == std::future_status::ready;
+        const auto second_completed = second_result.valid() &&
+                                      second_started_future.wait_for(2s) == std::future_status::ready &&
+                                      second_result.wait_for(2s) == std::future_status::ready;
+
+        REQUIRE(first_status == std::future_status::ready);
+        REQUIRE(first_completed);
+        REQUIRE_NOTHROW(first_result.get());
+        REQUIRE(second_was_blocked);
+        REQUIRE(second_completed);
+        REQUIRE_NOTHROW(second_result.get());
+
+        SQLite::Statement query(sqlite_db, "SELECT id FROM t_transaction_lock ORDER BY id");
+        REQUIRE(query.executeStep());
+        REQUIRE(query.getColumn(0).getInt() == 1);
+        REQUIRE_FALSE(query.executeStep());
     }
 
 }  // namespace
@@ -84,6 +139,28 @@ TEST_CASE("DaoBase: transaction control", "[dao-base]") {
         SQLite::Statement query(db, "SELECT val FROM t_rollback_test WHERE id = 1");
         REQUIRE(query.executeStep());
         REQUIRE(query.getColumn(0).getString() == "before");
+    }
+}
+
+TEST_CASE("DaoBase: transaction owns its SQLite connection for the guard lifetime",
+          "[dao-base][transaction-guard][thread]") {
+    auto sqlite_db = MakeInMemoryDb();
+    sqlite_db.exec("CREATE TABLE t_transaction_lock (id INTEGER PRIMARY KEY)");
+    TestableDao first_dao(sqlite_db);
+    TestableDao second_dao(sqlite_db);
+
+    SECTION("concurrent guards on the same DAO are serialized") {
+        VerifyTransactionsAreSerialized(first_dao, first_dao, sqlite_db);
+    }
+
+    SECTION("concurrent guards on different DAOs sharing a connection are serialized") {
+        VerifyTransactionsAreSerialized(first_dao, second_dao, sqlite_db);
+    }
+
+    SECTION("nested guards on different DAOs are rejected") {
+        db::TransactionGuard first_guard(first_dao);
+        REQUIRE_THROWS_AS(db::TransactionGuard(second_dao), std::logic_error);
+        first_guard.Commit();
     }
 }
 

@@ -1,9 +1,12 @@
 #pragma once
 
 #include <cstdint>
+#include <mutex>
 #include <string>
 #include <variant>
 #include <vector>
+
+struct sqlite3_mutex;
 
 namespace SQLite {
 class Database;
@@ -19,6 +22,9 @@ public:
     explicit DaoBase(SQLite::Database& db);
 
     virtual ~DaoBase() = default;
+
+    DaoBase(const DaoBase&)            = delete;
+    DaoBase& operator=(const DaoBase&) = delete;
 
     void Begin();
     void Commit();
@@ -48,7 +54,20 @@ protected:
     void AddColumnToTable(const std::string& table_name, const std::string& column_name, ColumnType type);
 
 private:
+    class ConnectionMutex {
+    public:
+        explicit ConnectionMutex(sqlite3_mutex* mutex);
+
+        void lock();
+        void unlock();
+
+    private:
+        sqlite3_mutex* mutex_;
+    };
+
     SQLite::Database* db_;
+    ConnectionMutex connection_mutex_;
+    std::unique_lock<ConnectionMutex> transaction_lock_;
     bool is_transaction_active_{false};
 };
 

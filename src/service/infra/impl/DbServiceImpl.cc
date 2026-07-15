@@ -16,7 +16,8 @@ namespace cosmo::service {
 DbServiceImpl::DbServiceImpl() {
     auto dbFileName = cosmo::path::GetDbPath() + "/ied.db";
 
-    sql_db_ = std::make_shared<SQLite::Database>(dbFileName, SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE);
+    sql_db_ = std::make_shared<SQLite::Database>(
+        dbFileName, SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE | SQLite::OPEN_FULLMUTEX);
 
     sql_db_->setBusyTimeout(5000);
 }

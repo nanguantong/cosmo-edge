@@ -120,11 +120,7 @@ TEST_CASE("ModelServiceImpl: 模型服务核心逻辑", "[model-service]") {
         }
 
         SECTION("UpdateModel 流程") {
-            // 预置（内置）模型不可更新 —— 在预置目录造一个
-            CreateTestModelOnDisk(testPresetDir, "preset_upd_001", "PresetUpdModel");
-            REQUIRE(sut.UpdateModel("preset_upd_001", "new_name", 4, "desc") ==
-                    cosmo::util::ErrorEnum::DefaultCantBeUpdate);
-
+            // UpdateModel 允许修改（含预置模型，config 改动可逆），这里验证用户模型可改
             ALLOW_CALL(mocks.algSvc, GetAlgorithmsByModelId("test_model_001"))
                 .RETURN(std::vector<std::string>{});
             ALLOW_CALL(mocks.cameraSvc, NotifyAlgorithmsChanged(trompeloeil::_, true));
@@ -134,9 +130,6 @@ TEST_CASE("ModelServiceImpl: 模型服务核心逻辑", "[model-service]") {
             // 验证修改
             auto info = sut.GetModelInfo("test_model_001");
             REQUIRE(info.name == "NewTestName");
-
-            // 清理预置目录，避免残留污染后续 SECTION
-            std::filesystem::remove_all(testPresetDir);
         }
 
         SECTION("GetModelConfig / SaveModelConfig 流程") {

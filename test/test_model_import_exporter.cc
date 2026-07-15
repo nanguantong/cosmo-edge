@@ -31,10 +31,11 @@ TEST_CASE("ModelImportExporter Tests", "[model]") {
     ModelImportExporter importExporter;
 
     std::string testRoot = "/tmp/cosmo_test_models";
-    cosmo::path::OverrideRootPathForTest(testRoot, testRoot);
+    // Separate user (udata) and preset (adata) roots so export-path checks don't flag test models.
+    cosmo::path::OverrideRootPathForTest(testRoot + "/udata", testRoot + "/adata");
 
-    std::string testModelDir    = testRoot + "/resource/models";
-    std::string testTemplateDir = testRoot + "/resource/model_template";
+    std::string testModelDir    = cosmo::path::GetModelPath();          // udata/resource/models (user)
+    std::string testTemplateDir = cosmo::path::GetModelTemplatePath();  // adata/resource/model_template
     fs::create_directories(testModelDir);
     fs::create_directories(testTemplateDir);
 

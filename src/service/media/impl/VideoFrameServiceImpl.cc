@@ -132,10 +132,7 @@ void VideoFrameServiceImpl::EndOSD() {
 }
 
 VideoFramePtr VideoFrameServiceImpl::Crop(const VideoFramePtr src_picture, const cosmo::util::Box roi) {
-    if (proc_) {
-        return proc_->Crop(src_picture, roi);
-    }
-    return src_picture;
+    return proc_->Crop(src_picture, roi);
 }
 
 VideoFramePtr VideoFrameServiceImpl::Resize(VideoFramePtr src, int dst_height, int dst_width) {

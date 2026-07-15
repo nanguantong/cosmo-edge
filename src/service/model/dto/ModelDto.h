@@ -155,6 +155,7 @@ namespace Model {
     struct MsgGetConfigSend : public MsgSendHead {
         struct ResData {
             std::string configJson;
+            bool isExportable{true};  // false for preset (encrypted, device-bound) models
             friend void to_json(nlohmann::json& j, const ResData& v);
             friend void from_json(const nlohmann::json& j, ResData& v);
         } resData;

@@ -28,7 +28,7 @@ public:
                                       const std::string&, const std::string&, const std::string&,
                                       std::string&),
                override);
-    MAKE_MOCK2(GetModelConfig, cosmo::util::ErrorEnum(const std::string&, std::string&), override);
+    MAKE_MOCK3(GetModelConfig, cosmo::util::ErrorEnum(const std::string&, std::string&, bool&), override);
     MAKE_MOCK2(SaveModelConfig, cosmo::util::ErrorEnum(const std::string&, const std::string&), override);
     MAKE_MOCK0(GetModelComponents, std::vector<cosmo::Model::MsgModelComponent>(), override);
     MAKE_MOCK1(DeleteModel, cosmo::util::ErrorEnum(const std::string&), override);

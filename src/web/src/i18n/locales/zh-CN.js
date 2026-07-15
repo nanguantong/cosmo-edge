@@ -545,6 +545,7 @@ export default {
     exportFailed: '导出失败',
     exportNetworkError: '导出失败，网络错误',
     saveFailedCannotExport: '保存配置失败，无法导出',
+    presetModelNotExportable: '预置模型不可导出',
     defaultRestored: '已恢复默认配置',
     addFailed: '添加失败',
     uploading: '上传中',

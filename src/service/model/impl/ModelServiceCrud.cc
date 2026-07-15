@@ -25,6 +25,7 @@
 #include "util/Exec.h"
 #include "util/JsonFileUtil.h"
 #include "util/JsonStructUtil.h"
+#include "util/PathUtil.h"
 #include "util/StringUtil.h"
 #include "util/TimeUtil.h"
 
@@ -140,13 +141,17 @@ void ModelServiceImpl::NotifyAlgorithmsChanged(const std::string& modelCode, boo
 // Config CRUD
 // ──────────────────────────────────────────────
 
-cosmo::util::ErrorEnum ModelServiceImpl::GetModelConfig(const std::string& modelCode,
-                                                        std::string& configJson) {
+cosmo::util::ErrorEnum ModelServiceImpl::GetModelConfig(const std::string& modelCode, std::string& configJson,
+                                                        bool& isExportable) {
     std::string model_dir_path = FindModelDir(modelCode);
     if (model_dir_path.empty()) {
         LOG_WARN("Model directory not found for modelCode: {}", modelCode);
         return cosmo::util::ErrorEnum::FileNotExist;
     }
+
+    // Preset (built-in) models live under the preset path and are encrypted / device-bound,
+    // so they must not be exported.
+    isExportable = !cosmo::path::IsWithinRoot(cosmo::path::GetPresetModelPath(), model_dir_path);
 
     std::string config_path = (std::filesystem::path(model_dir_path) / "config.json").string();
 

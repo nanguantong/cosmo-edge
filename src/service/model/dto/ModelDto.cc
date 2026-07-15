@@ -325,10 +325,12 @@ void to_json(nlohmann::json& j, const MsgUploadTempSend::ResData& v) {
 
 void from_json(const nlohmann::json& j, MsgGetConfigSend::ResData& v) {
     JSON_OPT(j, v, configJson);
+    JSON_OPT(j, v, isExportable);
 }
 
 void to_json(nlohmann::json& j, const MsgGetConfigSend::ResData& v) {
-    j["configJson"] = v.configJson;
+    j["configJson"]   = v.configJson;
+    j["isExportable"] = v.isExportable;
 }
 
 }  // namespace cosmo::Model

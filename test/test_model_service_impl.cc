@@ -128,7 +128,9 @@ TEST_CASE("ModelServiceImpl: 模型服务核心逻辑", "[model-service]") {
 
         SECTION("GetModelConfig / SaveModelConfig 流程") {
             std::string cfgJson;
-            REQUIRE(sut.GetModelConfig("test_model_001", cfgJson) == cosmo::util::ErrorEnum::Success);
+            bool isExportable{false};
+            REQUIRE(sut.GetModelConfig("test_model_001", cfgJson, isExportable) ==
+                    cosmo::util::ErrorEnum::Success);
             REQUIRE(cfgJson.find("TestModel") != std::string::npos);
 
             ALLOW_CALL(mocks.algSvc, GetAlgorithmsByModelId("test_model_001"))
@@ -144,7 +146,8 @@ TEST_CASE("ModelServiceImpl: 模型服务核心逻辑", "[model-service]") {
             REQUIRE(sut.SaveModelConfig("test_model_001", newJson) == cosmo::util::ErrorEnum::Success);
 
             std::string updatedJson;
-            REQUIRE(sut.GetModelConfig("test_model_001", updatedJson) == cosmo::util::ErrorEnum::Success);
+            REQUIRE(sut.GetModelConfig("test_model_001", updatedJson, isExportable) ==
+                    cosmo::util::ErrorEnum::Success);
             REQUIRE(updatedJson.find("SavedModel") != std::string::npos);
         }
 

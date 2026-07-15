@@ -96,6 +96,7 @@ enum class ErrorEnum : uint32_t {
     TimeTemplateCountLimit,  // Time template count exceeds limit
     DefaultCantBeDelete,     // Default cannot be deleted
     DefaultCantBeUpdate,     // Default cannot be modified
+    DefaultCantBeExport,     // Default cannot be exported (preset/encrypted model)
     CameraNotExist,          // Camera does not exist
     CameraNotOnline,         // Camera is not online
     CameraCountLimit,        // Camera count reached the limit

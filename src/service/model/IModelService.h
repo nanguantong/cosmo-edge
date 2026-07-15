@@ -89,10 +89,12 @@ public:
     // ── Model Configuration ──
 
     /// Get the JSON configuration of a model.
-    /// @param modelCode  Model code identifier.
-    /// @param configJson [out] Configuration JSON string.
+    /// @param modelCode    Model code identifier.
+    /// @param configJson   [out] Configuration JSON string.
+    /// @param isExportable [out] Whether the model may be exported (false for preset models).
     /// @return ErrorEnum::kSuccess on success.
-    virtual cosmo::util::ErrorEnum GetModelConfig(const std::string& modelCode, std::string& configJson) = 0;
+    virtual cosmo::util::ErrorEnum GetModelConfig(const std::string& modelCode, std::string& configJson,
+                                                  bool& isExportable) = 0;
 
     /// Save a model's JSON configuration.
     /// @param modelCode  Model code identifier.

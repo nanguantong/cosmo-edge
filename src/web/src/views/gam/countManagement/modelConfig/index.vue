@@ -71,6 +71,7 @@ const modelType = ref('')
 const chipType = ref('')
 const version = ref('')
 const isExportable = ref(true)
+const defaultConfigJson = ref('')
 const showOther = ref(false)
 const flowData = ref({})
 const paramsConfig = ref({})
@@ -200,8 +201,17 @@ const handleReset = () => {
   proxy.$confirm(t('validate.confirmResetDefault'), t('common.notice'), {
     type: 'warning'
   }).then(() => {
-    if (raw.value) hydrate(raw.value)
-    proxy.$message.success(t('common.defaultRestored'))
+    const text = defaultConfigJson.value
+    if (!text) {
+      proxy.$message.warning(t('common.noDefaultConfig'))
+      return
+    }
+    try {
+      hydrate(JSON.parse(text))
+      proxy.$message.success(t('common.defaultRestored'))
+    } catch {
+      proxy.$message.error(t('validate.editFailed'))
+    }
   })
 }
 
@@ -215,6 +225,7 @@ const queryModelConfig = () => {
     const { resData } = res || {}
     const text = resData?.configJson || '{}'
     isExportable.value = resData?.isExportable !== false
+    defaultConfigJson.value = resData?.defaultConfigJson || ''
     let cfg = {}
     try {
       cfg = JSON.parse(text)

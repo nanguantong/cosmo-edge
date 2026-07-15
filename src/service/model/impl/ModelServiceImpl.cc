@@ -102,15 +102,26 @@ void ModelServiceImpl::Init() {
         [this](const std::string& code, const std::string& path) { SetModelPathMapping(code, path); });
 
     // Scan models directory to build path mappings at startup
-    namespace fs = std::filesystem;
+    namespace fs                  = std::filesystem;
+    const std::string preset_root = cosmo::path::GetPresetModelPath();
     for (const auto& modelsDir : GetModelSearchPaths()) {
+        const bool is_preset_dir = cosmo::path::IsWithinRoot(preset_root, modelsDir);
         std::error_code ec;
         for (const auto& dirEntry : fs::directory_iterator(modelsDir, ec)) {
             if (!dirEntry.is_directory())
                 continue;
-            auto cfg = detail::ModelConfigParser::Parse((dirEntry.path() / "config.json").string());
+            const fs::path cfg_path = dirEntry.path() / "config.json";
+            auto cfg                = detail::ModelConfigParser::Parse(cfg_path.string());
             if (cfg.valid && !cfg.algorithm_code.empty() && GetModelPathMapping(cfg.algorithm_code).empty()) {
                 SetModelPathMapping(cfg.algorithm_code, dirEntry.path().string());
+            }
+            // Preset models: snapshot the factory config so "restore defaults" can revert user edits.
+            if (is_preset_dir) {
+                const fs::path default_cfg = dirEntry.path() / "config.default.json";
+                std::error_code cp_ec;
+                if (!fs::exists(default_cfg, cp_ec)) {
+                    fs::copy_file(cfg_path, default_cfg, fs::copy_options::skip_existing, cp_ec);
+                }
             }
         }
         if (ec) {

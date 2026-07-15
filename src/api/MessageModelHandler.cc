@@ -59,7 +59,7 @@ Model::MsgGetConfigSend MessageModelHandler::Handle(Model::MsgGetConfigRecv&& da
                                                     std::error_condition& errc) const {
     Model::MsgGetConfigSend retData{};
     errc = model_service_.GetModelConfig(data.modelCode, retData.resData.configJson,
-                                         retData.resData.isExportable);
+                                         retData.resData.isExportable, retData.resData.defaultConfigJson);
     return retData;
 }
 

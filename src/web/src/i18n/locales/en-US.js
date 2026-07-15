@@ -546,6 +546,7 @@ export default {
     exportNetworkError: 'Export failed due to network error',
     saveFailedCannotExport: 'Failed to save config, unable to export',
     presetModelNotExportable: 'Preset model cannot be exported',
+    noDefaultConfig: 'No factory config available to restore',
     defaultRestored: 'Default config restored',
     addFailed: 'Add failed',
     uploading: 'Uploading',

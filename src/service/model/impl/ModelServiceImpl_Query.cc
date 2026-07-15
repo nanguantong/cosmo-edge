@@ -27,7 +27,9 @@ void ModelServiceImpl::QueryModels(const std::string& modelName, const std::stri
     std::vector<cosmo::Model::MsgModel> all_models;
     std::unordered_set<std::string> seenModelCodes;
 
-    for (const auto& models_dir : GetModelSearchPaths()) {
+    const std::vector<std::string> search_paths = GetModelSearchPaths();
+    const std::string& preset_path              = search_paths.back();
+    for (const auto& models_dir : search_paths) {
         std::error_code ec;
         for (const auto& dirEntry : fs::directory_iterator(models_dir, ec)) {
             if (!dirEntry.is_directory())
@@ -65,6 +67,10 @@ void ModelServiceImpl::QueryModels(const std::string& modelName, const std::stri
             }
 
             model.gpuCode = cosmo::util::kEngineType;
+
+            // Preset (built-in) models live under the preset search path and are
+            // encrypted / read-only — not deletable / updatable / exportable.
+            model.isExportable = (models_dir != preset_path);
 
             // Convert parsed labels to MsgModelLabel and serialize to JSON string
             std::vector<cosmo::Model::MsgModelLabel> model_labels;

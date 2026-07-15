@@ -83,7 +83,7 @@ TEST_CASE("ModelHandler: GetModelConfig", "[model-handler]") {
     MockServiceRegistry mocks;
     auto handler = MakeHandler(mocks);
 
-    REQUIRE_CALL(mocks.modelSvc, GetModelConfig("model-1", _, _))
+    REQUIRE_CALL(mocks.modelSvc, GetModelConfig("model-1", _, _, _))
         .SIDE_EFFECT(_2 = "{\"key\":\"value\"}")
         .SIDE_EFFECT(_3 = true)
         .RETURN(cosmo::util::ErrorEnum::Success);

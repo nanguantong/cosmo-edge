@@ -236,8 +236,8 @@
       </div>
 
       <template #footer>
-        <el-button v-if="!defaultModels.includes(detailModel.modelCode)" @click="editFromDetail">{{ t('action.editModel') }}</el-button>
-        <el-button v-if="!defaultModels.includes(detailModel.modelCode)" type="danger" plain @click="deleteFromDetail">{{ t('action.delete') }}</el-button>
+        <el-button @click="editFromDetail">{{ t('action.editModel') }}</el-button>
+        <el-button v-if="detailModel.isExportable" type="danger" plain @click="deleteFromDetail">{{ t('action.delete') }}</el-button>
         <el-button type="primary" @click="modelDetailDialogVisible = false">{{ t('action.close') }}</el-button>
       </template>
     </el-dialog>
@@ -600,17 +600,6 @@ const addModelForm = reactive({
   normalizationMode: '0-1',
   colorChannel: 'rgb'
 })
-
-const defaultModels = ref([
-  '1000001',
-  '1000005',
-  '1000010',
-  '1000012',
-  '1000016',
-  '1001003',
-  '1001007',
-  '1001008'
-])
 
 const modelTypeGroups = computed(() => [
   {

@@ -272,6 +272,7 @@ void from_json(const nlohmann::json& j, MsgModel& v) {
     JSON_OPT(j, v, inputDim);
     JSON_OPT(j, v, outputCount);
     JSON_OPT(j, v, outputDim);
+    JSON_OPT(j, v, isExportable);
 }
 
 void to_json(nlohmann::json& j, const MsgModel& v) {
@@ -293,6 +294,7 @@ void to_json(nlohmann::json& j, const MsgModel& v) {
     j["inputDim"]       = v.inputDim;
     j["outputCount"]    = v.outputCount;
     j["outputDim"]      = v.outputDim;
+    j["isExportable"]   = v.isExportable;
 }
 
 void from_json(const nlohmann::json& j, MsgPageSend::ResData& v) {
@@ -326,11 +328,13 @@ void to_json(nlohmann::json& j, const MsgUploadTempSend::ResData& v) {
 void from_json(const nlohmann::json& j, MsgGetConfigSend::ResData& v) {
     JSON_OPT(j, v, configJson);
     JSON_OPT(j, v, isExportable);
+    JSON_OPT(j, v, defaultConfigJson);
 }
 
 void to_json(nlohmann::json& j, const MsgGetConfigSend::ResData& v) {
-    j["configJson"]   = v.configJson;
-    j["isExportable"] = v.isExportable;
+    j["configJson"]        = v.configJson;
+    j["isExportable"]      = v.isExportable;
+    j["defaultConfigJson"] = v.defaultConfigJson;
 }
 
 }  // namespace cosmo::Model

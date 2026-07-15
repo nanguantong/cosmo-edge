@@ -31,11 +31,10 @@ TEST_CASE("ModelImportExporter Tests", "[model]") {
     ModelImportExporter importExporter;
 
     std::string testRoot = "/tmp/cosmo_test_models";
-    // Separate user (udata) and preset (adata) roots so export-path checks don't flag test models.
-    cosmo::path::OverrideRootPathForTest(testRoot + "/udata", testRoot + "/adata");
+    cosmo::path::OverrideRootPathForTest(testRoot, testRoot);
 
-    std::string testModelDir    = cosmo::path::GetModelPath();          // udata/resource/models (user)
-    std::string testTemplateDir = cosmo::path::GetModelTemplatePath();  // adata/resource/model_template
+    std::string testModelDir    = testRoot + "/resource/models";
+    std::string testTemplateDir = testRoot + "/resource/model_template";
     fs::create_directories(testModelDir);
     fs::create_directories(testTemplateDir);
 
@@ -55,7 +54,7 @@ TEST_CASE("ModelImportExporter Tests", "[model]") {
                                   if (code == "1234567")
                                       return testModelDir + "/1234567";
                                   if (code == "test_export_model")
-                                      return testModelDir + "/test_export_model";
+                                      return testRoot + "/export_target/test_export_model";
                                   return std::string("");
                               },
                               [&]() { return std::string("1234567"); }, [&](const nlohmann::json&) {},
@@ -389,7 +388,7 @@ TEST_CASE("ModelImportExporter Tests", "[model]") {
     }
 
     SECTION("2.4 ExportModelConfig：验证 tar.gz 创建") {
-        std::string exportModelDir = testModelDir + "/test_export_model";
+        std::string exportModelDir = testRoot + "/export_target/test_export_model";
         fs::create_directories(exportModelDir);
         std::ofstream outCfg(exportModelDir + "/config.json");
         outCfg << "{\"modelCode\": \"test_export_model\", \"algorithmVersion\": \"1.0.0\"}";

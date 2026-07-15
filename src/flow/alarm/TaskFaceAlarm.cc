@@ -275,7 +275,7 @@ void TaskFaceAlarm::HandPicture(CMsgFaceEventReq& msg, AlgDataPtr algData, DataA
     }
     LOG_INFO("{}.{} {}x{}  {}x{} BoxCount:{}", alarmUnit.box.x, alarmUnit.box.y, alarmUnit.box.width,
              alarmUnit.box.height, cropBox.width, cropBox.height, alarmUnit.boxs.size());
-    if (cropBox.width * cropBox.height > 0) {
+    if (!cropBox.empty()) {
         auto cutImg =
             service::ServiceRegistry::Instance().Get<service::IVideoFrameTransform>().Crop(origImg, cropBox);
         auto cutJpeg =

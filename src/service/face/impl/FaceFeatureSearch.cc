@@ -379,22 +379,12 @@ std::error_condition FaceFeatureExtractor::HandFeatureImage(VideoFramePtr& image
         }
         LOG_INFO("{}HandFeatureImage success, feature_len:{}", kTag, aifeature.feature.size());
 
-        TargetScalerParam param;
-        param.scale_north = 2.0f;
-        param.scale_south = 2.0f;
-        param.scale_east  = 2.0f;
-        param.scale_west  = 2.0f;
-        auto scle         = DoScaleBox(det_bounding_box, param, static_cast<int>(image->GetWidth()),
-                                       static_cast<int>(image->GetHeight()));
-
-        util::Box crop_box;
-        crop_box.x      = scle.x;
-        crop_box.y      = scle.y;
-        crop_box.width  = scle.width;
-        crop_box.height = scle.height;
-
         cutImage =
-            service::ServiceRegistry::Instance().Get<service::IVideoFrameTransform>().Crop(image, crop_box);
+            service::ServiceRegistry::Instance().Get<service::IVideoFrameTransform>().Crop(image, rect);
+        if (!VideoFrameValid(cutImage)) {
+            LOG_ERRO("{}Crop face image failed", kTag);
+            return util::ErrorEnum::InternalError;
+        }
         return util::ErrorEnum::Success;
     }
     LOG_ERRO("{}person is not in center, scaled box x:{} w:{}, center_x:{}", kTag, rect.x, rect.width,

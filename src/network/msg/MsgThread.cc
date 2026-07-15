@@ -15,13 +15,32 @@ void MsgThread::Stop() {
         return;
 
     is_exit_ = true;
-
-    // Wake up the worker thread if it is blocked waiting for messages.
-    MsgEnvelope msg(kMsgThreadStop, nullptr);
-    this->Put(std::move(msg));
-
+    PutStopMessage();
     Thread::stop();
+    is_exit_ = true;
+    FinishStop();
+}
 
+void MsgThread::DrainAndStop() {
+    if (is_exit_)
+        return;
+
+    // The stop message is appended after all accepted work, so the worker
+    // processes the existing queue before it exits.
+    PutStopMessage();
+    Thread::stop();
+    is_exit_ = true;
+    FinishStop();
+}
+
+void MsgThread::PutStopMessage() {
+    std::lock_guard<std::mutex> lock(mtx_);
+    msg_list_.emplace_back(kMsgThreadStop, nullptr);
+    msg_size_ = msg_list_.size();
+    cond_.notify_all();
+}
+
+void MsgThread::FinishStop() {
     // Drain remaining messages.
     ClearMsgList();
 

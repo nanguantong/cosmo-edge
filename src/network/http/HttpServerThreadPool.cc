@@ -21,7 +21,8 @@ bool HttpServerThreadPool::Initialize(int thread_num, HttpServer* server, Dispat
     if (thread_num <= 0) {
         return false;
     }
-    thread_num_ = thread_num;
+    is_accepting_ = false;
+    thread_num_   = thread_num;
     msg_handler_threads_.resize(thread_num_);
     for (int idx = 0; idx < thread_num; ++idx) {
         char name[64] = {0};
@@ -37,6 +38,9 @@ bool HttpServerThreadPool::Initialize(int thread_num, HttpServer* server, Dispat
         }
     }
 
+    prio0_interface_.clear();
+    prio1_interface_.clear();
+
     // Priority 0: restart, reset etc.
     prio0_interface_.push_back(cosmo::util::ToLower("dologin"));
     prio0_interface_.push_back(cosmo::util::ToLower("ResetSystem"));
@@ -44,13 +48,15 @@ bool HttpServerThreadPool::Initialize(int thread_num, HttpServer* server, Dispat
     // Priority 1: non-blocking or debug
     prio1_interface_.push_back(cosmo::util::ToLower("ThreadDebugInfo"));
     prio1_interface_.push_back(cosmo::util::ToLower("QueryDeviceInfo"));
+    is_accepting_ = true;
     return true;
 }
 
 void HttpServerThreadPool::Uninitialize() {
+    is_accepting_ = false;
     if (!msg_handler_threads_.empty()) {
         for (int idx = 0; idx < thread_num_; ++idx) {
-            msg_handler_threads_[idx]->Stop();
+            msg_handler_threads_[idx]->DrainAndStop();
         }
 
         msg_handler_threads_.clear();
@@ -79,7 +85,7 @@ int HttpServerThreadPool::MsgInPrioIndex(cosmo::MsgEnvelope& msg) {
 }
 
 int HttpServerThreadPool::PutMsg(cosmo::MsgEnvelope&& msg) {
-    if (msg_handler_threads_.empty())
+    if (!is_accepting_ || msg_handler_threads_.empty())
         return -1;
 
     size_t minMsgCount = std::numeric_limits<size_t>::max();

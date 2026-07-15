@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <string>
@@ -8,9 +9,10 @@
 
 #include "network/msg/MsgTask.h"
 
-struct evhttp_request;
-
 namespace cosmo::network::http {
+
+using HttpRequestToken                              = std::uint64_t;
+constexpr HttpRequestToken kInvalidHttpRequestToken = 0;
 
 // HTTP request type codes (used for internal message routing)
 enum class HttpReqType {
@@ -52,11 +54,13 @@ enum class InnerMsgId {
 };
 
 enum class HttpResponseCode {
-    kOk               = 200,
-    kBadRequest       = 400,
-    kNeedAuthenticate = 401,
-    kNotFound         = 404,
-    kBadMethod        = 405,
+    kOk                 = 200,
+    kBadRequest         = 400,
+    kNeedAuthenticate   = 401,
+    kNotFound           = 404,
+    kBadMethod          = 405,
+    kInternalError      = 500,
+    kServiceUnavailable = 503,
 };
 
 // Response code to message mapping
@@ -67,35 +71,41 @@ inline const std::map<int, std::string>& GetHttpResCodeMsg() {
         {static_cast<int>(HttpResponseCode::kNeedAuthenticate), "NEED AUTHENTICATE"},
         {static_cast<int>(HttpResponseCode::kNotFound), "NOT FOUND"},
         {static_cast<int>(HttpResponseCode::kBadMethod), "METHOD NOT FOR THIS URI"},
+        {static_cast<int>(HttpResponseCode::kInternalError), "INTERNAL SERVER ERROR"},
+        {static_cast<int>(HttpResponseCode::kServiceUnavailable), "SERVICE UNAVAILABLE"},
     };
     return kMap;
 }
 
 // HTTP request task
 struct HttpReqTask : cosmo::MsgTask {
-    struct evhttp_request* request;
+    HttpRequestToken request_token{kInvalidHttpRequestToken};
     std::chrono::steady_clock::time_point request_time;
     std::string interface;
+    std::string x_forwarded_for;
+    std::string mtk;
+    std::string body;
     bool has_tmp_path{false};
     std::string tmp_file_path;
 
-    virtual ~HttpReqTask() = default;
-    explicit HttpReqTask(struct evhttp_request* req, std::chrono::steady_clock::time_point time,
-                         std::string iface)
-        : request(req), request_time(time), interface(std::move(iface)) {}
+    ~HttpReqTask() override = default;
 };
 
 // HTTP response task
 struct HttpAckTask : cosmo::MsgTask {
     int http_ack_code;
-    struct evhttp_request* request;
+    HttpRequestToken request_token;
     std::string response;
     std::string request_id;
     std::string file_path;
     std::string file_name;
 
-    explicit HttpAckTask(int ackCode, struct evhttp_request* req, std::string&& resp, std::string&& reqID)
-        : http_ack_code(ackCode), request(req), response(std::move(resp)), request_id(std::move(reqID)) {}
+    explicit HttpAckTask(int ack_code, HttpRequestToken token, std::string response_body,
+                         std::string response_request_id)
+        : http_ack_code(ack_code),
+          request_token(token),
+          response(std::move(response_body)),
+          request_id(std::move(response_request_id)) {}
 };
 
 // Callback configuration for path resolution (injected from service layer)

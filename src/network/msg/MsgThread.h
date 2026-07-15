@@ -22,6 +22,9 @@ public:
     // Stop the message-loop thread and join.
     void Stop();
 
+    // Process all queued messages, then stop the message-loop thread and join.
+    void DrainAndStop();
+
     // Enqueue a message. Returns current queue size.
     size_t Put(MsgEnvelope&& msg, bool push_back = true);
 
@@ -51,6 +54,12 @@ protected:
 private:
     // Dequeue the front message (blocks until available).
     size_t Get(MsgEnvelope& msg);
+
+    // Enqueue the internal stop message even when the regular queue is full.
+    void PutStopMessage();
+
+    // Release pending messages and notify subclasses after the thread has joined.
+    void FinishStop();
 
 protected:
     MsgEnvelopeList msg_list_;  // Pending message queue

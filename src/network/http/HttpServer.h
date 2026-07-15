@@ -1,8 +1,13 @@
 #pragma once
 
 #include <atomic>
+#include <condition_variable>
+#include <cstdint>
 #include <list>
+#include <memory>
 #include <mutex>
+#include <thread>
+#include <unordered_map>
 
 #include "event2/buffer.h"
 #include "event2/event.h"
@@ -18,8 +23,11 @@ namespace cosmo::network::http {
 
 class HttpServer {
 public:
-    HttpServer();
+    HttpServer() = default;
     virtual ~HttpServer();
+
+    HttpServer(const HttpServer&)            = delete;
+    HttpServer& operator=(const HttpServer&) = delete;
 
     void SetAppInfo(const std::string& app_key, const std::string& app_secret);
 
@@ -37,21 +45,26 @@ public:
 
     // Enqueue an ack result for the event loop to send
     template <typename T>
-    void AckResult(HttpResponseCode hcode, struct evhttp_request* req, T& t, const std::string& req_id) {
+    void AckResult(HttpResponseCode hcode, HttpRequestToken request_token, T& t, const std::string& req_id) {
         std::string strJsonRes;
         if (!cosmo::util::EncodeJson(t, strJsonRes)) {
             // log failed
         }
         LOG_DEBUG("{}", strJsonRes);
-        cosmo::MsgEnvelope msg(
-            static_cast<int>(InnerMsgId::kHttpAck),
-            std::make_unique<HttpAckTask>(static_cast<int>(hcode), req, std::move(strJsonRes), req_id));
+        cosmo::MsgEnvelope msg(static_cast<int>(InnerMsgId::kHttpAck),
+                               std::make_unique<HttpAckTask>(static_cast<int>(hcode), request_token,
+                                                             std::move(strJsonRes), req_id));
 
         this->Put(std::move(msg));
     }
 
     // Enqueue a message
     int Put(cosmo::MsgEnvelope&& msg);
+
+    /// Access callbacks for path resolution (used by MsgHanderThread).
+    const HttpServerCallbacks& callbacks() const {
+        return callbacks_;
+    }
 
 protected:
     // Process response message list
@@ -66,19 +79,54 @@ protected:
     bool AddCommonHeaders(struct evkeyvalq* ev_header, const std::string& req_id);
 
 private:
+    enum class LifecycleState {
+        kStopped,
+        kInitialized,
+        kDispatching,
+        kStopping,
+    };
+
+    struct RequestContext {
+        // Non-owning libevent handles. This context is created, read, and
+        // destroyed only by the event thread.
+        HttpServer* server;
+        HttpRequestToken token;
+        struct evhttp_request* request;
+        struct evhttp_connection* connection;
+    };
+
     // libevent callbacks
     static void ComGenCb(struct evhttp_request* req, void* arg);
-    void InsertHttpReqMsg(struct evhttp_request* req);
+    static void RequestCompleteCb(struct evhttp_request* req, void* arg);
+    static void ConnectionCloseCb(struct evhttp_connection* connection, void* arg);
 
+    void InsertHttpReqMsg(struct evhttp_request* req);
     void InsertHttpOctetMsg(struct evhttp_request* req);
+    void InsertHttpMsg(struct evhttp_request* req, InnerMsgId msg_id);
+
+    std::unique_ptr<HttpReqTask> BuildHttpReqTask(struct evhttp_request* req);
+    bool ExtractMultipartBody(HttpReqTask* task, struct evhttp_request* req, const std::string& content_type);
+
+    HttpRequestToken RegisterRequest(struct evhttp_request* req);
+    struct evhttp_request* FindRequest(HttpRequestToken token) const;
+    void CompleteRequest(HttpRequestToken token, const struct evhttp_request* req);
+    void CloseRequest(HttpRequestToken token, struct evhttp_connection* connection);
+
+    void SendImmediateError(struct evhttp_request* req, HttpResponseCode code);
+    void StopAccepting();
+    void ShutdownOnEventThread();
+    void CleanupEventResources();
+    void MarkStopped();
 
     int DispatchJsonMsg(HttpAckTask* task);
     int DispatchFileMsg(HttpAckTask* task);
 
     HttpServerThreadPool thread_pool_;
     std::atomic<bool> is_running_{false};
+    std::atomic<bool> is_accepting_requests_{false};
     struct event_base* event_base_{nullptr};
     struct evhttp* event_http_{nullptr};
+    struct evhttp_bound_socket* bound_socket_{nullptr};
 
     // Periodic tick event to wake the event loop for response queue processing
     struct event* tick_event_{nullptr};
@@ -87,17 +135,19 @@ private:
     std::list<cosmo::MsgEnvelope> msg_list_;
     std::mutex msg_mutex_;
 
+    std::unordered_map<HttpRequestToken, std::unique_ptr<RequestContext>> active_requests_;
+    HttpRequestToken next_request_token_{1};
+
+    LifecycleState lifecycle_state_{LifecycleState::kStopped};
+    std::thread::id event_thread_id_;
+    std::mutex lifecycle_mutex_;
+    std::condition_variable lifecycle_cv_;
+
     std::string app_key_;
     std::string app_secret_;
 
     DispatcherFactory dispatcher_factory_;
     HttpServerCallbacks callbacks_;
-
-public:
-    /// Access callbacks for path resolution (used by MsgHanderThread)
-    const HttpServerCallbacks& callbacks() const {
-        return callbacks_;
-    }
 };
 
 }  // namespace cosmo::network::http

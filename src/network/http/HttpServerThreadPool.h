@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <string>
@@ -31,6 +32,7 @@ public:
 private:
     int MsgInPrioIndex(cosmo::MsgEnvelope& msg);
     std::vector<std::unique_ptr<MsgHanderThread>> msg_handler_threads_;
+    std::atomic<bool> is_accepting_{false};
     int thread_num_     = 4;
     int cur_thread_idx_ = -1;
     std::vector<std::string> prio0_interface_;

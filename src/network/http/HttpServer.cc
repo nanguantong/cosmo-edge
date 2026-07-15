@@ -4,27 +4,37 @@
 
 #include <event2/keyvalq_struct.h>
 #include <event2/util.h>
-#include <unistd.h>
 
+#include <cstdio>
+#include <cstring>
+#include <filesystem>
 #include <memory>
 
 #include "event2/http.h"
-#include "event2/http_struct.h"
-#include "event2/thread.h"
 #include "network/http/HttpCommon.h"
-#include "network/http/HttpServerThread.h"
-#include "network/http/HttpServerThreadPool.h"
+#include "network/http/MultipartStreamParser.h"
 #include "util/CipherUtil.h"
+#include "util/FileUtil.h"
 #include "util/JsonStructUtil.h"
 #include "util/Log.h"
-#include "util/StringUtil.h"
 #include "util/UuidUtil.h"
 
 namespace chrono = std::chrono;
 
 namespace cosmo::network::http {
 
-HttpServer::HttpServer() {}
+namespace {
+
+    constexpr auto kShutdownDrainTimeout = chrono::seconds(5);
+
+    const char* FindHeader(struct evkeyvalq* headers, const char* name) {
+        if (headers == nullptr) {
+            return nullptr;
+        }
+        return evhttp_find_header(headers, name);
+    }
+
+}  // namespace
 
 HttpServer::~HttpServer() {
     UnInitialize();
@@ -35,36 +45,181 @@ void HttpServer::ComGenCb(struct evhttp_request* req, void* arg) {
         LOG_WARN("{}", "ComGenCb Get Null Request");
         return;
     }
+    auto* http_server = static_cast<HttpServer*>(arg);
+    if (http_server == nullptr) {
+        return;
+    }
+    if (!http_server->is_accepting_requests_) {
+        http_server->SendImmediateError(req, HttpResponseCode::kServiceUnavailable);
+        return;
+    }
+
     auto uri = evhttp_request_get_uri(req);
+    if (uri == nullptr) {
+        http_server->SendImmediateError(req, HttpResponseCode::kBadRequest);
+        return;
+    }
     if (strncmp(uri, "/v1/cwai/aihost/", strlen("/v1/cwai/aihost/")) == 0) {
-        if (auto httpServer = static_cast<HttpServer*>(arg))
-            httpServer->InsertHttpReqMsg(req);
+        http_server->InsertHttpReqMsg(req);
     } else if (strncmp(uri, "/logs/", strlen("/logs/")) == 0) {
-        if (auto httpServer = static_cast<HttpServer*>(arg))
-            httpServer->InsertHttpOctetMsg(req);
+        http_server->InsertHttpOctetMsg(req);
     } else {
-        // BAD REQUEST
-        if (auto httpServer = static_cast<HttpServer*>(arg))
-            httpServer->InsertHttpReqMsg(req);
+        http_server->InsertHttpReqMsg(req);
     }
 }
 
+void HttpServer::RequestCompleteCb(struct evhttp_request* req, void* arg) {
+    auto* context = static_cast<RequestContext*>(arg);
+    if (context == nullptr) {
+        return;
+    }
+    auto* server = context->server;
+    auto token   = context->token;
+    server->CompleteRequest(token, req);
+}
+
+void HttpServer::ConnectionCloseCb(struct evhttp_connection* connection, void* arg) {
+    auto* context = static_cast<RequestContext*>(arg);
+    if (context == nullptr) {
+        return;
+    }
+    auto* server = context->server;
+    auto token   = context->token;
+    server->CloseRequest(token, connection);
+}
+
 void HttpServer::InsertHttpReqMsg(struct evhttp_request* req) {
-    auto task = std::make_unique<HttpReqTask>(req, chrono::steady_clock::now(), evhttp_request_get_uri(req));
-    cosmo::MsgEnvelope msg(static_cast<int>(InnerMsgId::kHttpReq),
-                           std::unique_ptr<cosmo::MsgTask>(task.release()));
-    LOG_INFO("{}", "PutMsg To Http Pool");
-    thread_pool_.PutMsg(std::move(msg));
-    LOG_INFO("{}", "PutMsg To Http Pool Ok");
+    InsertHttpMsg(req, InnerMsgId::kHttpReq);
 }
 
 void HttpServer::InsertHttpOctetMsg(struct evhttp_request* req) {
-    auto task = std::make_unique<HttpReqTask>(req, chrono::steady_clock::now(), evhttp_request_get_uri(req));
-    cosmo::MsgEnvelope msg(static_cast<int>(InnerMsgId::kHttpOctetReq),
-                           std::unique_ptr<cosmo::MsgTask>(task.release()));
-    LOG_INFO("{}", "PutOctetMsg To Http Pool");
-    thread_pool_.PutMsg(std::move(msg));
-    LOG_INFO("{}", "PutOctetMsg To Http Pool Ok");
+    InsertHttpMsg(req, InnerMsgId::kHttpOctetReq);
+}
+
+void HttpServer::InsertHttpMsg(struct evhttp_request* req, InnerMsgId msg_id) {
+    auto task = BuildHttpReqTask(req);
+    if (!task) {
+        SendImmediateError(req, HttpResponseCode::kBadRequest);
+        return;
+    }
+
+    auto token = RegisterRequest(req);
+    if (token == kInvalidHttpRequestToken) {
+        if (task->has_tmp_path) {
+            cosmo::util::RemovePath(task->tmp_file_path);
+        }
+        SendImmediateError(req, HttpResponseCode::kInternalError);
+        return;
+    }
+    task->request_token = token;
+
+    auto tmp_file_path = task->tmp_file_path;
+    auto has_tmp_path  = task->has_tmp_path;
+    cosmo::MsgEnvelope msg(static_cast<int>(msg_id), std::move(task));
+    if (thread_pool_.PutMsg(std::move(msg)) < 0) {
+        if (has_tmp_path) {
+            cosmo::util::RemovePath(tmp_file_path);
+        }
+        HttpAckTask response_task(static_cast<int>(HttpResponseCode::kServiceUnavailable), token, "{}", "");
+        DispatchJsonMsg(&response_task);
+        return;
+    }
+    LOG_INFO("Put request {} token {} to HTTP pool", static_cast<int>(msg_id), token);
+}
+
+std::unique_ptr<HttpReqTask> HttpServer::BuildHttpReqTask(struct evhttp_request* req) {
+    auto* uri = evhttp_request_get_uri(req);
+    if (uri == nullptr) {
+        LOG_WARN("{}", "Cannot get request URI");
+        return nullptr;
+    }
+
+    auto task          = std::make_unique<HttpReqTask>();
+    task->request_time = chrono::steady_clock::now();
+    task->interface    = uri;
+
+    auto* input_headers = evhttp_request_get_input_headers(req);
+    if (const auto* forwarded_for = FindHeader(input_headers, "x-forwarded-for")) {
+        task->x_forwarded_for = forwarded_for;
+    }
+    if (const auto* mtk = FindHeader(input_headers, "mtk")) {
+        task->mtk = mtk;
+    }
+
+    const auto* content_type = FindHeader(input_headers, "Content-Type");
+    if (content_type != nullptr && strstr(content_type, "multipart/form-data") != nullptr) {
+        if (!ExtractMultipartBody(task.get(), req, content_type)) {
+            return nullptr;
+        }
+        return task;
+    }
+
+    auto* input_buffer = evhttp_request_get_input_buffer(req);
+    auto body_length   = evbuffer_get_length(input_buffer);
+    if (body_length == 0) {
+        return task;
+    }
+
+    auto* body_data = evbuffer_pullup(input_buffer, -1);
+    if (body_data == nullptr) {
+        LOG_ERRO("Failed to copy request body for URI {}", task->interface);
+        return nullptr;
+    }
+    task->body.resize(body_length);
+    std::memcpy(task->body.data(), body_data, body_length);
+    return task;
+}
+
+bool HttpServer::ExtractMultipartBody(HttpReqTask* task, struct evhttp_request* req,
+                                      const std::string& content_type) {
+    auto* input_headers = evhttp_request_get_input_headers(req);
+    LOG_INFO("Receive uri:{}, handle multipart/form-data", task->interface);
+    if (const auto* content_length = FindHeader(input_headers, "Content-Length")) {
+        LOG_INFO("Content-Length:{}", content_length);
+    }
+
+    auto boundary_start = content_type.find("boundary=");
+    if (boundary_start == std::string::npos) {
+        LOG_WARN("Receive uri:{}, multipart boundary is missing", task->interface);
+        return false;
+    }
+    boundary_start += strlen("boundary=");
+    auto boundary_end = content_type.find(';', boundary_start);
+    auto boundary     = content_type.substr(boundary_start, boundary_end - boundary_start);
+    if (boundary.size() >= 2 && boundary.front() == '"' && boundary.back() == '"') {
+        boundary = boundary.substr(1, boundary.size() - 2);
+    }
+    if (boundary.empty()) {
+        LOG_WARN("Receive uri:{}, multipart boundary is empty", task->interface);
+        return false;
+    }
+
+    if (!callbacks_.get_upload_tmp_path) {
+        LOG_ERRO("{}", "Upload temporary path callback is not configured");
+        return false;
+    }
+    task->tmp_file_path = callbacks_.get_upload_tmp_path();
+    task->has_tmp_path  = true;
+
+    MultipartStreamParser parser(std::move(boundary));
+    auto result = parser.ParseToFile(evhttp_request_get_input_buffer(req), [&](const std::string& filename) {
+        return (std::filesystem::path(task->tmp_file_path) / filename).string();
+    });
+    if (!result.ok) {
+        LOG_ERRO("Parse multipart request failed: {}", result.err);
+        cosmo::util::RemovePath(task->tmp_file_path);
+        task->has_tmp_path = false;
+        task->tmp_file_path.clear();
+        return false;
+    }
+    if (!cosmo::util::EncodeJson(result.fields, task->body)) {
+        LOG_ERRO("{}", "Encode multipart fields failed");
+        cosmo::util::RemovePath(task->tmp_file_path);
+        task->has_tmp_path = false;
+        task->tmp_file_path.clear();
+        return false;
+    }
+    return true;
 }
 
 void HttpServer::SetAppInfo(const std::string& app_key, const std::string& app_secret) {
@@ -74,6 +229,14 @@ void HttpServer::SetAppInfo(const std::string& app_key, const std::string& app_s
 
 bool HttpServer::Initialize(const std::string& host_ip, int port, DispatcherFactory factory,
                             HttpServerCallbacks callbacks) {
+    {
+        std::lock_guard<std::mutex> lock(lifecycle_mutex_);
+        if (lifecycle_state_ != LifecycleState::kStopped) {
+            LOG_ERRO("{}", "HTTP server is already initialized");
+            return false;
+        }
+    }
+
     dispatcher_factory_ = std::move(factory);
     callbacks_          = std::move(callbacks);
     if (!(event_base_ = event_base_new())) {
@@ -83,6 +246,7 @@ bool HttpServer::Initialize(const std::string& host_ip, int port, DispatcherFact
 
     if (!(event_http_ = evhttp_new(event_base_))) {
         LOG_ERRO("{}", "evhttp_new return NULL");
+        CleanupEventResources();
         return false;
     }
 
@@ -97,6 +261,7 @@ bool HttpServer::Initialize(const std::string& host_ip, int port, DispatcherFact
             this);
         if (!tick_event_) {
             LOG_ERRO("{}", "event_new tick failed");
+            CleanupEventResources();
             return false;
         }
         struct timeval tv;
@@ -106,6 +271,7 @@ bool HttpServer::Initialize(const std::string& host_ip, int port, DispatcherFact
             LOG_ERRO("{}", "event_add tick failed");
             event_free(tick_event_);
             tick_event_ = nullptr;
+            CleanupEventResources();
             return false;
         }
     }
@@ -123,18 +289,26 @@ bool HttpServer::Initialize(const std::string& host_ip, int port, DispatcherFact
     // allow post method
     evhttp_set_allowed_methods(event_http_, EVHTTP_REQ_POST | EVHTTP_REQ_GET | EVHTTP_REQ_HEAD);
 
-    int nRet = evhttp_bind_socket(event_http_, host_ip.data(), static_cast<uint16_t>(port));
-    if (nRet != 0) {
-        LOG_ERRO("evhttp_bind_socket ip:[{}], port:[{}], ret:[{}]", host_ip, port, nRet);
+    bound_socket_ = evhttp_bind_socket_with_handle(event_http_, host_ip.c_str(), static_cast<uint16_t>(port));
+    if (bound_socket_ == nullptr) {
+        LOG_ERRO("evhttp_bind_socket ip:[{}], port:[{}] failed", host_ip, port);
+        CleanupEventResources();
         return false;
     }
 
     constexpr int kThreadNum = 4;
     if (!thread_pool_.Initialize(kThreadNum, this, dispatcher_factory_)) {
+        CleanupEventResources();
         return false;
     }
 
-    is_running_ = true;
+    next_request_token_    = 1;
+    is_accepting_requests_ = true;
+    is_running_            = true;
+    {
+        std::lock_guard<std::mutex> lock(lifecycle_mutex_);
+        lifecycle_state_ = LifecycleState::kInitialized;
+    }
 
     LOG_INFO("libevent http server ip[{}]-port[{}] start success", host_ip, port);
 
@@ -142,35 +316,148 @@ bool HttpServer::Initialize(const std::string& host_ip, int port, DispatcherFact
 }
 
 void HttpServer::UnInitialize() {
-    if (is_running_) {
-        is_running_ = false;
+    is_accepting_requests_ = false;
+    is_running_            = false;
 
-        if (event_base_)
-            event_base_loopexit(event_base_, nullptr);
+    std::unique_lock<std::mutex> lock(lifecycle_mutex_);
+    if (lifecycle_state_ == LifecycleState::kStopped) {
+        return;
+    }
 
-        if (tick_event_) {
-            event_free(tick_event_);
-            tick_event_ = nullptr;
+    if (lifecycle_state_ == LifecycleState::kDispatching || lifecycle_state_ == LifecycleState::kStopping) {
+        if (event_thread_id_ == std::this_thread::get_id()) {
+            return;
         }
+        lifecycle_cv_.wait(lock, [this]() { return lifecycle_state_ == LifecycleState::kStopped; });
+        return;
+    }
 
-        if (event_http_) {
-            evhttp_free(event_http_);
-            event_http_ = nullptr;
-        }
+    lifecycle_state_ = LifecycleState::kStopping;
+    event_thread_id_ = std::this_thread::get_id();
+    lock.unlock();
+    ShutdownOnEventThread();
+    MarkStopped();
+}
 
-        if (event_base_) {
-            event_base_free(event_base_);
-            event_base_ = nullptr;
-        }
-
-        thread_pool_.Uninitialize();
+void HttpServer::StopAccepting() {
+    is_accepting_requests_ = false;
+    if (event_http_ != nullptr && bound_socket_ != nullptr) {
+        evhttp_del_accept_socket(event_http_, bound_socket_);
+        bound_socket_ = nullptr;
     }
 }
 
+void HttpServer::ShutdownOnEventThread() {
+    StopAccepting();
+
+    // No new request tasks can enter after StopAccepting. Drain every task that
+    // was accepted before releasing any request or connection owned by libevent.
+    thread_pool_.Uninitialize();
+    HandleRespMsgList();
+
+    auto deadline = chrono::steady_clock::now() + kShutdownDrainTimeout;
+    while (event_base_ != nullptr && !active_requests_.empty() && chrono::steady_clock::now() < deadline) {
+        auto rc = event_base_loop(event_base_, EVLOOP_ONCE);
+        if (rc < 0) {
+            LOG_ERRO("{}", "event_base_loop failed while draining HTTP responses");
+            break;
+        }
+        HandleRespMsgList();
+    }
+    if (!active_requests_.empty()) {
+        LOG_WARN("Force closing {} HTTP request(s) after shutdown drain timeout", active_requests_.size());
+    }
+
+    CleanupEventResources();
+    {
+        std::lock_guard<std::mutex> lock(msg_mutex_);
+        msg_list_.clear();
+    }
+}
+
+void HttpServer::CleanupEventResources() {
+    if (tick_event_ != nullptr) {
+        event_free(tick_event_);
+        tick_event_ = nullptr;
+    }
+    if (event_http_ != nullptr) {
+        evhttp_free(event_http_);
+        event_http_   = nullptr;
+        bound_socket_ = nullptr;
+    }
+    active_requests_.clear();
+    if (event_base_ != nullptr) {
+        event_base_free(event_base_);
+        event_base_ = nullptr;
+    }
+}
+
+void HttpServer::MarkStopped() {
+    {
+        std::lock_guard<std::mutex> lock(lifecycle_mutex_);
+        lifecycle_state_ = LifecycleState::kStopped;
+        event_thread_id_ = std::thread::id{};
+    }
+    lifecycle_cv_.notify_all();
+}
+
+HttpRequestToken HttpServer::RegisterRequest(struct evhttp_request* req) {
+    auto* connection = evhttp_request_get_connection(req);
+    if (connection == nullptr) {
+        LOG_ERRO("{}", "HTTP request has no connection");
+        return kInvalidHttpRequestToken;
+    }
+
+    auto token = next_request_token_++;
+    while (token == kInvalidHttpRequestToken || active_requests_.find(token) != active_requests_.end()) {
+        token = next_request_token_++;
+    }
+    auto context      = std::make_unique<RequestContext>(RequestContext{this, token, req, connection});
+    auto* context_ptr = context.get();
+    active_requests_.emplace(token, std::move(context));
+    evhttp_request_set_on_complete_cb(req, RequestCompleteCb, context_ptr);
+    evhttp_connection_set_closecb(connection, ConnectionCloseCb, context_ptr);
+    return token;
+}
+
+struct evhttp_request* HttpServer::FindRequest(HttpRequestToken token) const {
+    auto it = active_requests_.find(token);
+    if (it == active_requests_.end()) {
+        return nullptr;
+    }
+    return it->second->request;
+}
+
+void HttpServer::CompleteRequest(HttpRequestToken token, const struct evhttp_request* req) {
+    auto it = active_requests_.find(token);
+    if (it == active_requests_.end() || it->second->request != req) {
+        return;
+    }
+    evhttp_connection_set_closecb(it->second->connection, nullptr, nullptr);
+    active_requests_.erase(it);
+}
+
+void HttpServer::CloseRequest(HttpRequestToken token, struct evhttp_connection* connection) {
+    auto it = active_requests_.find(token);
+    if (it == active_requests_.end() || it->second->connection != connection) {
+        return;
+    }
+    evhttp_connection_set_closecb(connection, nullptr, nullptr);
+    active_requests_.erase(it);
+}
+
+void HttpServer::SendImmediateError(struct evhttp_request* req, HttpResponseCode code) {
+    const auto& code_messages = GetHttpResCodeMsg();
+    auto code_value           = static_cast<int>(code);
+    auto it                   = code_messages.find(code_value);
+    const char* message       = it == code_messages.end() ? "ERROR" : it->second.c_str();
+    evhttp_send_error(req, code_value, message);
+}
+
 int HttpServer::DispatchJsonMsg(HttpAckTask* task) {
-    struct evhttp_request* ev_http_req = task->request;
+    struct evhttp_request* ev_http_req = FindRequest(task->request_token);
     if (ev_http_req == nullptr) {
-        LOG_ERRO("{}", "ev_http_req is nullptr!");
+        LOG_WARN("Drop late HTTP response for token {}", task->request_token);
         return 0;
     }
 
@@ -199,9 +486,9 @@ int HttpServer::DispatchJsonMsg(HttpAckTask* task) {
 }
 
 int HttpServer::DispatchFileMsg(HttpAckTask* task) {
-    struct evhttp_request* ev_http_req = task->request;
+    struct evhttp_request* ev_http_req = FindRequest(task->request_token);
     if (ev_http_req == nullptr) {
-        LOG_ERRO("{}", "ev_http_req is nullptr!");
+        LOG_WARN("Drop late HTTP file response for token {}", task->request_token);
         return 0;
     }
 
@@ -240,10 +527,16 @@ int HttpServer::DispatchFileMsg(HttpAckTask* task) {
 }
 
 void HttpServer::DispatchMsg() {
-    if (!event_base_) {
-        LOG_ERRO("{}", "DispatchMsg: event base is null");
-        return;
+    {
+        std::lock_guard<std::mutex> lock(lifecycle_mutex_);
+        if (lifecycle_state_ != LifecycleState::kInitialized || event_base_ == nullptr) {
+            LOG_ERRO("{}", "DispatchMsg: HTTP server is not initialized");
+            return;
+        }
+        lifecycle_state_ = LifecycleState::kDispatching;
+        event_thread_id_ = std::this_thread::get_id();
     }
+
     while (is_running_) {
         // Block once: woken by network events or 5ms tick
         int rc = event_base_loop(event_base_, EVLOOP_ONCE);
@@ -255,9 +548,18 @@ void HttpServer::DispatchMsg() {
         int handle_cnt = HandleRespMsgList();
         if (handle_cnt < 0) {
             LOG_WARN("{}", "QUIT");
+            is_running_ = false;
             break;
         }
     }
+    is_running_ = false;
+
+    {
+        std::lock_guard<std::mutex> lock(lifecycle_mutex_);
+        lifecycle_state_ = LifecycleState::kStopping;
+    }
+    ShutdownOnEventThread();
+    MarkStopped();
 }
 
 int HttpServer::Put(cosmo::MsgEnvelope&& msg) {
@@ -267,13 +569,12 @@ int HttpServer::Put(cosmo::MsgEnvelope&& msg) {
 }
 
 int HttpServer::HandleRespMsgList() {
-    if (msg_list_.empty()) {
-        return 0;
-    }
-
     cosmo::MsgEnvelopeList lst_msg;
     {
         std::lock_guard<std::mutex> lck(msg_mutex_);
+        if (msg_list_.empty()) {
+            return 0;
+        }
         lst_msg.swap(msg_list_);
     }
 

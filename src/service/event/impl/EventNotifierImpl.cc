@@ -169,10 +169,18 @@ void EventNotifierImpl::StopServer() {
     if (loop) {
         std::promise<void> close_completed;
         auto close_future = close_completed.get_future();
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnull-dereference"
+#endif
+        // GCC reports a false positive while inlining function2's std::align-based small-object storage.
         loop->defer([this, close_completed = std::move(close_completed)]() mutable {
             CloseWebSocketServerOnLoop();
             close_completed.set_value();
         });
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
         close_future.wait();
     }
     if (server_thread_.joinable()) {
@@ -187,8 +195,16 @@ void EventNotifierImpl::SendWebSocketMsg(std::string_view url, std::string_view 
     }
     auto url_copy = std::string(url);
     auto msg_copy = std::string(msg);
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnull-dereference"
+#endif
+    // GCC reports a false positive while inlining function2's std::align-based small-object storage.
     loop_->defer(
         [this, url = std::move(url_copy), msg = std::move(msg_copy)]() { SendWebSocketMsgOnLoop(url, msg); });
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 }
 
 void EventNotifierImpl::SendWebSocketMsgOnLoop(std::string_view url, std::string_view msg) {

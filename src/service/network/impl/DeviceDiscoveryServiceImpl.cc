@@ -11,7 +11,6 @@
 #include <unistd.h>
 
 #include <array>
-#include <cassert>
 #include <cerrno>
 #include <cstring>
 #include <nlohmann/json.hpp>
@@ -19,8 +18,7 @@
 #include "service/detail/ServiceRegistry.h"
 #include "service/network/INetworkService.h"
 #include "service/network/impl/DeviceDiscoveryReceivePolicy.h"
-#include "service/system/IDeviceInfoService.h"
-#include "util/LimitedTypeJson.h"
+#include "util/ErrorCode.h"
 #include "util/TimingConstants.h"
 
 namespace cosmo::service {
@@ -60,12 +58,8 @@ enum class DiscoveryError {
 };
 
 DeviceDiscoveryServiceImpl::DeviceDiscoveryServiceImpl(const std::string& ip, int port)
-    : multicast_ip_(ip),
-      multicast_port_(port),
-      probe_queue_("discovery probe"),
-      async_queue_("discovery async") {
+    : multicast_ip_(ip), multicast_port_(port), probe_queue_("discovery probe") {
     probe_queue_.SetProcessor([this](DiscoveryProbeRecv&& data) { HandleProbe(std::move(data)); });
-    async_queue_.SetProcessor([this](InternalMsg&& data) { HandleRecvMsg(std::move(data)); });
 }
 
 DeviceDiscoveryServiceImpl::~DeviceDiscoveryServiceImpl() {
@@ -86,20 +80,15 @@ void DeviceDiscoveryServiceImpl::Stop() {
     stop_.store(true, std::memory_order_release);
 
     probe_queue_.Stop();
-    async_queue_.Stop();
     probe_queue_.stop();
-    async_queue_.stop();
 
     std::thread init_thread;
-    std::thread netcard_thread;
     {
         std::lock_guard<std::mutex> lock(thread_mtx_);
         init_thread.swap(init_thread_);
-        netcard_thread.swap(netcard_thread_);
     }
 
     JoinThread(std::move(init_thread));
-    JoinThread(std::move(netcard_thread));
     CloseSocket();
 }
 
@@ -305,11 +294,6 @@ DeviceDiscoveryServiceImpl::ReceiveLoopExit DeviceDiscoveryServiceImpl::RecvLoop
     // Receive multicast data
     std::array<char, 4096> message_buffer{};
     while (!stop_.load(std::memory_order_acquire)) {
-        if (restart_requested_.exchange(false, std::memory_order_acq_rel)) {
-            LOG_INFO("{}", "network configuration changed, restarting multicast socket");
-            return ReceiveLoopExit::kRestartSocket;
-        }
-
         message_buffer.fill('\0');
         socklen_t address_length = sizeof(peeraddr);
         auto bytes               = recvfrom(receive_fd, message_buffer.data(), message_buffer.size() - 1, 0,
@@ -349,41 +333,21 @@ DeviceDiscoveryServiceImpl::ReceiveLoopExit DeviceDiscoveryServiceImpl::RecvLoop
         LOG_INFO("receive multicast msg cmd: {}, type: {}, reqId: {} From:{}", vagueMsg.cmd, vagueMsg.type,
                  vagueMsg.reqId, platform::GetIPString(peeraddr.sin_addr.s_addr));
 
-        // Only process "req" request messages; for probe, ensure SN matches this device
-        if ("req" == vagueMsg.type) {
-            LOG_INFO("receive multicast msg detail: {}, len: {}", message, bytes);
-
-            if ("probe" == vagueMsg.cmd) {
-                vagueMsg.from = platform::GetIPString(peeraddr.sin_addr.s_addr);
-                probe_queue_.Insert(vagueMsg);
-            } else if ("writeHWInfo" == vagueMsg.cmd) {
-                InternalMsg data;
-                data.vague    = vagueMsg;
-                data.raw_json = message;
-                data.from     = platform::GetIPString(peeraddr.sin_addr.s_addr);
-                async_queue_.Insert(data);
-            } else if ("modifyAuthCode" == vagueMsg.cmd) {
-                InternalMsg data;
-                data.vague    = vagueMsg;
-                data.raw_json = message;
-                data.from     = platform::GetIPString(peeraddr.sin_addr.s_addr);
-                async_queue_.Insert(data);
-            } else if ("queryAuthMessage" == vagueMsg.cmd) {
-                InternalMsg data;
-                data.vague    = vagueMsg;
-                data.raw_json = message;
-                data.from     = platform::GetIPString(peeraddr.sin_addr.s_addr);
-                async_queue_.Insert(data);
-            } else if (ServiceRegistry::Instance().Get<IDeviceInfoService>().GetDevSn() ==
-                       vagueMsg.deviceSn) {
-                if ("modifyNetCard" == vagueMsg.cmd) {
-                    InternalMsg data;
-                    data.vague    = vagueMsg;
-                    data.raw_json = message;
-                    data.from     = platform::GetIPString(peeraddr.sin_addr.s_addr);
-                    async_queue_.Insert(data);
-                }
-            }
+        if ("req" == vagueMsg.type && detail::IsProductionDiscoveryCommandAllowed(vagueMsg.cmd)) {
+            LOG_INFO("receive multicast probe detail: {}, len: {}", message, bytes);
+            vagueMsg.from = platform::GetIPString(peeraddr.sin_addr.s_addr);
+            probe_queue_.Insert(vagueMsg);
+        } else if ("req" == vagueMsg.type &&
+                   detail::IsProductionDiscoveryCommandAuthenticationRequired(vagueMsg.cmd)) {
+            LOG_WARN("Reject unauthenticated production discovery command: {}", vagueMsg.cmd);
+            nlohmann::json response{{"cmd", vagueMsg.cmd},
+                                    {"type", "ack"},
+                                    {"reqId", vagueMsg.reqId},
+                                    {"resCode", static_cast<int>(util::ErrorEnum::AuthFailed)},
+                                    {"resMsg", "authentication_required"}};
+            SendMessage(response.dump(), platform::GetIPString(peeraddr.sin_addr.s_addr));
+        } else if ("req" == vagueMsg.type) {
+            LOG_WARN("Ignore unknown production discovery command: {}", vagueMsg.cmd);
         }
     }
     return ReceiveLoopExit::kStopped;

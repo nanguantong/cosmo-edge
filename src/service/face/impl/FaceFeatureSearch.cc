@@ -30,7 +30,7 @@ namespace cosmo {
 
 bool FaceFeatureExtractor::FaceFeature(VideoFramePtr frame, std::vector<AiDetectRstEl>& ioPuts) {
     std::lock_guard<std::shared_mutex> lock(mtx_);
-    if (!is_ready_) {
+    if (!is_ready_.load(std::memory_order_acquire)) {
         return false;
     }
     if (!recog_inst_) {
@@ -182,7 +182,10 @@ float FaceFeatureExtractor::GetScore(float distance) {
 std::vector<float> FaceFeatureExtractor::GetScoreLevel() {
     // Online safety: FaceLib::SearchFeature may call GetScore/GetScoreLevel before service thread Init,
     // must guarantee no crash. If not ready, try synchronous Init; return empty array on failure.
-    if (!is_ready_) {
+    if (stopped_.load(std::memory_order_acquire)) {
+        return {};
+    }
+    if (!is_ready_.load(std::memory_order_acquire)) {
         ServiceEnable();
         if (!Init()) {
             return {};
@@ -190,7 +193,7 @@ std::vector<float> FaceFeatureExtractor::GetScoreLevel() {
     }
 
     std::lock_guard<std::shared_mutex> lock(mtx_);
-    if (!is_ready_ || !recog_inst_) {
+    if (!is_ready_.load(std::memory_order_acquire) || !recog_inst_) {
         return {};
     }
     return recog_inst_->GetScoreLevel();
@@ -281,9 +284,12 @@ std::error_condition FaceFeatureExtractor::HandFeatureImage(VideoFramePtr& image
     constexpr int kMaxInitRetries = 30;
     // First request may arrive before background model init; wait up to 3 seconds
     for (int i = 0; i < kMaxInitRetries; ++i) {
+        if (stopped_.load(std::memory_order_acquire)) {
+            return util::ErrorEnum::ServiceNotInit;
+        }
         {
             std::shared_lock<std::shared_mutex> lock(mtx_);
-            if (is_ready_) {
+            if (is_ready_.load(std::memory_order_acquire)) {
                 break;
             }
         }
@@ -291,7 +297,7 @@ std::error_condition FaceFeatureExtractor::HandFeatureImage(VideoFramePtr& image
     }
     {
         std::shared_lock<std::shared_mutex> lock(mtx_);
-        if (!is_ready_) {
+        if (!is_ready_.load(std::memory_order_acquire)) {
             LOG_WARN("{}HandFeatureImage aborted: service initializing timeout", kTag);
             return util::ErrorEnum::ServiceNotInit;
         }
@@ -434,7 +440,7 @@ MsgGetFeaturesFeature FaceFeatureExtractor::HandMsgImage(const MsgGetFeaturesIma
 
 MsgGetFeaturesSend FaceFeatureExtractor::HandMsg(const MsgGetFeaturesRecv& data, std::error_condition& errc) {
     MsgGetFeaturesSend msg;
-    if (!is_ready_) {
+    if (stopped_.load(std::memory_order_acquire) || !is_ready_.load(std::memory_order_acquire)) {
         errc = util::ErrorEnum::ServiceNotInit;  // Service not started
         return msg;
     }

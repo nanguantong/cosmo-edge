@@ -74,6 +74,7 @@ public:
         std::string json_result{};
         if (!cosmo::util::EncodeJson(rgt_in, json_result)) {
             LOG_ERRO("{}", "StructToJson failed");
+            return false;
         }
 
         if (type != CliReqType::kCliGetFileSrv) {
@@ -93,6 +94,7 @@ public:
         LOG_INFO("Msg:{} Get Response is:{}", GetPostUrl(type), http_hnd.GetData());
         if (!cosmo::util::DecodeJson(http_hnd.GetData(), rgt_out)) {
             LOG_ERRO("cosmo::util::DecodeJson failed, [{}]", http_hnd.GetData());
+            return false;
         }
         return true;
     }

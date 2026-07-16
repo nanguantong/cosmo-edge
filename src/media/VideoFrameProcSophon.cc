@@ -31,6 +31,9 @@ namespace media {
 
     // Encoding in VRAM on Sophon
     VideoFramePtr VideoFrameProcSophon::CopyFrame(VideoFramePtr frame) {
+        if (!VideoFrameValid(frame, true)) {
+            return nullptr;
+        }
         VideoFramePtr dst =
             std::make_shared<VideoFrame>(frame->GetWidth(), frame->GetHeight(), frame->GetPixelFormat(),
                                          frame->GetFrameIndex(), frame->GetTimestamp());
@@ -262,7 +265,10 @@ namespace media {
     }
 
     VideoFramePtr VideoFrameProcSophon::Resize(VideoFramePtr src, int dst_height, int dst_width) {
-        if (dst_height < 0 || dst_width < 0) {
+        if (dst_height < static_cast<int>(kSophonVppMinDimension) ||
+            dst_width < static_cast<int>(kSophonVppMinDimension) ||
+            dst_height > static_cast<int>(kSophonVppMaxDimension) ||
+            dst_width > static_cast<int>(kSophonVppMaxDimension)) {
             LOG_ERRO("invalid params {} {}", dst_height, dst_width);
             return nullptr;
         }
@@ -280,6 +286,11 @@ namespace media {
 
         auto src_height = framePacket->GetHeight();
         auto src_width  = framePacket->GetWidth();
+        if (src_width < kSophonVppMinDimension || src_height < kSophonVppMinDimension ||
+            src_width > kSophonVppMaxDimension || src_height > kSophonVppMaxDimension) {
+            LOG_ERRO("Resize() - source dimensions outside VPP range: {}x{}", src_width, src_height);
+            return nullptr;
+        }
 
         auto image = CreateBMImage(src_width, src_height, framePacket->GetPixelFormat());
         if (!image) {
@@ -352,8 +363,24 @@ namespace media {
             return nullptr;
         }
 
+        if (left > std::numeric_limits<size_t>::max() - width ||
+            right > std::numeric_limits<size_t>::max() - width - left ||
+            top > std::numeric_limits<size_t>::max() - height ||
+            bottom > std::numeric_limits<size_t>::max() - height - top) {
+            LOG_ERRO("{}", "Padding() - dimensions overflow");
+            return nullptr;
+        }
         size_t new_width  = width + left + right;
         size_t new_height = height + top + bottom;
+        if (width < kSophonVppMinDimension || height < kSophonVppMinDimension ||
+            new_width < kSophonVppMinDimension || new_height < kSophonVppMinDimension ||
+            width > kSophonVppMaxDimension || height > kSophonVppMaxDimension ||
+            new_width > kSophonVppMaxDimension || new_height > kSophonVppMaxDimension ||
+            left > std::numeric_limits<unsigned int>::max() ||
+            top > std::numeric_limits<unsigned int>::max()) {
+            LOG_ERRO("Padding() - dimensions outside VPP range: {}x{}", new_width, new_height);
+            return nullptr;
+        }
 
         auto padding_image = CreateBMImage(new_width, new_height, framePacket->GetPixelFormat());
         if (!padding_image) {

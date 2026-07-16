@@ -7,6 +7,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <vector>
 
 #include "flow/stream/RtmpCodecConfig.h"
 #include "flow/stream/RtmpPacketWriter.h"
@@ -35,11 +36,14 @@ public:
     /// Returns true if ready, false on timeout.
     [[nodiscard]] bool WaitReady(std::chrono::milliseconds timeout);
 
+    [[nodiscard]] MsgOverviewDebugInfo GetProcInfo() const {
+        std::lock_guard<std::mutex> lock(output_mtx_);
+        return debug_info_;
+    }
+
     /// Pre-populate codec config from avcC/hevcC extradata so HasParameters()
     /// is true immediately — no need to wait for in-band SPS/PPS.
-    void SetCodecParamsFromExtradata(const std::vector<uint8_t>& extradata) {
-        codec_config_->SetParameters(extradata);
-    }
+    void SetCodecParamsFromExtradata(const std::vector<uint8_t>& extradata);
 
 private:
     void DoPushFrame(const uint8_t* data, size_t size) override;
@@ -48,6 +52,7 @@ private:
     void CloseOutput();
     bool ReopenOutput();
     void PushHeader();
+    bool SetStreamReady(bool ready);
 
 private:
     AVFormatContext* outctx_{nullptr};
@@ -57,6 +62,10 @@ private:
     std::unique_ptr<RtmpCodecConfig> codec_config_;
     std::unique_ptr<RtmpPacketWriter> packet_writer_;
 
+    // Protects FFmpeg contexts, codec parser, packet writer and all write-side
+    // lifecycle state. PushFrame can be called by raw-packet and encoder paths.
+    mutable std::mutex output_mtx_;
+    std::atomic<bool> stopping_{false};
     std::atomic_flag first_frame_flag_;
     bool output_failed_{false};
     int64_t skip_count_{0};

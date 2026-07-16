@@ -39,13 +39,43 @@ RtmpStreamPusher::RtmpStreamPusher(media::VideoCodecType origin_type, const std:
 
 RtmpStreamPusher::~RtmpStreamPusher() {
     LOG_INFO("{}", "closing RTMP stream pusher");
-    CloseOutput();
+    stopping_.store(true, std::memory_order_release);
+    {
+        std::lock_guard<std::mutex> lock(output_mtx_);
+        CloseOutput();
+    }
+    ready_cv_.notify_all();
     LOG_INFO("{}", "RTMP stream pusher closed");
 }
 
 bool RtmpStreamPusher::WaitReady(std::chrono::milliseconds timeout) {
     std::unique_lock<std::mutex> lock(ready_mtx_);
-    return ready_cv_.wait_for(lock, timeout, [this] { return stream_ready_; });
+    const bool state_changed = ready_cv_.wait_for(
+        lock, timeout, [this] { return stream_ready_ || stopping_.load(std::memory_order_acquire); });
+    return state_changed && stream_ready_;
+}
+
+void RtmpStreamPusher::SetCodecParamsFromExtradata(const std::vector<uint8_t>& extradata) {
+    if (extradata.empty() || stopping_.load(std::memory_order_acquire)) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(output_mtx_);
+    if (!stopping_.load(std::memory_order_relaxed)) {
+        codec_config_->SetParameters(extradata);
+    }
+}
+
+bool RtmpStreamPusher::SetStreamReady(bool ready) {
+    bool changed = false;
+    {
+        std::lock_guard<std::mutex> lock(ready_mtx_);
+        changed       = stream_ready_ != ready;
+        stream_ready_ = ready;
+    }
+    if (changed) {
+        ready_cv_.notify_all();
+    }
+    return changed;
 }
 
 int RtmpStreamPusher::InitOutput() {
@@ -88,11 +118,11 @@ void RtmpStreamPusher::CloseOutput() {
     outctx_    = nullptr;
     outstream_ = nullptr;
     outindex_  = 0;
+    SetStreamReady(false);
 }
 
 bool RtmpStreamPusher::ReopenOutput() {
     CloseOutput();
-    stream_ready_  = false;
     output_failed_ = false;
     first_frame_flag_.clear();
     packet_writer_->ResetCounter();
@@ -134,17 +164,25 @@ void RtmpStreamPusher::PushHeader() {
 }
 
 void RtmpStreamPusher::DoPushFrame(const uint8_t* data, size_t size) {
+    if (!data || size == 0) {
+        LOG_WARN("{}", "DoPushFrame: empty frame");
+        return;
+    }
+    if (stopping_.load(std::memory_order_acquire)) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> output_lock(output_mtx_);
+    if (stopping_.load(std::memory_order_relaxed)) {
+        return;
+    }
+
     debug_info_.recvFrames += 1;
 
     // Diagnostic: log frame header bytes for first 5 frames
     if (debug_info_.recvFrames <= 5 && size >= 5) {
         LOG_INFO("DoPushFrame #{} size:{} bytes:{:02X} {:02X} {:02X} {:02X} {:02X}", debug_info_.recvFrames,
                  size, data[0], data[1], data[2], data[3], data[4]);
-    }
-
-    if (size == 0) {
-        LOG_WARN("{}", "DoPushFrame: empty frame");
-        return;
     }
 
     // Parse NALUs, extract codec params, and prepare output data
@@ -160,6 +198,11 @@ void RtmpStreamPusher::DoPushFrame(const uint8_t* data, size_t size) {
             LOG_WARN("DoPushFrame skip: parameter-only/unknown packet leadType={} size={} at frame #{}",
                      static_cast<int>(lead_type), size, debug_info_.recvFrames);
         }
+        return;
+    }
+    if (!out_data || out_size == 0) {
+        LOG_WARN("DoPushFrame skip: parser returned empty video payload at frame #{}",
+                 debug_info_.recvFrames);
         return;
     }
 
@@ -209,12 +252,7 @@ void RtmpStreamPusher::DoPushFrame(const uint8_t* data, size_t size) {
                 first_frame_flag_.clear();
             } else {
                 debug_info_.sendFrames += 1;
-                if (!stream_ready_) {
-                    {
-                        std::lock_guard<std::mutex> lock(ready_mtx_);
-                        stream_ready_ = true;
-                    }
-                    ready_cv_.notify_all();
+                if (SetStreamReady(true)) {
                     LOG_INFO("{}", "Stream ready: first frame written to RTMP/SRS");
                 }
                 if (outctx_ && outctx_->pb) {

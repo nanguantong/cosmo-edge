@@ -4,6 +4,7 @@
 
 #include "catch_amalgamated.hpp"
 #include "media/PixelFormatUtils.h"
+#include "media/VideoDecoder.h"
 #include "media/VideoFrame.h"
 #include "util/VideoInfo.h"
 
@@ -17,6 +18,47 @@
 #endif
 
 namespace cosmo::media {
+
+namespace {
+
+    class RejectingDecoder final : public VideoDecoder {
+    public:
+        RejectingDecoder() : VideoDecoder(0) {}
+
+        bool Open() override {
+            return true;
+        }
+
+        bool Close() override {
+            return true;
+        }
+
+        bool IsOpened() override {
+            return true;
+        }
+
+        bool SendPacket(const uint8_t*, size_t, int64_t) override {
+            return false;
+        }
+
+        VideoFramePtr GetFrame() override {
+            return nullptr;
+        }
+    };
+
+}  // namespace
+
+TEST_CASE("Decoder failure logging handles empty and short packets", "[video-frame-safety]") {
+    RejectingDecoder decoder;
+    bool result = true;
+    REQUIRE(decoder.Decode(nullptr, 0, 1, result) == nullptr);
+    REQUIRE_FALSE(result);
+
+    const uint8_t byte = 0x7f;
+    result             = true;
+    REQUIRE(decoder.Decode(&byte, 1, 2, result) == nullptr);
+    REQUIRE_FALSE(result);
+}
 
 TEST_CASE("Frame size calculation rejects unsafe dimensions", "[video-frame-safety]") {
     REQUIRE_FALSE(PixelFormatUtils::CalculateFrameSize(-1, 1080, PixelFormat::PIXEL_I420));

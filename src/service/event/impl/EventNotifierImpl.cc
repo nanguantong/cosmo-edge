@@ -276,7 +276,15 @@ bool EventNotifierImpl::GetVideoPlayUrl(cosmo::CMsgGetVideoPlayReq& /*req*/,
 
 void EventNotifierImpl::SetEventPostQue(cosmo::AsyncQueue<cosmo::CMsgOnEventsReq>& que) {
     LOG_INFO("{}", "Set Event Post Queue");
+    std::lock_guard<std::mutex> lock(post_queue_mtx_);
     event_que_ = &que;
+}
+
+void EventNotifierImpl::ClearEventPostQue(const cosmo::AsyncQueue<cosmo::CMsgOnEventsReq>& que) {
+    std::lock_guard<std::mutex> lock(post_queue_mtx_);
+    if (event_que_ == &que) {
+        event_que_ = nullptr;
+    }
 }
 
 void EventNotifierImpl::SetCollectPostQue(cosmo::AsyncQueue<cosmo::CMsgCollectRptReq>& que) {
@@ -290,6 +298,7 @@ void EventNotifierImpl::SetFaceEventPostQue(cosmo::AsyncQueue<cosmo::CMsgFaceEve
 }
 
 void EventNotifierImpl::EventPush(cosmo::CMsgOnEventsReq& msg) {
+    std::lock_guard<std::mutex> lock(post_queue_mtx_);
     if (event_que_) {
         event_que_->Insert(msg);
     }

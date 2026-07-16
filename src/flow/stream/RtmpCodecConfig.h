@@ -57,8 +57,8 @@ public:
     }
 
 private:
-    void ParseAvcC(const std::vector<uint8_t>& data);
-    void ParseHevcC(const std::vector<uint8_t>& data);
+    [[nodiscard]] bool ParseAvcC(const std::vector<uint8_t>& data);
+    [[nodiscard]] bool ParseHevcC(const std::vector<uint8_t>& data);
 
     media::VideoCodecType codec_type_;
     int width_;

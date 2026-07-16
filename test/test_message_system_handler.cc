@@ -132,6 +132,43 @@ TEST_CASE("SystemHandler: QueryDevRebootParam", "[system-handler]") {
     REQUIRE(!errc);
 }
 
+TEST_CASE("SystemHandler: ModifyDevRestartParam accepts strict HH:MM", "[system-handler]") {
+    MockServiceRegistry mocks;
+    auto handler = MakeHandler(mocks);
+
+    REQUIRE_CALL(mocks.configWriteSvc, SetRebootParam(_))
+        .WITH(_1.isTimingRestart)
+        .WITH(_1.weekDay == 3)
+        .WITH(_1.restartTimeSec == 9 * 3600 + 5 * 60)
+        .RETURN(util::ErrorEnum::Success);
+
+    System::MsgModifyDevRestartParamRecv data{};
+    data.isTimingRestart = 1;
+    data.weekDay         = 3;
+    data.restartTime     = std::string("09:05");
+    std::error_condition errc;
+
+    (void)handler.Handle(std::move(data), errc);
+
+    REQUIRE(!errc);
+}
+
+TEST_CASE("SystemHandler: ModifyDevRestartParam rejects malformed HH:MM", "[system-handler]") {
+    MockServiceRegistry mocks;
+    auto handler = MakeHandler(mocks);
+
+    for (const auto* invalid : {"", "9:05", "09:5", "09:05 ", "09-05", "0a:05", "24:00", "23:60"}) {
+        INFO("restartTime=" << invalid);
+        System::MsgModifyDevRestartParamRecv data{};
+        data.restartTime          = std::string(invalid);
+        std::error_condition errc = util::ErrorEnum::Success;
+
+        (void)handler.Handle(std::move(data), errc);
+
+        CHECK(errc == util::ErrorEnum::ParameterException);
+    }
+}
+
 TEST_CASE("SystemHandler: QuerySystemLogo", "[system-handler]") {
     MockServiceRegistry mocks;
     auto handler = MakeHandler(mocks);

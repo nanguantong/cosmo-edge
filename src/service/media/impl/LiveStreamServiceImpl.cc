@@ -65,11 +65,36 @@ LiveStreamServiceImpl::LiveStreamServiceImpl() : is_running_(true) {
 }
 
 LiveStreamServiceImpl::~LiveStreamServiceImpl() {
-    is_running_ = false;
+    LiveStreamServiceImpl::Stop();
+    LOG_INFO("{}", "LiveStreamServiceImpl Delete");
+}
+
+void LiveStreamServiceImpl::Stop() {
+    std::lock_guard<std::mutex> stop_lock(stop_mtx_);
+    if (stopped_) {
+        return;
+    }
+    stopping_.store(true, std::memory_order_release);
+
+    // Wait for any request that entered before stopping_ was published. New
+    // requests take a shared lock, observe stopping_, and fail without work.
+    std::unique_lock<std::shared_mutex> lifecycle_lock(lifecycle_mtx_);
+    is_running_.store(false, std::memory_order_release);
+    watchdog_cv_.notify_all();
     if (watchdog_thread_.joinable()) {
         watchdog_thread_.join();
     }
-    LOG_INFO("{}", "LiveStreamServiceImpl Delete");
+
+    // StreamViewer teardown stops queues, encoders, and RTMP pushers and may
+    // acquire channel locks. Move ownership under mtx_, then destruct only
+    // after releasing it to avoid lock inversion with worker callbacks.
+    std::vector<cosmo::StreamViewerPtr> viewers;
+    {
+        std::unique_lock<std::shared_mutex> lock(mtx_);
+        viewers.swap(viewers_);
+    }
+    viewers.clear();
+    stopped_ = true;
 }
 
 // ---------------------------------------------------------------------------
@@ -78,14 +103,17 @@ LiveStreamServiceImpl::~LiveStreamServiceImpl() {
 
 void LiveStreamServiceImpl::HeartBeatWatchdog() {
     int index = 0;
-    while (is_running_) {
+    std::unique_lock<std::mutex> wait_lock(watchdog_mtx_);
+    while (is_running_.load(std::memory_order_acquire)) {
+        wait_lock.unlock();
         // Check every 10 seconds for viewers without heartbeat and close them
         if (0 == index % 10) {
             CheckAliveTasks();
         }
-
-        std::this_thread::sleep_for(timing::kOneSecondInterval);
         index++;
+        wait_lock.lock();
+        watchdog_cv_.wait_for(wait_lock, timing::kOneSecondInterval,
+                              [this]() { return !is_running_.load(std::memory_order_acquire); });
     }
     LOG_INFO("{}", "LiveStreamServiceImpl watchdog thread stopped");
 }
@@ -97,6 +125,10 @@ void LiveStreamServiceImpl::HeartBeatWatchdog() {
 cosmo::util::ErrorEnum LiveStreamServiceImpl::ViewerCreate(const std::string& channelId,
                                                            const std::string& algCode,
                                                            LiveStream::LiveStreamInfo& streamInfo) {
+    std::shared_lock<std::shared_mutex> lifecycle_lock(lifecycle_mtx_);
+    if (stopping_.load(std::memory_order_acquire)) {
+        return cosmo::util::ErrorEnum::SysErr;
+    }
     auto channel_inst =
         service::ServiceRegistry::Instance().Get<service::ICameraChannelQuery>().GetChannelInst(channelId);
     if (!channel_inst) {
@@ -169,21 +201,30 @@ cosmo::util::ErrorEnum LiveStreamServiceImpl::ViewerCreate(const std::string& ch
 // ---------------------------------------------------------------------------
 
 bool LiveStreamServiceImpl::ViewerDelete(const std::string& channelId, const std::string& algCode) {
-    std::lock_guard<std::shared_mutex> lock(mtx_);
-    auto it = FindViewer(channelId, algCode);
-
-    if (it != viewers_.end()) {
-        LOG_INFO("{}/{} viewer num is {}", channelId, algCode, (*it)->GetViewerNum());
-        (*it)->DelViewerNum();
-        if ((*it)->GetViewerNum() <= 0) {
-            LOG_INFO("{}/{} Delete", channelId, algCode);
-            viewers_.erase(it);
-        }
-        return true;
-    } else {
-        LOG_INFO("{}/{} Not Exist", channelId, algCode);
+    std::shared_lock<std::shared_mutex> lifecycle_lock(lifecycle_mtx_);
+    if (stopping_.load(std::memory_order_acquire)) {
         return true;
     }
+
+    cosmo::StreamViewerPtr removed;
+    {
+        std::lock_guard<std::shared_mutex> lock(mtx_);
+        auto it = FindViewer(channelId, algCode);
+
+        if (it != viewers_.end()) {
+            LOG_INFO("{}/{} viewer num is {}", channelId, algCode, (*it)->GetViewerNum());
+            (*it)->DelViewerNum();
+            if ((*it)->GetViewerNum() <= 0) {
+                LOG_INFO("{}/{} Delete", channelId, algCode);
+                removed = std::move(*it);
+                viewers_.erase(it);
+            }
+        } else {
+            LOG_INFO("{}/{} Not Exist", channelId, algCode);
+        }
+    }
+    removed.reset();
+    return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -192,6 +233,10 @@ bool LiveStreamServiceImpl::ViewerDelete(const std::string& channelId, const std
 
 cosmo::util::ErrorEnum LiveStreamServiceImpl::ViewerHeartBeat(const std::string& channelId,
                                                               const std::string& algCode) {
+    std::shared_lock<std::shared_mutex> lifecycle_lock(lifecycle_mtx_);
+    if (stopping_.load(std::memory_order_acquire)) {
+        return cosmo::util::ErrorEnum::SysErr;
+    }
     auto channel_inst =
         service::ServiceRegistry::Instance().Get<service::ICameraChannelQuery>().GetChannelInst(channelId);
     if (!channel_inst) {
@@ -218,6 +263,10 @@ cosmo::util::ErrorEnum LiveStreamServiceImpl::ViewerHeartBeat(const std::string&
 // ---------------------------------------------------------------------------
 
 void LiveStreamServiceImpl::SetViewCounts(int view_num) {
+    std::shared_lock<std::shared_mutex> lifecycle_lock(lifecycle_mtx_);
+    if (stopping_.load(std::memory_order_acquire)) {
+        return;
+    }
     view_counts_.store(view_num);
 }
 
@@ -232,10 +281,19 @@ int LiveStreamServiceImpl::ViewerEncoderCountLocked() const {
 }
 
 void LiveStreamServiceImpl::CheckAliveTasks() {
-    std::lock_guard<std::shared_mutex> lock(mtx_);
-    viewers_.erase(std::remove_if(viewers_.begin(), viewers_.end(),
-                                  [](cosmo::StreamViewerPtr viewer) { return viewer->HeartBeatCheck(); }),
-                   viewers_.end());
+    std::vector<cosmo::StreamViewerPtr> expired;
+    {
+        std::lock_guard<std::shared_mutex> lock(mtx_);
+        for (auto it = viewers_.begin(); it != viewers_.end();) {
+            if ((*it)->HeartBeatCheck()) {
+                expired.push_back(std::move(*it));
+                it = viewers_.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+    expired.clear();
 }
 
 std::vector<cosmo::StreamViewerPtr>::iterator LiveStreamServiceImpl::FindViewer(const std::string& channelId,

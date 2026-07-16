@@ -1,6 +1,14 @@
 #include <any>
+#include <atomic>
 #include <chrono>
+#include <condition_variable>
+#include <list>
+#include <memory>
+#include <mutex>
+#include <shared_mutex>
+#include <string>
 #include <thread>
+#include <vector>
 
 #include "catch_amalgamated.hpp"
 #include "util/TimeUtil.h"
@@ -82,4 +90,17 @@ TEST_CASE("LiveStreamServiceImpl: 视频流管理核心逻辑", "[live-stream]")
         // ViewerCreate 会阻塞在 WaitReady 5秒，如果不修改其行为会比较耗时。
         // 为了避免阻塞，我们在上面验证断开即可。
     }
+}
+
+TEST_CASE("LiveStreamServiceImpl: Stop is idempotent and rejects new viewer work",
+          "[live-stream][lifecycle]") {
+    LiveStreamServiceImpl sut;
+    REQUIRE_NOTHROW(sut.Stop());
+    REQUIRE_NOTHROW(sut.Stop());
+
+    cosmo::LiveStream::LiveStreamInfo stream_info;
+    REQUIRE(sut.ViewerCreate("channel", "algorithm", stream_info) == cosmo::util::ErrorEnum::SysErr);
+    REQUIRE(sut.ViewerHeartBeat("channel", "algorithm") == cosmo::util::ErrorEnum::SysErr);
+    REQUIRE(sut.ViewerDelete("channel", "algorithm"));
+    REQUIRE_NOTHROW(sut.SetViewCounts(1));
 }

@@ -58,6 +58,24 @@ TEST_CASE("DeviceDiscoveryService: classify receive errors", "[device-discovery]
     REQUIRE(ClassifyMulticastReceiveError(ENETDOWN) == MulticastReceiveAction::kRestartSocket);
 }
 
+TEST_CASE("DeviceDiscoveryService: production protocol is probe only", "[device-discovery]") {
+    using cosmo::service::detail::IsProductionDiscoveryCommandAllowed;
+    using cosmo::service::detail::IsProductionDiscoveryCommandAuthenticationRequired;
+
+    REQUIRE(IsProductionDiscoveryCommandAllowed("probe"));
+    REQUIRE_FALSE(IsProductionDiscoveryCommandAuthenticationRequired("probe"));
+    REQUIRE_FALSE(IsProductionDiscoveryCommandAllowed("modifyNetCard"));
+    REQUIRE_FALSE(IsProductionDiscoveryCommandAllowed("writeHWInfo"));
+    REQUIRE_FALSE(IsProductionDiscoveryCommandAllowed("modifyAuthCode"));
+    REQUIRE_FALSE(IsProductionDiscoveryCommandAllowed("queryAuthMessage"));
+    REQUIRE_FALSE(IsProductionDiscoveryCommandAllowed(""));
+    REQUIRE(IsProductionDiscoveryCommandAuthenticationRequired("modifyNetCard"));
+    REQUIRE(IsProductionDiscoveryCommandAuthenticationRequired("writeHWInfo"));
+    REQUIRE(IsProductionDiscoveryCommandAuthenticationRequired("modifyAuthCode"));
+    REQUIRE(IsProductionDiscoveryCommandAuthenticationRequired("queryAuthMessage"));
+    REQUIRE_FALSE(IsProductionDiscoveryCommandAuthenticationRequired("unknown"));
+}
+
 TEST_CASE("DeviceDiscoveryService: lifecycle safety", "[device-discovery]") {
     cosmo::test::MockServiceRegistry mocks;
 

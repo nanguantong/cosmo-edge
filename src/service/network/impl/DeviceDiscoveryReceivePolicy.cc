@@ -18,4 +18,13 @@ MulticastReceiveAction ClassifyMulticastReceiveError(int error_code) {
     return MulticastReceiveAction::kRestartSocket;
 }
 
+bool IsProductionDiscoveryCommandAllowed(std::string_view command) {
+    return command == "probe";
+}
+
+bool IsProductionDiscoveryCommandAuthenticationRequired(std::string_view command) {
+    return command == "modifyNetCard" || command == "writeHWInfo" || command == "modifyAuthCode" ||
+           command == "queryAuthMessage";
+}
+
 }  // namespace cosmo::service::detail

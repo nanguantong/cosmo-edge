@@ -56,6 +56,14 @@ util::ErrorEnum ModelImportExporter::ExportModelConfig(const std::string& modelC
         LOG_WARN("Model directory not found for modelCode: {}", modelCode);
         return util::ErrorEnum::FileNotExist;
     }
+
+    // Preset (built-in) models are encrypted and device-bound — they cannot be
+    // used on other machines, so refuse to export them.
+    if (cosmo::path::IsWithinRoot(cosmo::path::GetPresetModelPath(), model_dir_path)) {
+        LOG_WARN("Reject export of preset (built-in) model {}: device-bound encryption", modelCode);
+        return util::ErrorEnum::DefaultCantBeExport;
+    }
+
     const std::string models_dir = fs::path(model_dir_path).parent_path().string();
 
     // Clean model name for filename

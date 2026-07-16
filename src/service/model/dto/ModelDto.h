@@ -50,6 +50,8 @@ namespace Model {
         std::string inputDim{"1"};
         int outputCount{1};
         std::string outputDim{"5"};
+        bool isExportable{
+            true};  // false for preset (encrypted, device-bound) models — gates export/delete/update
         friend void to_json(nlohmann::json& j, const MsgModel& v);
         friend void from_json(const nlohmann::json& j, MsgModel& v);
     };
@@ -155,6 +157,8 @@ namespace Model {
     struct MsgGetConfigSend : public MsgSendHead {
         struct ResData {
             std::string configJson;
+            bool isExportable{true};        // false for preset (encrypted, device-bound) models
+            std::string defaultConfigJson;  // factory snapshot for "restore defaults"; empty if absent
             friend void to_json(nlohmann::json& j, const ResData& v);
             friend void from_json(const nlohmann::json& j, ResData& v);
         } resData;

@@ -300,6 +300,12 @@ std::string GetModelPath() {
     return p;
 }
 
+std::string GetPresetModelPath() {
+    auto p = PresetModelPath();
+    EnsureDir(p);
+    return p;
+}
+
 std::vector<std::string> GetModelSearchPaths() {
     auto mp = ModelPath();
     auto pp = PresetModelPath();

@@ -14,7 +14,6 @@
 #include <fstream>
 #include <regex>
 #include <sstream>
-#include <unordered_set>
 
 #include "nlohmann/json.hpp"
 #include "service/algorithm/IAlgorithmQuery.h"
@@ -25,6 +24,7 @@
 #include "util/Exec.h"
 #include "util/JsonFileUtil.h"
 #include "util/JsonStructUtil.h"
+#include "util/PathUtil.h"
 #include "util/StringUtil.h"
 #include "util/TimeUtil.h"
 
@@ -140,15 +140,20 @@ void ModelServiceImpl::NotifyAlgorithmsChanged(const std::string& modelCode, boo
 // Config CRUD
 // ──────────────────────────────────────────────
 
-cosmo::util::ErrorEnum ModelServiceImpl::GetModelConfig(const std::string& modelCode,
-                                                        std::string& configJson) {
+cosmo::util::ErrorEnum ModelServiceImpl::GetModelConfig(const std::string& modelCode, std::string& configJson,
+                                                        bool& isExportable, std::string& defaultConfigJson) {
     std::string model_dir_path = FindModelDir(modelCode);
     if (model_dir_path.empty()) {
         LOG_WARN("Model directory not found for modelCode: {}", modelCode);
         return cosmo::util::ErrorEnum::FileNotExist;
     }
 
-    std::string config_path = (std::filesystem::path(model_dir_path) / "config.json").string();
+    // Preset (built-in) models live under the preset path and are encrypted / device-bound,
+    // so they must not be exported.
+    isExportable = !cosmo::path::IsWithinRoot(cosmo::path::GetPresetModelPath(), model_dir_path);
+
+    const std::filesystem::path model_dir(model_dir_path);
+    const std::string config_path = (model_dir / "config.json").string();
 
     std::ifstream file(config_path);
     if (!file.is_open()) {
@@ -160,6 +165,17 @@ cosmo::util::ErrorEnum ModelServiceImpl::GetModelConfig(const std::string& model
     buffer << file.rdbuf();
     configJson = buffer.str();
     file.close();
+
+    // Factory config snapshot (for "restore defaults"); empty when absent (e.g. user models or
+    // preset models before Init snapshots them) — caller must handle empty gracefully.
+    defaultConfigJson.clear();
+    std::ifstream dfile((model_dir / "config.default.json").string());
+    if (dfile.is_open()) {
+        std::stringstream dbuf;
+        dbuf << dfile.rdbuf();
+        defaultConfigJson = dbuf.str();
+        dfile.close();
+    }
 
     LOG_INFO("Successfully read config.json for modelCode: {}", modelCode);
     return cosmo::util::ErrorEnum::Success;
@@ -236,20 +252,16 @@ cosmo::util::ErrorEnum ModelServiceImpl::DeleteModel(const std::string& modelCod
         return cosmo::util::ErrorEnum::InvalidParam;
     }
 
-    // Built-in models cannot be deleted (face lib / uniform lib dependency)
-    static const std::unordered_set<std::string> kBuiltinModels = {
-        "1000001", "1000005", "1000010", "1000012", "1000016",  // Face
-        "1001003", "1001007", "1001008"                         // Body
-    };
-    if (kBuiltinModels.count(modelCode)) {
-        LOG_WARN("Cannot delete built-in model: {}", modelCode);
-        return cosmo::util::ErrorEnum::DefaultCantBeDelete;
-    }
-
     std::string model_dir_path = FindModelDir(modelCode);
     if (model_dir_path.empty()) {
         LOG_WARN("Model directory not found for modelCode: {}", modelCode);
         return cosmo::util::ErrorEnum::FileNotExist;
+    }
+
+    // Preset (built-in) models are encrypted / device-bound and must not be deleted.
+    if (cosmo::path::IsWithinRoot(cosmo::path::GetPresetModelPath(), model_dir_path)) {
+        LOG_WARN("Cannot delete preset (built-in) model: {}", modelCode);
+        return cosmo::util::ErrorEnum::DefaultCantBeDelete;
     }
 
     namespace fs = std::filesystem;
@@ -280,16 +292,6 @@ cosmo::util::ErrorEnum ModelServiceImpl::UpdateModel(const std::string& modelCod
     if (modelCode.empty()) {
         LOG_WARN("{}", "modelCode is empty in update request");
         return cosmo::util::ErrorEnum::InvalidParam;
-    }
-
-    // Built-in models cannot be modified (face lib / uniform lib dependency)
-    static const std::unordered_set<std::string> kBuiltinModels = {
-        "1000001", "1000005", "1000010", "1000012", "1000016",  // Face
-        "1001003", "1001007", "1001008"                         // Body
-    };
-    if (kBuiltinModels.count(modelCode)) {
-        LOG_WARN("Cannot update built-in model: {}", modelCode);
-        return cosmo::util::ErrorEnum::DefaultCantBeUpdate;
     }
 
     std::string model_dir_path = FindModelDir(modelCode);

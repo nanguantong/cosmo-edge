@@ -112,6 +112,11 @@ std::string GetTemporaryDirPath();
 /// Primary user model storage directory.
 std::string GetModelPath();
 
+/// Preset (built-in, device-bound) model storage directory. Models here ship
+/// with the product and are encrypted — they must not be exported to other
+/// machines. Counterpart to GetModelPath(); GetModelSearchPaths() returns both.
+std::string GetPresetModelPath();
+
 /// All directories to search for model files (user + preset).
 std::vector<std::string> GetModelSearchPaths();
 

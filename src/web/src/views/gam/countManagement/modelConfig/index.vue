@@ -14,7 +14,11 @@
       </div>
       <div class="actions">
         <el-button type="primary" size="small" @click="handleSave">{{ t('action.save') }}</el-button>
-        <el-button size="small" @click="handleExport">{{ t('action.export') }}</el-button>
+        <el-tooltip :content="t('common.presetModelNotExportable')" :disabled="isExportable" placement="top">
+          <span>
+            <el-button size="small" :disabled="!isExportable" @click="handleExport">{{ t('action.export') }}</el-button>
+          </span>
+        </el-tooltip>
         <el-button size="small" @click="handleReset">{{ t('action.restoreDefault') }}</el-button>
         <el-button size="small" @click="goBack">{{ t('action.goBack') }}</el-button>
       </div>
@@ -66,6 +70,8 @@ const modelCode = ref('')
 const modelType = ref('')
 const chipType = ref('')
 const version = ref('')
+const isExportable = ref(true)
+const defaultConfigJson = ref('')
 const showOther = ref(false)
 const flowData = ref({})
 const paramsConfig = ref({})
@@ -195,8 +201,17 @@ const handleReset = () => {
   proxy.$confirm(t('validate.confirmResetDefault'), t('common.notice'), {
     type: 'warning'
   }).then(() => {
-    if (raw.value) hydrate(raw.value)
-    proxy.$message.success(t('common.defaultRestored'))
+    const text = defaultConfigJson.value
+    if (!text) {
+      proxy.$message.warning(t('common.noDefaultConfig'))
+      return
+    }
+    try {
+      hydrate(JSON.parse(text))
+      proxy.$message.success(t('common.defaultRestored'))
+    } catch {
+      proxy.$message.error(t('validate.editFailed'))
+    }
   })
 }
 
@@ -209,6 +224,8 @@ const queryModelConfig = () => {
   proxy.$API.getModelConfig({ modelCode: routeModelCode }).then((res) => {
     const { resData } = res || {}
     const text = resData?.configJson || '{}'
+    isExportable.value = resData?.isExportable !== false
+    defaultConfigJson.value = resData?.defaultConfigJson || ''
     let cfg = {}
     try {
       cfg = JSON.parse(text)

@@ -54,7 +54,7 @@ TEST_CASE("ModelImportExporter Tests", "[model]") {
                                   if (code == "1234567")
                                       return testModelDir + "/1234567";
                                   if (code == "test_export_model")
-                                      return testModelDir + "/test_export_model";
+                                      return testRoot + "/export_target/test_export_model";
                                   return std::string("");
                               },
                               [&]() { return std::string("1234567"); }, [&](const nlohmann::json&) {},
@@ -388,7 +388,7 @@ TEST_CASE("ModelImportExporter Tests", "[model]") {
     }
 
     SECTION("2.4 ExportModelConfig：验证 tar.gz 创建") {
-        std::string exportModelDir = testModelDir + "/test_export_model";
+        std::string exportModelDir = testRoot + "/export_target/test_export_model";
         fs::create_directories(exportModelDir);
         std::ofstream outCfg(exportModelDir + "/config.json");
         outCfg << "{\"modelCode\": \"test_export_model\", \"algorithmVersion\": \"1.0.0\"}";

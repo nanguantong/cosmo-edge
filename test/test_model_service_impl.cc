@@ -47,10 +47,13 @@ TEST_CASE("ModelServiceImpl: 模型服务核心逻辑", "[model-service]") {
 
     cosmo::test::MockServiceRegistry mocks;
     // Redirect path roots to test directory
-    cosmo::path::OverrideRootPathForTest(testBaseDir, testBaseDir);
-    // GetModelPath() -> testBaseDir/resource/models
-    // GetModelTemplatePath() -> testBaseDir/resource/model_template
+    // Separate user (data) and preset (app) roots so preset-path checks are testable.
+    cosmo::path::OverrideRootPathForTest(testBaseDir + "/udata", testBaseDir + "/adata");
+    // GetModelPath()         -> udata/resource/models  (user models: exportable/deletable)
+    // GetPresetModelPath()   -> adata/resource/models  (preset models: protected)
+    // GetModelTemplatePath() -> adata/resource/model_template
     auto testModelsDir      = cosmo::path::GetModelPath();
+    auto testPresetDir      = cosmo::path::GetPresetModelPath();
     auto testTemplatePath   = cosmo::path::GetModelTemplatePath();
     auto testComponentsPath = cosmo::path::GetModelComponentsJsonPath();
     ModelServiceImpl sut;
@@ -96,11 +99,14 @@ TEST_CASE("ModelServiceImpl: 模型服务核心逻辑", "[model-service]") {
         REQUIRE(results.size() == 1);
         REQUIRE(results[0].id == "test_model_001");
 
-        SECTION("DeleteModel 非法参数与内置模型") {
+        SECTION("DeleteModel 非法参数与预置模型") {
             REQUIRE(sut.DeleteModel("") == cosmo::util::ErrorEnum::InvalidParam);
-            REQUIRE(sut.DeleteModel("1000001") == cosmo::util::ErrorEnum::DefaultCantBeDelete);
 
-            // 可以删除我们创建的 test_model_001
+            // 预置（内置）模型不可删除 —— 在预置目录造一个
+            CreateTestModelOnDisk(testPresetDir, "preset_del_001", "PresetDelModel");
+            REQUIRE(sut.DeleteModel("preset_del_001") == cosmo::util::ErrorEnum::DefaultCantBeDelete);
+
+            // 可以删除我们创建的用户模型 test_model_001
             ALLOW_CALL(mocks.algSvc, GetAlgorithmsByModelId("test_model_001"))
                 .RETURN(std::vector<std::string>{});
             ALLOW_CALL(mocks.cameraSvc, NotifyAlgorithmsChanged(trompeloeil::_, false));
@@ -108,13 +114,13 @@ TEST_CASE("ModelServiceImpl: 模型服务核心逻辑", "[model-service]") {
             REQUIRE(std::filesystem::exists(testModelsDir + "/" +
                                             std::string(cosmo::util::kPlatformDirPrefix) +
                                             "test_model_001_TestModel_V1.0.0") == false);
+
+            // 清理预置目录，避免残留污染后续 QueryModels 等 SECTION
+            std::filesystem::remove_all(testPresetDir);
         }
 
         SECTION("UpdateModel 流程") {
-            // 不能更新内置模型
-            REQUIRE(sut.UpdateModel("1000001", "new_name", 4, "desc") ==
-                    cosmo::util::ErrorEnum::DefaultCantBeUpdate);
-
+            // UpdateModel 允许修改（含预置模型，config 改动可逆），这里验证用户模型可改
             ALLOW_CALL(mocks.algSvc, GetAlgorithmsByModelId("test_model_001"))
                 .RETURN(std::vector<std::string>{});
             ALLOW_CALL(mocks.cameraSvc, NotifyAlgorithmsChanged(trompeloeil::_, true));
@@ -128,7 +134,10 @@ TEST_CASE("ModelServiceImpl: 模型服务核心逻辑", "[model-service]") {
 
         SECTION("GetModelConfig / SaveModelConfig 流程") {
             std::string cfgJson;
-            REQUIRE(sut.GetModelConfig("test_model_001", cfgJson) == cosmo::util::ErrorEnum::Success);
+            std::string defaultCfgJson;
+            bool isExportable{false};
+            REQUIRE(sut.GetModelConfig("test_model_001", cfgJson, isExportable, defaultCfgJson) ==
+                    cosmo::util::ErrorEnum::Success);
             REQUIRE(cfgJson.find("TestModel") != std::string::npos);
 
             ALLOW_CALL(mocks.algSvc, GetAlgorithmsByModelId("test_model_001"))
@@ -144,7 +153,8 @@ TEST_CASE("ModelServiceImpl: 模型服务核心逻辑", "[model-service]") {
             REQUIRE(sut.SaveModelConfig("test_model_001", newJson) == cosmo::util::ErrorEnum::Success);
 
             std::string updatedJson;
-            REQUIRE(sut.GetModelConfig("test_model_001", updatedJson) == cosmo::util::ErrorEnum::Success);
+            REQUIRE(sut.GetModelConfig("test_model_001", updatedJson, isExportable, defaultCfgJson) ==
+                    cosmo::util::ErrorEnum::Success);
             REQUIRE(updatedJson.find("SavedModel") != std::string::npos);
         }
 

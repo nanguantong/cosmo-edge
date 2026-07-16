@@ -125,6 +125,7 @@ std::string ErrorCategory::message(int code) const {
         CaseStr(TimeTemplateCountLimit, "时间模板数量超过上限");
         CaseStr(DefaultCantBeDelete, "默认不可删除");
         CaseStr(DefaultCantBeUpdate, "默认不可修改");
+        CaseStr(DefaultCantBeExport, "默认不可导出");
         CaseStr(CameraNotExist, "相机不存在");
         CaseStr(CameraNotOnline, "相机不在线");
         CaseStr(CameraCountLimit, "相机数量达到上限");
@@ -228,7 +229,9 @@ std::string ErrorCategory::message(int code) const {
     return {};
 }
 
-#define CaseName(X) case cosmo::util::ErrorEnum::X: return #X
+#define CaseName(X)                                                                                          \
+    case cosmo::util::ErrorEnum::X:                                                                          \
+        return #X
 
 std::string ErrorEnumName(ErrorEnum code) {
     switch (code) {
@@ -315,6 +318,7 @@ std::string ErrorEnumName(ErrorEnum code) {
         CaseName(TimeTemplateCountLimit);
         CaseName(DefaultCantBeDelete);
         CaseName(DefaultCantBeUpdate);
+        CaseName(DefaultCantBeExport);
         CaseName(CameraNotExist);
         CaseName(CameraNotOnline);
         CaseName(CameraCountLimit);

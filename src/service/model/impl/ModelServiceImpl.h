@@ -41,7 +41,8 @@ public:
                                           std::string& persistentPath) override;
 
     // ---- Config CRUD ----
-    cosmo::util::ErrorEnum GetModelConfig(const std::string& modelCode, std::string& configJson) override;
+    cosmo::util::ErrorEnum GetModelConfig(const std::string& modelCode, std::string& configJson,
+                                          bool& isExportable, std::string& defaultConfigJson) override;
     cosmo::util::ErrorEnum SaveModelConfig(const std::string& modelCode,
                                            const std::string& configJson) override;
 

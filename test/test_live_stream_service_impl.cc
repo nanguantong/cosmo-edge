@@ -55,6 +55,7 @@ TEST_CASE("LiveStreamServiceImpl: 视频流管理核心逻辑", "[live-stream]")
         cosmo::ActionNode dummyAction;
         auto mockChannel =
             std::make_shared<cosmo::AlgChannel>("channel_1", "task_1", dummyAction, "rtsp://url");
+        mockChannel->demuxer_.action_status_ = cosmo::util::ErrorEnum::Success;
         ALLOW_CALL(mocks.cameraSvc, GetChannelInst("channel_1")).RETURN(mockChannel);
 
         // 我们不直接调用 ViewerCreate, 因为 WaitReady 会阻塞等数据
@@ -84,11 +85,9 @@ TEST_CASE("LiveStreamServiceImpl: 视频流管理核心逻辑", "[live-stream]")
             REQUIRE(sut.viewers_.size() == 0);
         }
 
-        // 重连流程: ViewerHeartBeat 发现不存在，返回 CameraNotExist 或者如果存在则成功
-        // 但由于我们是在测试重连，通常客户端发现断开会重新 ViewerCreate
-        int port = 0;
-        // ViewerCreate 会阻塞在 WaitReady 5秒，如果不修改其行为会比较耗时。
-        // 为了避免阻塞，我们在上面验证断开即可。
+        // Keepalive must expose the missing viewer so the client can recreate
+        // the stream instead of accepting a permanently stale session.
+        REQUIRE(sut.ViewerHeartBeat("channel_1", "alg_1") == cosmo::util::ErrorEnum::DemuxNoData);
     }
 }
 

@@ -9,6 +9,9 @@
 #include <event2/dns.h>
 #include <event2/event.h>
 #include <event2/util.h>
+#include <poll.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 #include <chrono>
 #include <memory>
@@ -67,6 +70,80 @@ struct DnsTestResult {
     bool completed{false};
     int error{EVUTIL_EAI_FAIL};
     evutil_addrinfo* addresses{nullptr};
+};
+
+class LoopbackResetServer {
+public:
+    LoopbackResetServer() = default;
+
+    ~LoopbackResetServer() {
+        CloseListener();
+    }
+
+    LoopbackResetServer(const LoopbackResetServer&)            = delete;
+    LoopbackResetServer& operator=(const LoopbackResetServer&) = delete;
+
+    bool Start() {
+        listener_ = socket(AF_INET, SOCK_STREAM, 0);
+        if (listener_ < 0) {
+            return false;
+        }
+
+        int reuse_address = 1;
+        if (setsockopt(listener_, SOL_SOCKET, SO_REUSEADDR, &reuse_address, sizeof(reuse_address)) != 0) {
+            return false;
+        }
+
+        sockaddr_in address{};
+        address.sin_family      = AF_INET;
+        address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        address.sin_port        = 0;
+        if (bind(listener_, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) != 0 ||
+            listen(listener_, 1) != 0) {
+            return false;
+        }
+
+        socklen_t address_length = sizeof(address);
+        if (getsockname(listener_, reinterpret_cast<sockaddr*>(&address), &address_length) != 0) {
+            return false;
+        }
+        port_ = ntohs(address.sin_port);
+        return true;
+    }
+
+    int Port() const {
+        return port_;
+    }
+
+    bool AcceptAndReset(std::chrono::milliseconds timeout) {
+        pollfd descriptor{listener_, POLLIN, 0};
+        if (poll(&descriptor, 1, static_cast<int>(timeout.count())) != 1 ||
+            (descriptor.revents & POLLIN) == 0) {
+            return false;
+        }
+
+        const int connection = accept(listener_, nullptr, nullptr);
+        if (connection < 0) {
+            return false;
+        }
+        CloseListener();
+
+        linger reset{1, 0};
+        const bool configured = setsockopt(connection, SOL_SOCKET, SO_LINGER, &reset, sizeof(reset)) == 0;
+        close(connection);
+        return configured;
+    }
+
+private:
+    void CloseListener() {
+        if (listener_ >= 0) {
+            close(listener_);
+            listener_ = -1;
+        }
+    }
+
+    int listener_{-1};
+    int port_{0};
 };
 
 }  // namespace
@@ -200,21 +277,25 @@ TEST_CASE("MqttLifecycleServiceImpl: concurrent disabled start and stop is seria
     REQUIRE_FALSE(sut.IsMqttRegistered());
 }
 
-TEST_CASE("MqttLifecycleServiceImpl: Stop interrupts DNS resolution promptly",
-          "[mqtt-lifecycle][dns][lifecycle]") {
+TEST_CASE("MqttLifecycleServiceImpl: Stop interrupts reconnect backoff promptly",
+          "[mqtt-lifecycle][lifecycle]") {
     cosmo::test::MockServiceRegistry mocks;
+
+    LoopbackResetServer server;
+    REQUIRE(server.Start());
 
     ALLOW_CALL(mocks.configReadSvc, GetRunMode()).RETURN(cosmo::RunMode::RunModeStandAlone);
     cosmo::service::MqttParam mqtt_param;
     mqtt_param.enable = true;
-    mqtt_param.url    = "mqtt-stop-test.invalid";
-    mqtt_param.port   = 1883;
+    mqtt_param.url    = "127.0.0.1";
+    mqtt_param.port   = server.Port();
     ALLOW_CALL(mocks.configNetSvc, GetMqttParam()).RETURN(mqtt_param);
-    ALLOW_CALL(mocks.deviceInfoSvc, GetDevSn()).RETURN("SN-DNS-STOP-TEST");
+    ALLOW_CALL(mocks.deviceInfoSvc, GetDevSn()).RETURN("SN-MQTT-STOP-TEST");
 
     MqttLifecycleServiceImpl sut([]() { return std::make_unique<StubDispatcher>(); });
     sut.MqttStart();
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    REQUIRE(server.AcceptAndReset(std::chrono::seconds(2)));
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     const auto stop_started = std::chrono::steady_clock::now();
     sut.MqttStop();

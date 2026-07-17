@@ -348,8 +348,7 @@ void PersonImport::ProcessImages(const std::string& work_dir, FaceLibPtr face_li
                 std::lock_guard<std::shared_mutex> lock(mtx_);
                 ++failed_;
                 ofile << "\"" << failed_ << "\t\",\"" << raw_path << "\t\",\""
-                      << "Face library capacity reached limit"
-                      << "\t\",\"";
+                      << "Face library capacity reached limit" << "\t\",\"";
                 ofile << "\t\"\n";
                 continue;
             }
@@ -360,8 +359,7 @@ void PersonImport::ProcessImages(const std::string& work_dir, FaceLibPtr face_li
             if (it == kValidImageExtensions.end()) {
                 std::lock_guard<std::shared_mutex> lock(mtx_);
                 ++failed_;
-                ofile << "\"" << failed_ << "\t\",\"" << raw_path << "\t\",\""
-                      << "Invalid image format"
+                ofile << "\"" << failed_ << "\t\",\"" << raw_path << "\t\",\"" << "Invalid image format"
                       << "\t\",\"";
                 ofile << "\t\"\n";
                 continue;
@@ -382,8 +380,7 @@ void PersonImport::ProcessImages(const std::string& work_dir, FaceLibPtr face_li
                 std::lock_guard<std::shared_mutex> lock(mtx_);
                 ++failed_;
                 ofile << "\"" << failed_ << "\t\",\"" << raw_path << "\t\",\""
-                      << "Image too small or decode failed"
-                      << "\t\",\"";
+                      << "Image too small or decode failed" << "\t\",\"";
                 ofile << "\t\"\n";
                 continue;
             }
@@ -395,8 +392,7 @@ void PersonImport::ProcessImages(const std::string& work_dir, FaceLibPtr face_li
                     std::lock_guard<std::shared_mutex> lock(mtx_);
                     ++failed_;
                     ofile << "\"" << failed_ << "\t\",\"" << raw_path << "\t\",\""
-                          << "get face feature failed"
-                          << "\t\",\"";
+                          << "get face feature failed" << "\t\",\"";
                     ofile << "\t\"\n";
                     continue;
                 }

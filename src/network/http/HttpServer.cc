@@ -23,9 +23,11 @@
 #include "network/http/HttpCommon.h"
 #include "network/http/MultipartStreamParser.h"
 #include "util/CipherUtil.h"
+#include "util/ErrorCode.h"
 #include "util/FileUtil.h"
 #include "util/JsonStructUtil.h"
 #include "util/Log.h"
+#include "util/MsgBaseTypes.h"
 #include "util/UuidUtil.h"
 
 namespace chrono = std::chrono;
@@ -202,7 +204,7 @@ void HttpServer::ComGenCb(struct evhttp_request* req, void* arg) {
 
     const auto admission = http_server->request_inspector_->InspectRequest(context, !is_log_request);
     if (admission == RequestAdmission::kUnauthorized) {
-        http_server->SendImmediateError(req, HttpResponseCode::kNeedAuthenticate);
+        http_server->SendImmediateAuthError(req);
         return;
     }
     if (admission == RequestAdmission::kRouteNotFound) {
@@ -708,6 +710,42 @@ void HttpServer::CloseRequest(HttpRequestToken token, struct evhttp_connection* 
     }
     evhttp_connection_set_closecb(connection, nullptr, nullptr);
     active_requests_.erase(it);
+}
+
+void HttpServer::SendImmediateAuthError(struct evhttp_request* req) {
+    MsgSendHead response;
+    response.resCode = kServerRspFailed;
+
+    MsgResBase message;
+    message.msgCode    = std::to_string(static_cast<int>(util::ErrorEnum::AuthFailed));
+    message.messageKey = "api.error." + util::ErrorEnumName(util::ErrorEnum::AuthFailed);
+    message.msgText    = "Auth Failed";
+    response.resMsg.push_back(std::move(message));
+
+    std::string response_body;
+    if (!cosmo::util::EncodeJson(response, response_body)) {
+        SendImmediateError(req, HttpResponseCode::kNeedAuthenticate);
+        return;
+    }
+
+    struct evbuffer* buffer = evbuffer_new();
+    if (buffer == nullptr) {
+        SendImmediateError(req, HttpResponseCode::kNeedAuthenticate);
+        return;
+    }
+    if (!AddHttpHeader(req, "")) {
+        evbuffer_free(buffer);
+        SendImmediateError(req, HttpResponseCode::kNeedAuthenticate);
+        return;
+    }
+    evbuffer_add(buffer, response_body.data(), response_body.size());
+
+    const auto& code_messages = GetHttpResCodeMsg();
+    const auto code_value     = static_cast<int>(HttpResponseCode::kNeedAuthenticate);
+    const auto it             = code_messages.find(code_value);
+    const char* reason        = it == code_messages.end() ? "NEED AUTHENTICATE" : it->second.c_str();
+    evhttp_send_reply(req, code_value, reason, buffer);
+    evbuffer_free(buffer);
 }
 
 void HttpServer::SendImmediateError(struct evhttp_request* req, HttpResponseCode code) {

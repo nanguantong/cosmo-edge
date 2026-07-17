@@ -371,9 +371,7 @@ cosmo::MsgInfoSend AppInfoServiceImpl::GetSystemOverviewInfo(const cosmo::MsgInf
     std::vector<cosmo::GpuMemSnapshot> devs;
     devs.reserve(gpu_info.gpudevusage.size());
     std::transform(gpu_info.gpudevusage.begin(), gpu_info.gpudevusage.end(), std::back_inserter(devs),
-                   [](const auto& d) -> cosmo::GpuMemSnapshot {
-                       return {d.gpumemtotal, d.gpumemavailable};
-                   });
+                   [](const auto& d) -> cosmo::GpuMemSnapshot { return {d.gpumemtotal, d.gpumemavailable}; });
     double custom_score =
         cosmo::CalcCustomScore(gpu_info.gpuusage, gpu_info.gpumemtotal, gpu_info.gpumemavailable, devs,
                                discard_packet_ratio, discard_max_sec);

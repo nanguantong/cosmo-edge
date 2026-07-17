@@ -70,6 +70,7 @@ namespace media {
         BmVpuRawFrame input_frame_{};
         BmVpuEncodedFrame output_frame_{};
 
+        std::queue<VideoPacketPtr> pending_packets_;
         bool first_pkt_received_ = false;
 
         bool closed_ = true;

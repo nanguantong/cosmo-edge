@@ -134,6 +134,7 @@ private:
     void CompleteRequest(HttpRequestToken token, const struct evhttp_request* req);
     void CloseRequest(HttpRequestToken token, struct evhttp_connection* connection);
 
+    void SendImmediateAuthError(struct evhttp_request* req);
     void SendImmediateError(struct evhttp_request* req, HttpResponseCode code);
     void StopAccepting();
     void ShutdownOnEventThread();

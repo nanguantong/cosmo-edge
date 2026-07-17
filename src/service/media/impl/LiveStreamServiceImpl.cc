@@ -255,7 +255,10 @@ cosmo::util::ErrorEnum LiveStreamServiceImpl::ViewerHeartBeat(const std::string&
         return cosmo::util::ErrorEnum::Success;
     }
 
-    return cosmo::util::ErrorEnum::Success;
+    // A successful keepalive for a missing viewer leaves the browser believing
+    // that a stream removed by the watchdog (or a service restart) is still
+    // healthy. Return a normal stream error so the client can recreate it.
+    return cosmo::util::ErrorEnum::DemuxNoData;
 }
 
 // ---------------------------------------------------------------------------

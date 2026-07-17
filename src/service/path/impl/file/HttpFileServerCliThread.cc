@@ -126,8 +126,8 @@ int CHttpFileServerCliThread::RetryUpload(int max_retries, CUploadFileTask& task
 
         task.req_get_file_url = {};
         const bool submitted  = file_server_cli_.HttpclientSubmit(
-             cosmo::network::http::FileServerClientType::kUploadFile, task.upload_filepath,
-             task.req_get_file_url, task.bucket, task.file_url);
+            cosmo::network::http::FileServerClientType::kUploadFile, task.upload_filepath,
+            task.req_get_file_url, task.bucket, task.file_url);
 
         if (submitted && 1 == task.req_get_file_url.resCode) {
             LOG_INFO("{} Upload File[{}] To FileServer[{}] Success", kTag, task.upload_filepath,

@@ -605,10 +605,9 @@ TimeStatus TimeServiceImpl::GetTimeStatus(std::vector<TimeZoneItem>& zones) {
     ts.ntp.interval = ntp_persist_->interval;
     ts.ntp.port     = ntp_persist_->ntp_port;
 
-    std::transform(city_list_->timezone_list.begin(), city_list_->timezone_list.end(),
-                   std::back_inserter(zones), [](const auto& city) {
-                       return TimeZoneItem{city.zh_cn, city.tz, static_cast<int>(city.area_id)};
-                   });
+    std::transform(
+        city_list_->timezone_list.begin(), city_list_->timezone_list.end(), std::back_inserter(zones),
+        [](const auto& city) { return TimeZoneItem{city.zh_cn, city.tz, static_cast<int>(city.area_id)}; });
 
     ts.timestamp  = util::GetMilliseconds();
     auto date     = util::DateTime(ts.timestamp / 1000);

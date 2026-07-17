@@ -487,9 +487,8 @@ Status Qwen3VLRunner::RunImpl(Model& model, Qwen3VLRunner::Impl& impl,
         std::cerr << "[Qwen3VLRunner] prompt built model_type=" << impl.model_type
                   << " append_empty_think=" << (impl.is_qwen35() ? 1 : 0) << " grid_thw=["
                   << impl.config.grid_thw[0] << "," << impl.config.grid_thw[1] << ","
-                  << impl.config.grid_thw[2] << "]"
-                  << " pixel_values=" << pixel_values.size() << " tokens=" << tokens.size()
-                  << " token_preview=" << TokenPreview(tokens) << " prompt=\""
+                  << impl.config.grid_thw[2] << "]" << " pixel_values=" << pixel_values.size()
+                  << " tokens=" << tokens.size() << " token_preview=" << TokenPreview(tokens) << " prompt=\""
                   << EscapeForLog(sentence_input, 512) << "\"" << std::endl;
         if (tokens.empty() || tokens.size() > static_cast<size_t>(model.MAX_INPUT_LENGTH) ||
             tokens.size() >= static_cast<size_t>(model.SEQLEN))
@@ -567,8 +566,7 @@ Status Qwen3VLRunner::RunImpl(Model& model, Qwen3VLRunner::Impl& impl,
         std::string tag    = impl.is_qwen35() ? "Qwen3_5" : "Qwen3VL";
         std::cerr << "[" << tag << "] generated " << num_tokens << " tokens in " << std::fixed
                   << std::setprecision(2) << elapsed_s << " s, " << std::setprecision(1) << tok_per_sec
-                  << " tok/s"
-                  << " stop=" << stop_reason << " raw_text=\"" << EscapeForLog(text, 512) << "\""
+                  << " tok/s" << " stop=" << stop_reason << " raw_text=\"" << EscapeForLog(text, 512) << "\""
                   << std::endl;
         text_outputs[i].resize(1);
         text_outputs[i][0] = FilterOutput(text);

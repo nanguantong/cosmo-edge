@@ -267,8 +267,8 @@ namespace {
         hints.ai_socktype = SOCK_DGRAM;
         hints.ai_protocol = IPPROTO_UDP;
         auto* request     = evdns_getaddrinfo(
-                dns_base, host.c_str(), nullptr, &hints,
-                [](int result, evutil_addrinfo* addresses, void* context) {
+            dns_base, host.c_str(), nullptr, &hints,
+            [](int result, evutil_addrinfo* addresses, void* context) {
                 auto& resolution  = *static_cast<ResolutionState*>(context);
                 resolution.result = result;
                 if (result == 0 && addresses != nullptr) {
@@ -283,7 +283,7 @@ namespace {
                 }
                 resolution.complete = true;
             },
-                &state);
+            &state);
 
         const auto deadline =
             std::chrono::steady_clock::now() + std::chrono::milliseconds(kResolverTimeoutMs);

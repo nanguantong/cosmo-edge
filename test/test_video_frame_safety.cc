@@ -9,7 +9,13 @@
 #include "util/VideoInfo.h"
 
 #ifdef COSMO_NN_USE_SOPHON_BACKEND
+#include <algorithm>
+#include <chrono>
+#include <vector>
+
+#include "bmlib_runtime.h"
 #include "media/IOsdTextRenderer.h"
+#include "media/VideoEncoder.h"
 #include "media/VideoFrameProcSophon.h"
 #include "mem/DeviceContext.h"
 #include "mem/IDeviceContext.h"
@@ -139,27 +145,31 @@ namespace {
         }
     };
 
-    class SophonCropFixture {
+    class SophonMediaFixture {
     public:
-        SophonCropFixture() {
+        SophonMediaFixture() {
             device_context_ = std::make_unique<mem::DeviceContext>();
             service::ServiceRegistry::Instance().Set<mem::IDeviceContext>(device_context_.get());
             memory_pool_ = std::make_unique<service::MemoryPoolServiceImpl>();
             frame_proc_  = std::make_unique<VideoFrameProcSophon>(device_context_->GetMediaHandle(), osd_);
         }
 
-        ~SophonCropFixture() {
+        ~SophonMediaFixture() {
             frame_proc_.reset();
             memory_pool_.reset();
             service::ServiceRegistry::Instance().Set<mem::IDeviceContext>(nullptr);
             device_context_.reset();
         }
 
-        SophonCropFixture(const SophonCropFixture&)            = delete;
-        SophonCropFixture& operator=(const SophonCropFixture&) = delete;
+        SophonMediaFixture(const SophonMediaFixture&)            = delete;
+        SophonMediaFixture& operator=(const SophonMediaFixture&) = delete;
 
         VideoFrameProcSophon& FrameProc() {
             return *frame_proc_;
+        }
+
+        void* MediaHandle() {
+            return device_context_->GetMediaHandle();
         }
 
     private:
@@ -172,7 +182,7 @@ namespace {
 }  // namespace
 
 TEST_CASE("Sophon crop rejects unsafe ROIs before VPP", "[sophon-crop][.device]") {
-    SophonCropFixture fixture;
+    SophonMediaFixture fixture;
     auto source = std::make_shared<VideoFrame>(64, 64, PixelFormat::PIXEL_I420, 42, 123456);
     REQUIRE(VideoFrameValid(source, true));
 
@@ -194,7 +204,7 @@ TEST_CASE("Sophon crop rejects unsafe ROIs before VPP", "[sophon-crop][.device]"
 }
 
 TEST_CASE("Sophon crop normalizes recoverable ROIs", "[sophon-crop][.device]") {
-    SophonCropFixture fixture;
+    SophonMediaFixture fixture;
     auto source = std::make_shared<VideoFrame>(64, 64, PixelFormat::PIXEL_I420, 42, 123456);
     REQUIRE(VideoFrameValid(source, true));
 
@@ -220,6 +230,59 @@ TEST_CASE("Sophon crop normalizes recoverable ROIs", "[sophon-crop][.device]") {
         REQUIRE(result->GetFrameIndex() == source->GetFrameIndex());
         REQUIRE(result->GetTimestamp() == source->GetTimestamp());
     }
+}
+
+TEST_CASE("Sophon encoder survives startup without immediate output", "[sophon-encoder][.device]") {
+    constexpr int kWidth  = 1280;
+    constexpr int kHeight = 720;
+
+    SophonMediaFixture fixture;
+    auto encoder = VideoEncoder::Create(fixture.MediaHandle());
+    REQUIRE(encoder);
+    encoder->Set(VideoCodecType::kH264, kWidth, kHeight);
+    REQUIRE(encoder->Open());
+
+    auto frame = std::make_shared<VideoFrame>(kWidth, kHeight, PixelFormat::PIXEL_I420);
+    REQUIRE(VideoFrameValid(frame, true));
+    auto* device_memory = reinterpret_cast<bm_device_mem_t*>(frame->GetData());
+    REQUIRE(device_memory != nullptr);
+
+    std::vector<uint8_t> gray_frame(frame->GetSize(), 128);
+    std::fill_n(gray_frame.begin(), static_cast<size_t>(kWidth) * kHeight, 16);
+    REQUIRE(bm_memcpy_s2d_partial(reinterpret_cast<bm_handle_t>(fixture.MediaHandle()), *device_memory,
+                                  gray_frame.data(),
+                                  static_cast<unsigned int>(gray_frame.size())) == BM_SUCCESS);
+
+    VideoPacketPtr last_packet;
+    size_t packet_count                   = 0;
+    size_t last_output_frame_index        = 0;
+    size_t submitted_frame_count          = 0;
+    constexpr size_t kExpectedPacketCount = 3;
+    constexpr size_t kFrameCount          = 64;
+    const auto deadline                   = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    for (size_t frame_index = 0; frame_index < kFrameCount; ++frame_index) {
+        if (std::chrono::steady_clock::now() >= deadline) {
+            break;
+        }
+        frame->SetFrameIndex(frame_index);
+        frame->SetTimestamp(static_cast<int64_t>(frame_index) * 40);
+        auto packet = encoder->Encode(frame);
+        ++submitted_frame_count;
+        if (packet) {
+            REQUIRE_FALSE(packet->data.empty());
+            last_packet             = std::move(packet);
+            last_output_frame_index = frame_index;
+            ++packet_count;
+        }
+    }
+
+    REQUIRE(submitted_frame_count == kFrameCount);
+    REQUIRE(packet_count >= kExpectedPacketCount);
+    REQUIRE(last_output_frame_index >= (kFrameCount * 3) / 4);
+    REQUIRE(last_packet);
+    REQUIRE(last_packet->width == kWidth);
+    REQUIRE(last_packet->height == kHeight);
+    REQUIRE(last_packet->codec_type == VideoCodecType::kH264);
 }
 #endif
 

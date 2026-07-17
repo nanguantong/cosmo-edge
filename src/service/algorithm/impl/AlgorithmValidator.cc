@@ -57,7 +57,7 @@ void AlgorithmValidator::ValidateModels(algorithm::AlgorithmPacketInfo& cfgInfo)
                     algorithm::AlgorithmModelInfo info;
                     info.modelCode = param.value;
                     info.bActive   = ServiceRegistry::Instance().Get<IModelService>().ModelValid(
-                          info.modelCode, info.modelName);
+                        info.modelCode, info.modelName);
                     if (!info.bActive) {
                         has_unread_task = true;
                     }

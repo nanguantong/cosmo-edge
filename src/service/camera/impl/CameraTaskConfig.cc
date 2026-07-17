@@ -229,9 +229,7 @@ util::ErrorEnum CameraServiceImpl::SwitchTask(const std::string& cameraId, const
             std::vector<GpuMemSnapshot> devs;
             devs.reserve(gpu_info.gpudevusage.size());
             std::transform(gpu_info.gpudevusage.begin(), gpu_info.gpudevusage.end(), std::back_inserter(devs),
-                           [](const auto& d) {
-                               return GpuMemSnapshot{d.gpumemtotal, d.gpumemavailable};
-                           });
+                           [](const auto& d) { return GpuMemSnapshot{d.gpumemtotal, d.gpumemavailable}; });
             auto score = CalcCustomScore(gpu_info.gpuusage, gpu_info.gpumemtotal, gpu_info.gpumemavailable,
                                          devs, discard_percent, continues_discard_sec);
             if (score > 100.0) {

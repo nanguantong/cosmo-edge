@@ -17,7 +17,10 @@
 
 #include "catch_amalgamated.hpp"
 #include "network/http/HttpServer.h"
+#include "nlohmann/json.hpp"
+#include "util/ErrorCode.h"
 #include "util/IRequestDispatcher.h"
+#include "util/MsgBaseTypes.h"
 
 namespace cosmo::network::http {
 namespace {
@@ -476,6 +479,18 @@ TEST_CASE("HttpServer rejects unauthorized multipart before parsing or dispatch"
 
     const auto response = ReadAll(client.Get());
     CHECK(response.find("401") != std::string::npos);
+    CHECK(response.find("Content-Type: application/json") != std::string::npos);
+    const auto body_position = response.find("\r\n\r\n");
+    REQUIRE(body_position != std::string::npos);
+    const auto response_json = nlohmann::json::parse(response.substr(body_position + 4), nullptr, false);
+    REQUIRE_FALSE(response_json.is_discarded());
+    CHECK(response_json.at("resCode") == cosmo::kServerRspFailed);
+    REQUIRE(response_json.at("resMsg").is_array());
+    REQUIRE(response_json.at("resMsg").size() == 1);
+    CHECK(response_json.at("resMsg").at(0).at("msgCode") ==
+          std::to_string(static_cast<int>(cosmo::util::ErrorEnum::AuthFailed)));
+    CHECK(response_json.at("resMsg").at(0).at("messageKey") == "api.error.AuthFailed");
+    CHECK(response.find("rejected-token") == std::string::npos);
     CHECK_FALSE(state->Entered());
 
     runner.Server().UnInitialize();

@@ -340,7 +340,7 @@ cosmo::MsgDiskInfo HardwareQueryUtil::QueryDiskUtilization() {
             return res;
         }
         res.disktotal     = static_cast<int64_t>(static_cast<uint64_t>(disk_info.f_bsize) *
-                                             static_cast<uint64_t>(disk_info.f_blocks));
+                                                 static_cast<uint64_t>(disk_info.f_blocks));
         res.diskavailable = static_cast<int64_t>(static_cast<uint64_t>(disk_info.f_bsize) *
                                                  static_cast<uint64_t>(disk_info.f_bavail));
         return res;

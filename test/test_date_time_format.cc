@@ -246,7 +246,7 @@ TEST_CASE("DateTime: construct from string", "[datetime]") {
     REQUIRE(dt.Time().Second() == 45);
 }
 
-TEST_CASE("DateTime: rejects empty, padded, and normalized input", "[datetime]") {
+TEST_CASE("DateTime: rejects empty padded and normalized input", "[datetime]") {
     REQUIRE_THROWS_AS(DateTime(""), Exception);
     REQUIRE_THROWS_AS(DateTime(" 2025-06-25 14:30:45"), Exception);
     REQUIRE_THROWS_AS(DateTime("2025-06-25  14:30:45"), Exception);

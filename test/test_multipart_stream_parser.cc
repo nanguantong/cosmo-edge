@@ -169,7 +169,7 @@ TEST_CASE("Multipart parser rejects reserved and duplicate fields", "[http][mult
     }
 }
 
-TEST_CASE("Multipart parser enforces part, field, header, and file limits", "[http][multipart]") {
+TEST_CASE("Multipart parser enforces part field header and file limits", "[http][multipart]") {
     TempDirectory temp;
     const std::string boundary = "limit-boundary";
     MultipartLimits limits;

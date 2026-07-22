@@ -4,7 +4,7 @@
 #include <chrono>
 #include <list>
 #include <memory>
-#include <shared_mutex>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -22,6 +22,13 @@ public:
     StreamViewer(AlgChannelPtr channelInst, const std::string& channelId, const std::string& algId);
     ~StreamViewer();
 
+    StreamViewer(const StreamViewer&)            = delete;
+    StreamViewer& operator=(const StreamViewer&) = delete;
+
+    /// Detach from the channel, drain worker callbacks and close the RTMP
+    /// publisher. Safe to call repeatedly from timeout/error/stop paths.
+    void Stop();
+
     std::string GetChannelId() const {
         return channel_id_;
     }
@@ -36,10 +43,18 @@ public:
 
     /// Wait until the underlying RTMP stream is ready.
     bool WaitReady(std::chrono::milliseconds timeout) {
-        if (video_pusher_) {
+        if (!stopped_.load() && video_pusher_) {
             return video_pusher_->WaitReady(timeout);
         }
         return false;
+    }
+
+    [[nodiscard]] std::string LastPublishError() const {
+        return video_pusher_ ? video_pusher_->LastError() : std::string{};
+    }
+
+    [[nodiscard]] bool IsStopped() const {
+        return stopped_.load();
     }
 
     int GetViewerNum() const {
@@ -63,7 +78,6 @@ private:
     void UpdateCtrlFps();
     bool EncoderReady() const;
 
-    std::shared_mutex mtx_;
     std::string channel_id_;
     std::string alg_id_;
     AlgChannelPtr channel_inst_;
@@ -74,6 +88,7 @@ private:
     int heartbeat_failed_count_{0};      // Continuous heartbeat failure count
     int64_t heartbeat_duration_{10000};  // Heartbeat interval
     int heartbeat_failed_interval_{6};   // Disconnect on continuous heartbeat failures
+    std::mutex heartbeat_mtx_;
 
     std::atomic<int> viewer_num_{1};  // Number of viewers for the same camera
 
@@ -92,6 +107,10 @@ private:
     std::shared_ptr<AsyncQueue<VideoPacketPtr>> async_packet_queue_;
     // YUV data
     AsyncQueue<VideoFramePtr> async_frame_queue_;
+
+    std::atomic<bool> stopped_{false};
+    bool packet_queue_attached_{false};
+    bool frame_queue_attached_{false};
 };
 using StreamViewerPtr = std::shared_ptr<StreamViewer>;
 }  // namespace cosmo

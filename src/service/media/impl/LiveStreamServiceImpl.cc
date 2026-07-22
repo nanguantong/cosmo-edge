@@ -8,6 +8,7 @@
 #include "service/detail/ServiceRegistry.h"
 #include "util/EnvUtil.h"
 #include "util/ErrorCode.h"
+#include "util/Exception.h"
 #include "util/FormatString.h"
 #include "util/Log.h"
 #include "util/TimingConstants.h"
@@ -21,6 +22,16 @@ namespace {
     static constexpr const char* kKeepAliveUrl     = "streamkeepalive";
     static constexpr int kDefaultHttpPort          = 8080;
     static constexpr int kDefaultRtcApiPort        = 1985;
+    static constexpr auto kRawStreamReadyTimeout   = std::chrono::milliseconds(5000);
+    static constexpr auto kAlgStreamReadyTimeout   = std::chrono::milliseconds(15000);
+
+    std::string BuildViewerKey(const std::string& channelId, const std::string& algCode) {
+        return COSMO_FORMAT("{}\n{}", channelId, algCode);
+    }
+
+    std::chrono::milliseconds StreamReadyTimeout(const std::string& algCode) {
+        return algCode.empty() ? kRawStreamReadyTimeout : kAlgStreamReadyTimeout;
+    }
 
     std::string BuildStreamName(const std::string& channelId, const std::string& algCode) {
         return algCode.empty() ? channelId : COSMO_FORMAT("{}_{}", channelId, algCode);
@@ -85,16 +96,28 @@ void LiveStreamServiceImpl::Stop() {
         watchdog_thread_.join();
     }
 
-    // StreamViewer teardown stops queues, encoders, and RTMP pushers and may
-    // acquire channel locks. Move ownership under mtx_, then destruct only
-    // after releasing it to avoid lock inversion with worker callbacks.
-    std::vector<cosmo::StreamViewerPtr> viewers;
+    std::vector<cosmo::StreamViewerPtr> viewers_to_stop;
     {
         std::unique_lock<std::shared_mutex> lock(mtx_);
-        viewers.swap(viewers_);
+        viewers_to_stop.swap(viewers_);
+        for (auto& [key, gate] : starting_viewers_) {
+            (void)key;
+            gate->cancelled = true;
+            gate->finished  = true;
+            gate->result    = cosmo::util::ErrorEnum::LiveStreamStopped;
+            if (gate->viewer) {
+                viewers_to_stop.push_back(gate->viewer);
+                gate->viewer.reset();
+            }
+            gate->cv.notify_all();
+        }
+        starting_viewers_.clear();
     }
-    viewers.clear();
+    for (auto& viewer : viewers_to_stop) {
+        viewer->Stop();
+    }
     stopped_ = true;
+    LOG_INFO("{}", "LiveStreamServiceImpl Delete");
 }
 
 // ---------------------------------------------------------------------------
@@ -148,50 +171,156 @@ cosmo::util::ErrorEnum LiveStreamServiceImpl::ViewerCreate(const std::string& ch
         return cosmo::util::ErrorEnum::CameraNotOnline;
     }
 
-    // Acquire exclusive lock before encoder count check to prevent TOCTOU race
-    std::unique_lock<std::shared_mutex> lock(mtx_);
-    if (!((algCode.empty()) && (attr.codec == "H264"))) {
-        auto count_dec = ViewerEncoderCountLocked();
-        if (count_dec >= view_counts_.load()) {
-            LOG_INFO("view sum already {} {}", view_counts_.load(), count_dec);
-            return cosmo::util::ErrorEnum::EncodeFailed;
+    const bool requires_encoder  = !(algCode.empty() && attr.codec == "H264");
+    const std::string viewer_key = BuildViewerKey(channelId, algCode);
+    const auto ready_timeout     = StreamReadyTimeout(algCode);
+
+    std::shared_ptr<ViewerStartGate> gate;
+    bool start_owner = false;
+    {
+        // The ready viewer and the startup reservation are checked under one
+        // lock. Exactly one request owns publisher construction for a stream;
+        // concurrent requests share its result instead of opening duplicate
+        // RTMP publishers.
+        std::unique_lock<std::shared_mutex> lock(mtx_);
+        auto ready_it = FindViewer(channelId, algCode);
+        if (ready_it != viewers_.end()) {
+            (*ready_it)->UpViewerNum();
+            LOG_INFO("viewer reuse: stream={}/{} viewers={} publisher=ready", channelId, algCode,
+                     (*ready_it)->GetViewerNum());
+            PopulateStreamInfo(streamInfo, channelId, algCode);
+            return cosmo::util::ErrorEnum::Success;
+        }
+
+        auto starting_it = starting_viewers_.find(viewer_key);
+        if (starting_it != starting_viewers_.end()) {
+            gate = starting_it->second;
+            gate->participants += 1;
+            LOG_INFO("viewer join startup: stream={}/{} waiters={}", channelId, algCode, gate->participants);
+        } else {
+            if (requires_encoder) {
+                const int encoder_count = ViewerEncoderCountLocked();
+                if (encoder_count >= view_counts_.load()) {
+                    LOG_WARN("viewer rejected: stream={}/{} encoder_limit={} active_or_starting={}",
+                             channelId, algCode, view_counts_.load(), encoder_count);
+                    return cosmo::util::ErrorEnum::EncodeFailed;
+                }
+            }
+            gate                   = std::make_shared<ViewerStartGate>();
+            gate->requires_encoder = requires_encoder;
+            starting_viewers_.emplace(viewer_key, gate);
+            start_owner = true;
+            LOG_INFO("viewer startup reserved: stream={}/{} encoder={}", channelId, algCode,
+                     requires_encoder);
         }
     }
 
-    auto it = FindViewer(channelId, algCode);
-    if (it != viewers_.end()) {
-        // Increment concurrent viewer count for this stream
-        (*it)->UpViewerNum();
-        LOG_INFO("view number is {} channelId is {}", (*it)->GetViewerNum(), (*it)->GetChannelId());
-        // Populate stream info for existing viewer
-        PopulateStreamInfo(streamInfo, channelId, algCode);
-        return cosmo::util::ErrorEnum::Success;
-    }
-    auto viewer = std::make_shared<cosmo::StreamViewer>(channel_inst, channelId, algCode);
-    viewers_.push_back(viewer);
-
-    // Release lock before waiting — stream readiness is handled asynchronously.
-    // The frontend flv.js player has exponential backoff retry to handle the case
-    // where the media server hasn't received the first I-frame yet.
-    lock.unlock();
-
-    // Wait for the RTMP stream header to be pushed (first I-frame)
-    // so that SRS can serve the stream to the browser.
-    constexpr auto kRawStreamReadyTimeout = std::chrono::milliseconds(5000);
-    constexpr auto kAlgStreamReadyTimeout = std::chrono::milliseconds(15000);
-    const auto stream_ready_timeout       = algCode.empty() ? kRawStreamReadyTimeout : kAlgStreamReadyTimeout;
-    if (!viewer->WaitReady(stream_ready_timeout)) {
-        LOG_WARN("{}/{} Stream not ready within timeout", channelId, algCode);
-        // Clean up ghost viewer on timeout
-        std::unique_lock<std::shared_mutex> cleanup_lock(mtx_);
-        auto cleanup_it = FindViewer(channelId, algCode);
-        if (cleanup_it != viewers_.end()) {
-            viewers_.erase(cleanup_it);
+    if (!start_owner) {
+        std::unique_lock<std::shared_mutex> lock(mtx_);
+        if (!gate->cv.wait_for(lock, ready_timeout, [&gate] { return gate->finished; })) {
+            if (gate->participants > 1) {
+                gate->participants -= 1;
+            }
+            LOG_WARN("viewer startup wait timeout: stream={}/{} waiters_remaining={}", channelId, algCode,
+                     gate->participants);
+            return cosmo::util::ErrorEnum::LiveStreamReadyTimeout;
         }
-        return cosmo::util::ErrorEnum::DemuxNoData;
+        const auto result = gate->result;
+        lock.unlock();
+        if (result == cosmo::util::ErrorEnum::Success) {
+            PopulateStreamInfo(streamInfo, channelId, algCode);
+        }
+        return result;
     }
 
-    // Populate stream info with URLs and ports
+    auto finish_failure = [&](cosmo::util::ErrorEnum result, const std::string& stage,
+                              cosmo::StreamViewerPtr viewer) {
+        if (viewer) {
+            viewer->Stop();
+        }
+        {
+            std::unique_lock<std::shared_mutex> lock(mtx_);
+            gate->viewer.reset();
+            gate->result   = result;
+            gate->finished = true;
+            auto it        = starting_viewers_.find(viewer_key);
+            if (it != starting_viewers_.end() && it->second == gate) {
+                starting_viewers_.erase(it);
+            }
+        }
+        gate->cv.notify_all();
+        LOG_ERRO("viewer startup failed: stream={}/{} stage={} error={} publisher=released", channelId,
+                 algCode, stage, cosmo::util::ErrorEnumName(result));
+    };
+
+    cosmo::StreamViewerPtr viewer;
+    try {
+        viewer = std::make_shared<cosmo::StreamViewer>(channel_inst, channelId, algCode);
+    } catch (const cosmo::util::ErrorMessage& e) {
+        const auto result = static_cast<cosmo::util::ErrorEnum>(e.GetValue().value());
+        LOG_ERRO("viewer publisher construction failed: stream={}/{} detail={}", channelId, algCode,
+                 e.what());
+        finish_failure(result, "publisher-connect", nullptr);
+        return result;
+    } catch (const std::exception& e) {
+        LOG_ERRO("viewer construction failed: stream={}/{} detail={}", channelId, algCode, e.what());
+        finish_failure(cosmo::util::ErrorEnum::LiveStreamPublishFailed, "viewer-construct", nullptr);
+        return cosmo::util::ErrorEnum::LiveStreamPublishFailed;
+    }
+
+    {
+        std::unique_lock<std::shared_mutex> lock(mtx_);
+        gate->viewer = viewer;
+        if (gate->cancelled) {
+            lock.unlock();
+            finish_failure(cosmo::util::ErrorEnum::LiveStreamStopped, "cancelled", viewer);
+            return cosmo::util::ErrorEnum::LiveStreamStopped;
+        }
+    }
+
+    if (!viewer->WaitReady(ready_timeout)) {
+        {
+            std::shared_lock<std::shared_mutex> lock(mtx_);
+            if (gate->cancelled) {
+                lock.unlock();
+                finish_failure(cosmo::util::ErrorEnum::LiveStreamStopped, "cancelled", viewer);
+                return cosmo::util::ErrorEnum::LiveStreamStopped;
+            }
+        }
+        const std::string publish_error = viewer->LastPublishError();
+        const auto result = publish_error.empty() ? cosmo::util::ErrorEnum::LiveStreamReadyTimeout
+                                                  : cosmo::util::ErrorEnum::LiveStreamPublishFailed;
+        if (!publish_error.empty()) {
+            LOG_ERRO("viewer publisher did not become ready: stream={}/{} detail={}", channelId, algCode,
+                     publish_error);
+        }
+        finish_failure(result, publish_error.empty() ? "first-frame-timeout" : "publisher-write", viewer);
+        return result;
+    }
+
+    {
+        std::unique_lock<std::shared_mutex> lock(mtx_);
+        if (gate->cancelled) {
+            lock.unlock();
+            finish_failure(cosmo::util::ErrorEnum::LiveStreamStopped, "cancelled-after-ready", viewer);
+            return cosmo::util::ErrorEnum::LiveStreamStopped;
+        }
+        for (size_t i = 1; i < gate->participants; ++i) {
+            viewer->UpViewerNum();
+        }
+        viewers_.push_back(viewer);
+        gate->result   = cosmo::util::ErrorEnum::Success;
+        gate->finished = true;
+        gate->viewer.reset();
+        auto it = starting_viewers_.find(viewer_key);
+        if (it != starting_viewers_.end() && it->second == gate) {
+            starting_viewers_.erase(it);
+        }
+        LOG_INFO("viewer startup ready: stream={}/{} viewers={} publisher=ready", channelId, algCode,
+                 viewer->GetViewerNum());
+    }
+    gate->cv.notify_all();
+
     PopulateStreamInfo(streamInfo, channelId, algCode);
     return cosmo::util::ErrorEnum::Success;
 }
@@ -206,24 +335,42 @@ bool LiveStreamServiceImpl::ViewerDelete(const std::string& channelId, const std
         return true;
     }
 
-    cosmo::StreamViewerPtr removed;
+    cosmo::StreamViewerPtr viewer_to_stop;
     {
-        std::lock_guard<std::shared_mutex> lock(mtx_);
+        std::unique_lock<std::shared_mutex> lock(mtx_);
         auto it = FindViewer(channelId, algCode);
 
         if (it != viewers_.end()) {
-            LOG_INFO("{}/{} viewer num is {}", channelId, algCode, (*it)->GetViewerNum());
             (*it)->DelViewerNum();
+            LOG_INFO("viewer release requested: stream={}/{} viewers_remaining={}", channelId, algCode,
+                     (*it)->GetViewerNum());
             if ((*it)->GetViewerNum() <= 0) {
-                LOG_INFO("{}/{} Delete", channelId, algCode);
-                removed = std::move(*it);
+                viewer_to_stop = *it;
                 viewers_.erase(it);
             }
         } else {
-            LOG_INFO("{}/{} Not Exist", channelId, algCode);
+            const auto starting_it = starting_viewers_.find(BuildViewerKey(channelId, algCode));
+            if (starting_it != starting_viewers_.end()) {
+                auto& gate = starting_it->second;
+                if (gate->participants > 0) {
+                    gate->participants -= 1;
+                }
+                if (gate->participants == 0) {
+                    gate->cancelled = true;
+                    viewer_to_stop  = gate->viewer;
+                    LOG_INFO("viewer startup cancel requested: stream={}/{} waiters=0", channelId, algCode);
+                } else {
+                    LOG_INFO("viewer startup participant released: stream={}/{} waiters_remaining={}",
+                             channelId, algCode, gate->participants);
+                }
+            } else {
+                LOG_INFO("viewer release idempotent: stream={}/{} state=absent", channelId, algCode);
+            }
         }
     }
-    removed.reset();
+    if (viewer_to_stop) {
+        viewer_to_stop->Stop();
+    }
     return true;
 }
 
@@ -247,7 +394,7 @@ cosmo::util::ErrorEnum LiveStreamServiceImpl::ViewerHeartBeat(const std::string&
         LOG_WARN("Channel Stream State {}", channelState);
         return channelState;
     }
-    std::lock_guard<std::shared_mutex> lock(mtx_);
+    std::shared_lock<std::shared_mutex> lock(mtx_);
     LOG_DEBUG("alive channel size {} {}", viewers_.size(), channelId);
     auto it = FindViewer(channelId, algCode);
     if (it != viewers_.end()) {
@@ -279,24 +426,33 @@ void LiveStreamServiceImpl::SetViewCounts(int view_num) {
 
 int LiveStreamServiceImpl::ViewerEncoderCountLocked() const {
     // Caller must hold mtx_ (exclusive or shared)
-    return static_cast<int>(std::count_if(viewers_.begin(), viewers_.end(),
-                                          [](const auto& viewer) { return viewer->HaveEncoder(); }));
+    const auto ready_count    = std::count_if(viewers_.begin(), viewers_.end(),
+                                              [](const auto& viewer) { return viewer->HaveEncoder(); });
+    const auto starting_count = std::count_if(
+        starting_viewers_.begin(), starting_viewers_.end(),
+        [](const auto& item) { return item.second->requires_encoder && !item.second->finished; });
+    return static_cast<int>(ready_count + starting_count);
 }
 
 void LiveStreamServiceImpl::CheckAliveTasks() {
-    std::vector<cosmo::StreamViewerPtr> expired;
+    std::vector<cosmo::StreamViewerPtr> viewers_to_stop;
     {
-        std::lock_guard<std::shared_mutex> lock(mtx_);
-        for (auto it = viewers_.begin(); it != viewers_.end();) {
+        std::unique_lock<std::shared_mutex> lock(mtx_);
+        auto it = viewers_.begin();
+        while (it != viewers_.end()) {
             if ((*it)->HeartBeatCheck()) {
-                expired.push_back(std::move(*it));
+                LOG_INFO("viewer watchdog release: stream={}/{} viewers={}", (*it)->GetChannelId(),
+                         (*it)->GetAlgId(), (*it)->GetViewerNum());
+                viewers_to_stop.push_back(*it);
                 it = viewers_.erase(it);
             } else {
                 ++it;
             }
         }
     }
-    expired.clear();
+    for (auto& viewer : viewers_to_stop) {
+        viewer->Stop();
+    }
 }
 
 std::vector<cosmo::StreamViewerPtr>::iterator LiveStreamServiceImpl::FindViewer(const std::string& channelId,

@@ -4,6 +4,8 @@
 
 #include <algorithm>
 
+#include "util/ErrorCode.h"
+#include "util/Exception.h"
 #include "util/FormatString.h"
 #include "util/Log.h"
 
@@ -33,19 +35,13 @@ RtmpStreamPusher::RtmpStreamPusher(media::VideoCodecType origin_type, const std:
 
     int ret = InitOutput();
     if (ret < 0) {
-        throw util::Exception(COSMO_FORMAT("{}", GetAvErr(ret)));
+        throw util::ErrorMessage(util::make_error_condition(util::ErrorEnum::LiveStreamPublishFailed),
+                                 COSMO_FORMAT("RTMP publisher connect failed: {}", GetAvErr(ret)).c_str());
     }
 }
 
 RtmpStreamPusher::~RtmpStreamPusher() {
-    LOG_INFO("{}", "closing RTMP stream pusher");
-    stopping_.store(true, std::memory_order_release);
-    {
-        std::lock_guard<std::mutex> lock(output_mtx_);
-        CloseOutput();
-    }
-    ready_cv_.notify_all();
-    LOG_INFO("{}", "RTMP stream pusher closed");
+    Stop();
 }
 
 bool RtmpStreamPusher::WaitReady(std::chrono::milliseconds timeout) {
@@ -78,6 +74,34 @@ bool RtmpStreamPusher::SetStreamReady(bool ready) {
     return changed;
 }
 
+void RtmpStreamPusher::Stop() {
+    if (stopping_.exchange(true, std::memory_order_acq_rel)) {
+        return;
+    }
+
+    LOG_INFO("RTMP publisher stopping: url={}", push_url_);
+    {
+        std::lock_guard<std::mutex> lock(output_mtx_);
+        CloseOutput();
+    }
+    ready_cv_.notify_all();
+    LOG_INFO("RTMP publisher stopped and released: url={}", push_url_);
+}
+
+std::string RtmpStreamPusher::LastError() const {
+    std::lock_guard<std::mutex> lock(ready_mtx_);
+    return last_error_;
+}
+
+void RtmpStreamPusher::RecordFailure(const char* stage, int error_no) {
+    const std::string detail = COSMO_FORMAT("{}: {}", stage, GetAvErr(error_no));
+    {
+        std::lock_guard<std::mutex> lock(ready_mtx_);
+        last_error_ = detail;
+    }
+    LOG_ERRO("RTMP publisher failure: stage={} error={} url={}", stage, GetAvErr(error_no), push_url_);
+}
+
 int RtmpStreamPusher::InitOutput() {
     int ret = avformat_alloc_output_context2(&outctx_, nullptr, "flv", nullptr);
     if (ret < 0) {
@@ -87,7 +111,7 @@ int RtmpStreamPusher::InitOutput() {
 
     outstream_ = avformat_new_stream(outctx_, nullptr);
     if (!outstream_) {
-        ret = AVERROR(errno);
+        ret = AVERROR(ENOMEM);
         LOG_ERRO("avformat_new_stream failed: [{}]", GetAvErr(ret));
         CloseOutput();
         return ret;
@@ -95,7 +119,10 @@ int RtmpStreamPusher::InitOutput() {
 
     ret = avio_open(&outctx_->pb, push_url_.c_str(), AVIO_FLAG_WRITE);
     if (ret < 0 || !outctx_->pb) {
-        LOG_ERRO("avio_open failed: [{}] url={}", GetAvErr(ret), push_url_);
+        if (ret >= 0) {
+            ret = AVERROR(EIO);
+        }
+        RecordFailure("connect", ret);
         CloseOutput();
         return ret;
     }
@@ -138,9 +165,9 @@ bool RtmpStreamPusher::ReopenOutput() {
     return true;
 }
 
-void RtmpStreamPusher::PushHeader() {
+bool RtmpStreamPusher::PushHeader() {
     if (!outctx_ || !outstream_) {
-        return;
+        return false;
     }
 
     codec_config_->ConfigureStream(outstream_);
@@ -154,13 +181,15 @@ void RtmpStreamPusher::PushHeader() {
     av_dict_free(&options);
 
     if (ret < 0) {
-        LOG_ERRO("avformat_write_header failed: [{}] url={}", GetAvErr(ret), push_url_);
+        RecordFailure("write-header", ret);
         output_failed_ = true;
         CloseOutput();
         first_frame_flag_.clear();
+        return false;
     } else {
         LOG_INFO("{}", "avformat_write_header success");
     }
+    return true;
 }
 
 void RtmpStreamPusher::DoPushFrame(const uint8_t* data, size_t size) {
@@ -176,7 +205,6 @@ void RtmpStreamPusher::DoPushFrame(const uint8_t* data, size_t size) {
     if (stopping_.load(std::memory_order_relaxed)) {
         return;
     }
-
     debug_info_.recvFrames += 1;
 
     // Diagnostic: log frame header bytes for first 5 frames
@@ -237,7 +265,9 @@ void RtmpStreamPusher::DoPushFrame(const uint8_t* data, size_t size) {
         }
 
         LOG_INFO("{}", "first I-frame received, pushing header");
-        PushHeader();
+        if (!PushHeader()) {
+            return;
+        }
     }
 
     // Only push I and P frames
@@ -246,7 +276,7 @@ void RtmpStreamPusher::DoPushFrame(const uint8_t* data, size_t size) {
             bool is_key_frame = (main_type == media::HFrameType::I);
             int ret = packet_writer_->WriteFrame(outctx_, outindex_, out_data, out_size, is_key_frame);
             if (ret < 0) {
-                LOG_ERRO("WriteFrame failed, url={}", push_url_);
+                RecordFailure("write-frame", ret);
                 output_failed_ = true;
                 CloseOutput();
                 first_frame_flag_.clear();

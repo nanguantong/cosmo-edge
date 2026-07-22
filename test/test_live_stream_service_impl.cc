@@ -45,6 +45,21 @@ TEST_CASE("LiveStreamServiceImpl: 视频流管理核心逻辑", "[live-stream]")
         REQUIRE(sut.ViewerDelete("non_exist_channel", "alg_code") == true);
     }
 
+    SECTION("启动中的多客户端仅在最后一个客户端离开时取消") {
+        auto gate                  = std::make_shared<LiveStreamServiceImpl::ViewerStartGate>();
+        gate->participants         = 2;
+        const std::string key      = "pending_channel\npending_alg";
+        sut.starting_viewers_[key] = gate;
+
+        REQUIRE(sut.ViewerDelete("pending_channel", "pending_alg"));
+        REQUIRE(gate->participants == 1);
+        REQUIRE_FALSE(gate->cancelled);
+
+        REQUIRE(sut.ViewerDelete("pending_channel", "pending_alg"));
+        REQUIRE(gate->participants == 0);
+        REQUIRE(gate->cancelled);
+    }
+
     SECTION("SetViewCounts 不发生崩溃") {
         sut.SetViewCounts(16);
         // 这仅仅是个 setter，保证无异常抛出即可
@@ -61,6 +76,8 @@ TEST_CASE("LiveStreamServiceImpl: 视频流管理核心逻辑", "[live-stream]")
         // 我们不直接调用 ViewerCreate, 因为 WaitReady 会阻塞等数据
         // 直接构造并放入 m_viewers 模拟已连接
         auto viewer = std::make_shared<cosmo::StreamViewer>(mockChannel, "channel_1", "alg_1");
+        viewer->HeartBeat();
+        REQUIRE_FALSE(viewer->HeartBeatCheck());
         {
             std::unique_lock<std::shared_mutex> lock(sut.mtx_);
             sut.viewers_.push_back(viewer);

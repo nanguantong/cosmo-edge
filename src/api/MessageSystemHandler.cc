@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "api/HttpUploadClaim.h"
+#include "media/PreviewPipelineMetrics.h"
 #include "service/detail/ServiceRegistry.h"
 #include "service/path/IUploadStagingService.h"
 #include "service/system/IConfigReadService.h"
@@ -79,7 +80,24 @@ System::MsgQueryHardwareResourceSend MessageSystemHandler::Handle(
         it.available   = item.available;
         retData.resData.itemList.push_back(std::move(it));
     }
-    retData.resData.customScore = COSMO_FORMAT("{:.4f}", customScore);
+    retData.resData.customScore               = COSMO_FORMAT("{:.4f}", customScore);
+    retData.resData.accelerator               = device_info_.GetGpuUtilization();
+    const auto preview                        = media::GetPreviewPipelineMetrics().Snapshot();
+    auto& accelerator                         = retData.resData.accelerator;
+    accelerator.activePreviewPublishers       = preview.active_publishers;
+    accelerator.activePreviewStreams          = preview.active_preview_streams;
+    accelerator.activeRawPreviewStreams       = preview.active_raw_preview_streams;
+    accelerator.activeAlgorithmPreviewStreams = preview.active_algorithm_preview_streams;
+    accelerator.previewStreamStarts           = preview.preview_stream_starts;
+    accelerator.previewStreamStops            = preview.preview_stream_stops;
+    accelerator.previewStreamFailures         = preview.preview_stream_failures;
+    accelerator.osdFrames                     = preview.osd_frames;
+    accelerator.osdMs                         = preview.osd_nanoseconds / 1000000.0;
+    accelerator.publishedFrames               = preview.published_frames;
+    accelerator.publishMs                     = preview.publish_nanoseconds / 1000000.0;
+    accelerator.firstFrames                   = preview.first_frames;
+    accelerator.firstFrameMs                  = preview.first_frame_nanoseconds / 1000000.0;
+    accelerator.firstFrameMaxMs               = preview.first_frame_max_nanoseconds / 1000000.0;
     return retData;
 }
 

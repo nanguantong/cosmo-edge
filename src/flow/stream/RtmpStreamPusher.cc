@@ -4,6 +4,7 @@
 
 #include <algorithm>
 
+#include "media/PreviewPipelineMetrics.h"
 #include "util/ErrorCode.h"
 #include "util/Exception.h"
 #include "util/FormatString.h"
@@ -38,6 +39,8 @@ RtmpStreamPusher::RtmpStreamPusher(media::VideoCodecType origin_type, const std:
         throw util::ErrorMessage(util::make_error_condition(util::ErrorEnum::LiveStreamPublishFailed),
                                  COSMO_FORMAT("RTMP publisher connect failed: {}", GetAvErr(ret)).c_str());
     }
+    publisher_registered_ = true;
+    media::GetPreviewPipelineMetrics().PublisherOpened();
 }
 
 RtmpStreamPusher::~RtmpStreamPusher() {
@@ -91,6 +94,9 @@ void RtmpStreamPusher::Stop() {
     {
         std::lock_guard<std::mutex> lock(output_mtx_);
         CloseOutput();
+    }
+    if (publisher_registered_.exchange(false)) {
+        media::GetPreviewPipelineMetrics().PublisherClosed();
     }
     ready_cv_.notify_all();
     LOG_INFO("RTMP publisher stopped and released: url={}", push_url_);
@@ -215,6 +221,7 @@ void RtmpStreamPusher::DoPushFrame(const uint8_t* data, size_t size) {
     if (stopping_.load(std::memory_order_relaxed)) {
         return;
     }
+    const auto publish_started_at = std::chrono::steady_clock::now();
     debug_info_.recvFrames += 1;
 
     // Diagnostic: log frame header bytes for first 5 frames
@@ -298,6 +305,10 @@ void RtmpStreamPusher::DoPushFrame(const uint8_t* data, size_t size) {
                 if (outctx_ && outctx_->pb) {
                     avio_flush(outctx_->pb);
                 }
+                media::GetPreviewPipelineMetrics().RecordPublishedFrame(
+                    static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                              std::chrono::steady_clock::now() - publish_started_at)
+                                              .count()));
             }
         } else {
             first_frame_flag_.clear();

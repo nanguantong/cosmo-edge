@@ -6,6 +6,7 @@
 // clang-format on
 
 #include "api/MessageSystemHandler.h"
+#include "media/PreviewPipelineMetrics.h"
 #include "mock/MockConfigNetworkService.h"
 #include "mock/MockConfigReadService.h"
 #include "mock/MockConfigWriteService.h"
@@ -42,6 +43,25 @@ TEST_CASE("SystemHandler: QueryDeviceInfo", "[system-handler]") {
     std::error_condition errc;
     auto ret = handler.Handle(std::move(data), errc);
     REQUIRE(!errc);
+}
+
+TEST_CASE("SystemHandler: QueryHardwareResource exposes accelerator preview telemetry", "[system-handler]") {
+    MockServiceRegistry mocks;
+    auto handler = MakeHandler(mocks);
+
+    REQUIRE_CALL(mocks.deviceInfoSvc, GetHardwareResource(_)).RETURN(std::vector<service::HwResourceItem>{});
+    MsgGpuInfo gpu;
+    gpu.gpuusage = 0.5;
+    REQUIRE_CALL(mocks.deviceInfoSvc, GetGpuUtilization()).RETURN(gpu);
+    const auto preview = media::GetPreviewPipelineMetrics().Snapshot();
+
+    System::MsgQueryHardwareResourceRecv data{};
+    std::error_condition errc;
+    auto ret = handler.Handle(std::move(data), errc);
+
+    CHECK(ret.resData.accelerator.gpuusage == 0.5);
+    CHECK(ret.resData.accelerator.activePreviewStreams == preview.active_preview_streams);
+    CHECK(ret.resData.accelerator.activeAlgorithmPreviewStreams == preview.active_algorithm_preview_streams);
 }
 
 TEST_CASE("SystemHandler: QueryPictureQuality", "[system-handler]") {

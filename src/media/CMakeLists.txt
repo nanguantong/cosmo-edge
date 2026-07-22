@@ -8,6 +8,7 @@ set(MEDIA_COMMON_SRC
     OsdTextRenderer.cc           OsdTextRenderer.h
     PixelFormat.h
     PixelFormatUtils.cc          PixelFormatUtils.h
+    PreviewPipelineMetrics.cc    PreviewPipelineMetrics.h
     RtspDemuxStrategy.cc         RtspDemuxStrategy.h
     UsbDemuxStrategy.cc          UsbDemuxStrategy.h
     VideoCodecType.h

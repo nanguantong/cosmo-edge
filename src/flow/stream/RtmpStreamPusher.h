@@ -82,6 +82,7 @@ private:
     std::atomic_flag first_frame_flag_;
     std::atomic<bool> output_failed_{false};
     int64_t skip_count_{0};
+    std::atomic<bool> publisher_registered_{false};
 
     // Stream ready notification
     bool stream_ready_{false};

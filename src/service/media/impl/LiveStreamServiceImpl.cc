@@ -6,6 +6,7 @@
 #include <algorithm>
 
 #include "flow/stream/StreamViewer.h"
+#include "media/PreviewPipelineMetrics.h"
 #include "service/camera/ICameraChannelQuery.h"
 #include "service/camera/ICameraTaskConfig.h"
 #include "service/detail/ServiceRegistry.h"
@@ -155,6 +156,7 @@ cosmo::util::ErrorEnum LiveStreamServiceImpl::ViewerCreate(const std::string& ch
     if (stopping_.load(std::memory_order_acquire)) {
         return cosmo::util::ErrorEnum::SysErr;
     }
+    const auto request_started_at = std::chrono::steady_clock::now();
     auto channel_inst =
         service::ServiceRegistry::Instance().Get<service::ICameraChannelQuery>().GetChannelInst(channelId);
     if (!channel_inst) {
@@ -273,6 +275,7 @@ cosmo::util::ErrorEnum LiveStreamServiceImpl::ViewerCreate(const std::string& ch
             }
         }
         gate->cv.notify_all();
+        cosmo::media::GetPreviewPipelineMetrics().PreviewFailed();
         LOG_ERRO("viewer startup failed: stream={}/{} stage={} error={} publisher=released", channelId,
                  algCode, stage, cosmo::util::ErrorEnumName(result));
     };
@@ -332,6 +335,8 @@ cosmo::util::ErrorEnum LiveStreamServiceImpl::ViewerCreate(const std::string& ch
         for (size_t i = 1; i < gate->participants; ++i) {
             viewer->UpViewerNum();
         }
+        viewer->MarkReady(std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::steady_clock::now() - request_started_at));
         viewers_.push_back(viewer);
         gate->result   = cosmo::util::ErrorEnum::Success;
         gate->finished = true;

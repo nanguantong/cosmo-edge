@@ -123,6 +123,31 @@ jobs:
 
           exit 0
 
+  # ── Platform-neutral validation tools ─────────────────────────────
+  validation-tools:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/scenario-bench/package-lock.json
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Test scenario benchmark tooling
+        working-directory: tools/scenario-bench
+        run: |
+          npm ci
+          npm test
+
+      - name: Test offline accuracy comparison
+        run: python -m unittest discover -s test -p 'test_offline_accuracy_compare.py'
+
   # ── C++ format check via clang-format ──────────────────────────────
   # Only checks files changed in the PR (not the entire codebase)
   format-check:

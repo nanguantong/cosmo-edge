@@ -190,6 +190,7 @@ cosmo::util::ErrorEnum LiveStreamServiceImpl::ViewerCreate(const std::string& ch
 
     std::shared_ptr<ViewerStartGate> gate;
     bool start_owner = false;
+    cosmo::StreamViewerPtr failed_viewer;
     {
         // The ready viewer and the startup reservation are checked under one
         // lock. Exactly one request owns publisher construction for a stream;
@@ -198,11 +199,17 @@ cosmo::util::ErrorEnum LiveStreamServiceImpl::ViewerCreate(const std::string& ch
         std::unique_lock<std::shared_mutex> lock(mtx_);
         auto ready_it = FindViewer(channelId, algCode);
         if (ready_it != viewers_.end()) {
-            (*ready_it)->UpViewerNum();
-            LOG_INFO("viewer reuse: stream={}/{} viewers={} publisher=ready", channelId, algCode,
-                     (*ready_it)->GetViewerNum());
-            PopulateStreamInfo(streamInfo, channelId, algCode);
-            return cosmo::util::ErrorEnum::Success;
+            if ((*ready_it)->IsPublishReady()) {
+                (*ready_it)->UpViewerNum();
+                LOG_INFO("viewer reuse: stream={}/{} viewers={} publisher=ready", channelId, algCode,
+                         (*ready_it)->GetViewerNum());
+                PopulateStreamInfo(streamInfo, channelId, algCode);
+                return cosmo::util::ErrorEnum::Success;
+            }
+            failed_viewer = *ready_it;
+            viewers_.erase(ready_it);
+            LOG_WARN("viewer reuse rejected: stream={}/{} publisher=failed detail={} release=pending",
+                     channelId, algCode, failed_viewer->LastPublishError());
         }
 
         auto starting_it = starting_viewers_.find(viewer_key);
@@ -226,6 +233,10 @@ cosmo::util::ErrorEnum LiveStreamServiceImpl::ViewerCreate(const std::string& ch
             LOG_INFO("viewer startup reserved: stream={}/{} encoder={}", channelId, algCode,
                      requires_encoder);
         }
+    }
+    if (failed_viewer) {
+        failed_viewer->Stop();
+        LOG_INFO("viewer failed publisher released before restart: stream={}/{}", channelId, algCode);
     }
 
     if (!start_owner) {
@@ -411,6 +422,11 @@ cosmo::util::ErrorEnum LiveStreamServiceImpl::ViewerHeartBeat(const std::string&
     LOG_DEBUG("alive channel size {} {}", viewers_.size(), channelId);
     auto it = FindViewer(channelId, algCode);
     if (it != viewers_.end()) {
+        if (!(*it)->IsPublishReady()) {
+            LOG_WARN("viewer heartbeat rejected: stream={}/{} publisher=failed detail={}", channelId, algCode,
+                     (*it)->LastPublishError());
+            return cosmo::util::ErrorEnum::LiveStreamPublishFailed;
+        }
         (*it)->HeartBeat();
         return cosmo::util::ErrorEnum::Success;
     }
@@ -453,9 +469,12 @@ void LiveStreamServiceImpl::CheckAliveTasks() {
         std::unique_lock<std::shared_mutex> lock(mtx_);
         auto it = viewers_.begin();
         while (it != viewers_.end()) {
-            if ((*it)->HeartBeatCheck()) {
-                LOG_INFO("viewer watchdog release: stream={}/{} viewers={}", (*it)->GetChannelId(),
-                         (*it)->GetAlgId(), (*it)->GetViewerNum());
+            const bool publisher_failed = !(*it)->IsPublishReady();
+            const bool heartbeat_failed = (*it)->HeartBeatCheck();
+            if (publisher_failed || heartbeat_failed) {
+                LOG_INFO("viewer watchdog release: stream={}/{} viewers={} reason={}", (*it)->GetChannelId(),
+                         (*it)->GetAlgId(), (*it)->GetViewerNum(),
+                         publisher_failed ? "publisher-failed" : "heartbeat-timeout");
                 viewers_to_stop.push_back(*it);
                 it = viewers_.erase(it);
             } else {

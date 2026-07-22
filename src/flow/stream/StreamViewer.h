@@ -53,6 +53,10 @@ public:
         return video_pusher_ ? video_pusher_->LastError() : std::string{};
     }
 
+    [[nodiscard]] bool IsPublishReady() const {
+        return !stopped_.load() && video_pusher_ && video_pusher_->IsReady();
+    }
+
     [[nodiscard]] bool IsStopped() const {
         return stopped_.load();
     }

@@ -67,11 +67,19 @@ bool RtmpStreamPusher::SetStreamReady(bool ready) {
         std::lock_guard<std::mutex> lock(ready_mtx_);
         changed       = stream_ready_ != ready;
         stream_ready_ = ready;
+        if (ready) {
+            last_error_.clear();
+        }
     }
     if (changed) {
         ready_cv_.notify_all();
     }
     return changed;
+}
+
+bool RtmpStreamPusher::IsReady() const {
+    std::lock_guard<std::mutex> lock(ready_mtx_);
+    return stream_ready_ && !stopping_.load(std::memory_order_acquire) && !output_failed_.load();
 }
 
 void RtmpStreamPusher::Stop() {
@@ -97,8 +105,10 @@ void RtmpStreamPusher::RecordFailure(const char* stage, int error_no) {
     const std::string detail = COSMO_FORMAT("{}: {}", stage, GetAvErr(error_no));
     {
         std::lock_guard<std::mutex> lock(ready_mtx_);
-        last_error_ = detail;
+        last_error_   = detail;
+        stream_ready_ = false;
     }
+    ready_cv_.notify_all();
     LOG_ERRO("RTMP publisher failure: stage={} error={} url={}", stage, GetAvErr(error_no), push_url_);
 }
 
@@ -150,14 +160,14 @@ void RtmpStreamPusher::CloseOutput() {
 
 bool RtmpStreamPusher::ReopenOutput() {
     CloseOutput();
-    output_failed_ = false;
+    output_failed_.store(false);
     first_frame_flag_.clear();
     packet_writer_->ResetCounter();
 
     int ret = InitOutput();
     if (ret < 0) {
         LOG_ERRO("reopen RTMP output failed: [{}]", GetAvErr(ret));
-        output_failed_ = true;
+        output_failed_.store(true);
         return false;
     }
 
@@ -182,7 +192,7 @@ bool RtmpStreamPusher::PushHeader() {
 
     if (ret < 0) {
         RecordFailure("write-header", ret);
-        output_failed_ = true;
+        output_failed_.store(true);
         CloseOutput();
         first_frame_flag_.clear();
         return false;
@@ -235,7 +245,7 @@ void RtmpStreamPusher::DoPushFrame(const uint8_t* data, size_t size) {
     }
 
     // Wait for I-frame during error recovery
-    if (output_failed_) {
+    if (output_failed_.load()) {
         if (main_type != media::HFrameType::I) {
             return;
         }
@@ -277,7 +287,7 @@ void RtmpStreamPusher::DoPushFrame(const uint8_t* data, size_t size) {
             int ret = packet_writer_->WriteFrame(outctx_, outindex_, out_data, out_size, is_key_frame);
             if (ret < 0) {
                 RecordFailure("write-frame", ret);
-                output_failed_ = true;
+                output_failed_.store(true);
                 CloseOutput();
                 first_frame_flag_.clear();
             } else {

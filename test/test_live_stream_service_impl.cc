@@ -91,6 +91,7 @@ TEST_CASE("LiveStreamServiceImpl: 视频流管理核心逻辑", "[live-stream]")
         auto viewer = std::make_shared<cosmo::StreamViewer>(mockChannel, "channel_1", "alg_1");
         viewer->HeartBeat();
         REQUIRE_FALSE(viewer->HeartBeatCheck());
+        REQUIRE_FALSE(viewer->IsPublishReady());
         {
             std::unique_lock<std::shared_mutex> lock(sut.mtx_);
             sut.viewers_.push_back(viewer);

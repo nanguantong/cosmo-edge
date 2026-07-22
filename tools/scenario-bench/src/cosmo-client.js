@@ -74,14 +74,35 @@ export class CosmoClient {
    * The final chunk returns resData.filePath on the device.
    * @param {Buffer} chunkBuf  raw chunk bytes
    * @param {string} fileName  original file name (used for extension + naming)
-   * @param {object} meta { uploadId, chunkIndex, totalChunks, totalSize, chunkSize }
-   * @returns {Promise<object>} wire response; resData.filePath present on the last chunk
+   * @param {object} meta upload session and chunk metadata
+   * @returns {Promise<object>} wire response with the canonical resData.uploadId
    */
-  async uploadTempChunk(chunkBuf, fileName, { uploadId, chunkIndex, totalChunks, totalSize, chunkSize }) {
-    return this._postMultipart(
-      '/atomic/model/uploadTemp',
-      { file: { value: chunkBuf, filename: fileName }, uploadId, chunkIndex: String(chunkIndex), totalChunks: String(totalChunks), totalSize: String(totalSize), chunkSize: String(chunkSize) },
-    );
+  async uploadTempChunk(chunkBuf, fileName, {
+    uploadId,
+    clientRequestId,
+    purpose,
+    chunkIndex,
+    totalChunks,
+    totalSize,
+    chunkSize,
+  }) {
+    const fields = {
+      file: { value: chunkBuf, filename: fileName },
+      purpose,
+      clientRequestId,
+      chunkIndex: String(chunkIndex),
+      totalChunks: String(totalChunks),
+      totalSize: String(totalSize),
+      chunkSize: String(chunkSize),
+    };
+    // The first chunk creates the server-side session. Later chunks must use
+    // the opaque upload ID returned by that first response.
+    if (uploadId) fields.uploadId = uploadId;
+    return this._postMultipart('/atomic/model/uploadTemp', fields);
+  }
+
+  async cancelUpload(uploadId) {
+    return this._post('/atomic/model/cancelUpload', { uploadId });
   }
 
   /** Add an RTSP camera channel. */

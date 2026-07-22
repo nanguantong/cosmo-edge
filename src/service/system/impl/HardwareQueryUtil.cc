@@ -22,11 +22,9 @@
 #include <sstream>
 #include <thread>
 
-#ifdef COSMO_NN_USE_SOPHON_BACKEND
-#include "bmlib_runtime.h"
-#endif
 #include "pcap/pcap.h"
 #include "service/system/dto/SystemMsgTypes.h"
+#include "service/system/impl/AcceleratorMetricsProvider.h"
 #include "util/Exec.h"
 #include "util/FileUtil.h"
 #include "util/Log.h"
@@ -34,6 +32,15 @@
 #include "util/TimingConstants.h"
 
 namespace cosmo::service::detail {
+
+namespace {
+
+    AcceleratorMetricsProvider& GetAcceleratorMetricsProvider() {
+        static auto provider = CreateAcceleratorMetricsProvider();
+        return *provider;
+    }
+
+}  // namespace
 
 // ============================================================
 //  String parsing helpers
@@ -219,57 +226,9 @@ float HardwareQueryUtil::QueryCpuTemperature() {
     return -1.0f;
 }
 
-#ifdef COSMO_NN_USE_SOPHON_BACKEND
 cosmo::MsgGpuInfo HardwareQueryUtil::QueryGpuUtilization() {
-    cosmo::MsgGpuInfo res;
-    bm_handle_t handle{};
-    auto ret = bm_dev_request(&handle, 0);
-    if (ret != BM_SUCCESS) {
-        LOG_ERRO("bm_dev_request failed:{}", ret);
-        return res;
-    }
-    bm_dev_stat stat{};
-    ret = bm_get_stat(handle, &stat);
-    if (ret != BM_SUCCESS) {
-        LOG_ERRO("bm_get_stat failed:{}", ret);
-        bm_dev_free(handle);
-        return res;
-    }
-    res.gpumemtotal      = std::max(stat.mem_total, 0);
-    res.gpumemusage      = res.gpumemtotal > 0 ? std::clamp(static_cast<double>(std::max(stat.mem_used, 0)) /
-                                                                static_cast<double>(res.gpumemtotal),
-                                                            0.0, 1.0)
-                                               : 0.0;
-    res.gpuusage         = std::clamp(stat.tpu_util, 0, 100) * 0.01;
-    res.gpumemavailable  = 0;
-    const int heap_count = std::clamp(stat.heap_num, 0, 4);
-    if (heap_count != stat.heap_num) {
-        LOG_WARN("Invalid NPU heap count {}, clamped to {}", stat.heap_num, heap_count);
-    }
-    for (int i = 0; i < heap_count; i++) {
-        cosmo::MsgGpuDevUsage dev_usage;
-        dev_usage.gpumemtotal     = stat.heap_stat[i].mem_total;
-        dev_usage.gpumemavailable = std::min(stat.heap_stat[i].mem_avail, stat.heap_stat[i].mem_total);
-        res.gpumemavailable += dev_usage.gpumemavailable;
-        if (dev_usage.gpumemtotal > 0) {
-            dev_usage.gpumemusage = static_cast<double>(dev_usage.gpumemtotal - dev_usage.gpumemavailable) /
-                                    dev_usage.gpumemtotal;
-        }
-        res.gpudevusage.push_back(dev_usage);
-        LOG_INFO("Heap:{} Total:{}MB AVAIBLE:{}MB Used:{}MB", i, stat.heap_stat[i].mem_total,
-                 stat.heap_stat[i].mem_avail, stat.heap_stat[i].mem_used);
-    }
-    LOG_INFO("[GPU MEM:{}MB AVAIBLE:{}MB MemUsage:{} TpuUsage:{}]  stat.heap_num:{}", res.gpumemtotal,
-             res.gpumemavailable, res.gpumemusage, res.gpuusage, heap_count);
-    bm_dev_free(handle);
-    return res;
+    return GetAcceleratorMetricsProvider().QueryUtilization();
 }
-#else
-cosmo::MsgGpuInfo HardwareQueryUtil::QueryGpuUtilization() {
-    // CPU backend — no GPU/TPU hardware
-    return cosmo::MsgGpuInfo{};
-}
-#endif  // COSMO_NN_USE_SOPHON_BACKEND
 
 cosmo::MsgMemoryInfo HardwareQueryUtil::QueryMemoryUtilization() {
     cosmo::MsgMemoryInfo res;
@@ -349,36 +308,9 @@ cosmo::MsgDiskInfo HardwareQueryUtil::QueryDiskUtilization() {
     return res;
 }
 
-#ifdef COSMO_NN_USE_SOPHON_BACKEND
 int64_t HardwareQueryUtil::QueryAvailableGpuMemoryMB() {
-    bm_handle_t handle{};
-    auto ret = bm_dev_request(&handle, 0);
-    if (ret != BM_SUCCESS) {
-        LOG_ERRO("GetAvailableMemoryMB: bm_dev_request failed:{}", ret);
-        return -1;
-    }
-    bm_dev_stat stat{};
-    ret = bm_get_stat(handle, &stat);
-    if (ret != BM_SUCCESS) {
-        LOG_ERRO("GetAvailableMemoryMB: bm_get_stat failed:{}", ret);
-        bm_dev_free(handle);
-        return -1;
-    }
-    int64_t total_avail_mb = 0;
-    const int heap_count   = std::clamp(stat.heap_num, 0, 4);
-    for (int i = 0; i < heap_count; i++) {
-        total_avail_mb += stat.heap_stat[i].mem_avail;
-    }
-    bm_dev_free(handle);
-    LOG_INFO("[GPU mem check] available:{}MB total:{}MB", total_avail_mb, stat.mem_total);
-    return total_avail_mb;
+    return GetAcceleratorMetricsProvider().QueryAvailableMemoryMB();
 }
-#else
-int64_t HardwareQueryUtil::QueryAvailableGpuMemoryMB() {
-    // CPU backend — no GPU/TPU hardware
-    return 0;
-}
-#endif  // COSMO_NN_USE_SOPHON_BACKEND
 
 // ============================================================
 //  Network interface queries

@@ -16,6 +16,19 @@
 #include "service/detail/ServiceRegistry.h"
 #include "service/media/impl/VideoFrameServiceImpl.h"
 
+#if defined(COSMO_NN_USE_CPU_BACKEND)
+#include <chrono>
+#include <future>
+
+#include "media/IOsdTextRenderer.h"
+#include "media/PixelFormat.h"
+#include "media/VideoFrame.h"
+#include "mem/AllocatorCpu.h"
+#include "mem/IDeviceContext.h"
+#include "mem/MemoryPoolMng.h"
+#include "service/detail/ServiceRegistry.h"
+#endif
+
 using namespace cosmo::service;
 
 namespace {
@@ -131,4 +144,79 @@ TEST_CASE("VideoFrameServiceImpl: Crop with null frame", "[VideoFrameService][.d
     cosmo::util::Box roi{0, 0, 100, 100};
     auto result = sut.Crop(nullFrame, roi);
     REQUIRE(result == nullptr);
+}
+
+TEST_CASE("VideoFrameServiceImpl serializes complete concurrent OSD sessions",
+          "[VideoFrameService][osd][concurrency]") {
+#if !defined(COSMO_NN_USE_CPU_BACKEND)
+    SKIP("host-backed frame processor required");
+#else
+    using namespace std::chrono_literals;
+
+    class TestDeviceContext final : public cosmo::mem::IDeviceContext {
+    public:
+        void* GetMemoryHandle() override {
+            return nullptr;
+        }
+        void* GetMediaHandle() override {
+            return nullptr;
+        }
+    } device_context;
+
+    class TestTextRenderer final : public cosmo::media::IOsdTextRenderer {
+    public:
+        bool Init(const std::string&) override {
+            return true;
+        }
+        bool IsReady() const override {
+            return false;
+        }
+        TextBitmap RenderString(const std::string&, float) const override {
+            return {};
+        }
+        OutlinedTextBitmap RenderStringWithOutline(const std::string&, float) const override {
+            return {};
+        }
+    } text_renderer;
+
+    constexpr int width        = 64;
+    constexpr int height       = 64;
+    constexpr size_t frameSize = static_cast<size_t>(width) * height * 3 / 2;
+    cosmo::mem::MemoryPoolMng memory_pool(std::make_unique<cosmo::mem::AllocatorCpu>(),
+                                          {static_cast<int>(frameSize)});
+    cosmo::mem::SetMemoryPoolContext(&memory_pool);
+    auto& registry = cosmo::service::ServiceRegistry::Instance();
+    registry.Set<cosmo::mem::IDeviceContext>(&device_context);
+    registry.Set<cosmo::media::IOsdTextRenderer>(&text_renderer);
+    struct ContextReset {
+        ~ContextReset() {
+            auto& registry = cosmo::service::ServiceRegistry::Instance();
+            registry.Set<cosmo::media::IOsdTextRenderer>(nullptr);
+            registry.Set<cosmo::mem::IDeviceContext>(nullptr);
+            cosmo::mem::SetMemoryPoolContext(nullptr);
+        }
+    } context_reset;
+
+    VideoFrameServiceImpl sut;
+    auto first =
+        std::make_shared<cosmo::media::VideoFrame>(width, height, cosmo::media::PixelFormat::PIXEL_I420);
+    auto second =
+        std::make_shared<cosmo::media::VideoFrame>(width, height, cosmo::media::PixelFormat::PIXEL_I420);
+    REQUIRE(first->Active());
+    REQUIRE(second->Active());
+    REQUIRE(sut.BeginOSD(first));
+
+    auto competing_session = std::async(std::launch::async, [&]() {
+        const bool started = sut.BeginOSD(second);
+        if (started) {
+            sut.EndOSD();
+        }
+        return started;
+    });
+
+    CHECK(competing_session.wait_for(100ms) == std::future_status::timeout);
+    sut.EndOSD();
+    REQUIRE(competing_session.wait_for(2s) == std::future_status::ready);
+    CHECK(competing_session.get());
+#endif
 }

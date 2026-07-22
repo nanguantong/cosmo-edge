@@ -626,6 +626,34 @@ const initPlayedCamera = (childCameras) => {
       }
     })
   }
+
+  // The home page links to this screen with the running task context. Honour
+  // that context after restoring the user's saved layout so "View" opens a
+  // useful OSD preview instead of four empty windows.
+  const routeQuery = proxy.$route?.query || {}
+  const queryValue = (value) => Array.isArray(value) ? value[0] : value
+  const requestedChannelId = queryValue(routeQuery.channelId)
+  const requestedAlgorithmId = queryValue(routeQuery.algorithmId)
+  const requestedCamera = childCameras.find(
+    (camera) => String(camera.id) === String(requestedChannelId || '')
+  )
+
+  if (requestedCamera) {
+    const taskList = Array.isArray(requestedCamera.taskList)
+      ? requestedCamera.taskList
+      : []
+    const requestedTask = taskList.find(
+      (task) => String(task.algorithmId) === String(requestedAlgorithmId || '')
+    )
+
+    playedCameraList.value[0] = {
+      id: requestedCamera.id,
+      name: requestedCamera.label,
+      taskList,
+      runAlgorithmId: requestedTask ? requestedAlgorithmId : ''
+    }
+    currentSelectedIndex.value = 0
+  }
 }
 
 const handleRunAlgorithmIdChange = (obj) => {

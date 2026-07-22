@@ -163,11 +163,21 @@ void StreamViewerOverview::HandLiveOverview(VideoFramePtr frame) {
 
     auto info = GetOverviewDataFromLocal(frame);
 
-    // single BeginOSD, all drawing shares the same bm_image
-    service::ServiceRegistry::Instance().Get<service::IVideoFrameOSD>().BeginOSD(frame);
+    // One complete OSD session is serialized by the service because its media
+    // backend owns mutable per-session frame state.
+    auto& osd = service::ServiceRegistry::Instance().Get<service::IVideoFrameOSD>();
+    if (!osd.BeginOSD(frame)) {
+        LOG_WARN("OSD session rejected for channel:{} algorithm:{}", channel_id_, alg_id_);
+        return;
+    }
+    struct OsdSessionGuard {
+        service::IVideoFrameOSD& osd;
+        ~OsdSessionGuard() {
+            osd.EndOSD();
+        }
+    } osd_session{osd};
     FrameOverview(frame, info);
     DrawActionDuration(frame);
-    service::ServiceRegistry::Instance().Get<service::IVideoFrameOSD>().EndOSD();
 }
 
 void StreamViewerOverview::HandVodOverview(VideoFramePtr frame) {

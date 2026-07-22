@@ -35,6 +35,19 @@ TEST_CASE("LiveStreamServiceImpl: 视频流管理核心逻辑", "[live-stream]")
                 cosmo::util::ErrorEnum::CameraNotExist);
     }
 
+    SECTION("ViewerCreate 拒绝未绑定到 Channel 的算法") {
+        cosmo::ActionNode dummyAction;
+        auto mockChannel =
+            std::make_shared<cosmo::AlgChannel>("channel_1", "task_1", dummyAction, "rtsp://url");
+        ALLOW_CALL(mocks.cameraSvc, GetChannelInst("channel_1")).RETURN(mockChannel);
+        ALLOW_CALL(mocks.cameraSvc, GetTasks("channel_1"))
+            .RETURN(std::vector<cosmo::service::camera::CameraTaskDto>{});
+
+        cosmo::LiveStream::LiveStreamInfo streamInfo;
+        REQUIRE(sut.ViewerCreate("channel_1", "invalid_alg", streamInfo) ==
+                cosmo::util::ErrorEnum::TaskNotExist);
+    }
+
     SECTION("ViewerHeartBeat 返回 CameraNotExist 当 Channel 不存在") {
         ALLOW_CALL(mocks.cameraSvc, GetChannelInst(trompeloeil::_)).RETURN(nullptr);
         REQUIRE(sut.ViewerHeartBeat("non_exist_channel", "alg_code") ==
@@ -43,6 +56,21 @@ TEST_CASE("LiveStreamServiceImpl: 视频流管理核心逻辑", "[live-stream]")
 
     SECTION("ViewerDelete 可以安全处理不存在的 Viewer") {
         REQUIRE(sut.ViewerDelete("non_exist_channel", "alg_code") == true);
+    }
+
+    SECTION("启动中的多客户端仅在最后一个客户端离开时取消") {
+        auto gate                  = std::make_shared<LiveStreamServiceImpl::ViewerStartGate>();
+        gate->participants         = 2;
+        const std::string key      = "pending_channel\npending_alg";
+        sut.starting_viewers_[key] = gate;
+
+        REQUIRE(sut.ViewerDelete("pending_channel", "pending_alg"));
+        REQUIRE(gate->participants == 1);
+        REQUIRE_FALSE(gate->cancelled);
+
+        REQUIRE(sut.ViewerDelete("pending_channel", "pending_alg"));
+        REQUIRE(gate->participants == 0);
+        REQUIRE(gate->cancelled);
     }
 
     SECTION("SetViewCounts 不发生崩溃") {
@@ -61,6 +89,9 @@ TEST_CASE("LiveStreamServiceImpl: 视频流管理核心逻辑", "[live-stream]")
         // 我们不直接调用 ViewerCreate, 因为 WaitReady 会阻塞等数据
         // 直接构造并放入 m_viewers 模拟已连接
         auto viewer = std::make_shared<cosmo::StreamViewer>(mockChannel, "channel_1", "alg_1");
+        viewer->HeartBeat();
+        REQUIRE_FALSE(viewer->HeartBeatCheck());
+        REQUIRE_FALSE(viewer->IsPublishReady());
         {
             std::unique_lock<std::shared_mutex> lock(sut.mtx_);
             sut.viewers_.push_back(viewer);

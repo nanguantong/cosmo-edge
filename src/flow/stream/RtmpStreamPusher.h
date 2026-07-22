@@ -41,6 +41,18 @@ public:
         return debug_info_;
     }
 
+    /// True only while the publisher has a live output and has successfully
+    /// delivered a frame since the most recent transport failure.
+    [[nodiscard]] bool IsReady() const;
+
+    /// Close the publisher and wake readiness waiters. Idempotent and safe to
+    /// call before destruction.
+    void Stop();
+
+    /// Last transport failure, suitable for diagnostics. Empty when no
+    /// publisher error has occurred.
+    [[nodiscard]] std::string LastError() const;
+
     /// Pre-populate codec config from avcC/hevcC extradata so HasParameters()
     /// is true immediately — no need to wait for in-band SPS/PPS.
     void SetCodecParamsFromExtradata(const std::vector<uint8_t>& extradata);
@@ -51,8 +63,9 @@ private:
     int InitOutput();
     void CloseOutput();
     bool ReopenOutput();
-    void PushHeader();
+    bool PushHeader();
     bool SetStreamReady(bool ready);
+    void RecordFailure(const char* stage, int error_no);
 
 private:
     AVFormatContext* outctx_{nullptr};
@@ -67,12 +80,13 @@ private:
     mutable std::mutex output_mtx_;
     std::atomic<bool> stopping_{false};
     std::atomic_flag first_frame_flag_;
-    bool output_failed_{false};
+    std::atomic<bool> output_failed_{false};
     int64_t skip_count_{0};
 
     // Stream ready notification
     bool stream_ready_{false};
-    std::mutex ready_mtx_;
+    std::string last_error_;
+    mutable std::mutex ready_mtx_;
     std::condition_variable ready_cv_;
 };
 

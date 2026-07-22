@@ -10,6 +10,7 @@
 #include <mutex>
 #include <shared_mutex>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 
 // Forward declaration — full definition in flow/stream/StreamViewer.h (included in .cc)
@@ -37,6 +38,16 @@ public:
     void SetViewCounts(int viewNum) override;
 
 private:
+    struct ViewerStartGate {
+        std::condition_variable_any cv;
+        cosmo::StreamViewerPtr viewer;
+        cosmo::util::ErrorEnum result{cosmo::util::ErrorEnum::NotInit};
+        size_t participants{1};
+        bool requires_encoder{false};
+        bool finished{false};
+        bool cancelled{false};
+    };
+
     int ViewerEncoderCountLocked() const;
     void CheckAliveTasks();
     void HeartBeatWatchdog();
@@ -45,6 +56,7 @@ private:
 
     std::shared_mutex mtx_;
     std::vector<cosmo::StreamViewerPtr> viewers_;
+    std::unordered_map<std::string, std::shared_ptr<ViewerStartGate>> starting_viewers_;
     std::atomic<int> view_counts_{8};
 
     std::mutex stop_mtx_;

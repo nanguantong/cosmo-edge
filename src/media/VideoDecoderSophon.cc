@@ -16,6 +16,13 @@
 // handle, returning BM_ERR_VDEC_ILLEGAL_PARAM. This global lock serializes all VPU lifecycle operations.
 static std::mutex g_vpuLifecycleMutex;
 
+namespace {
+// A newly created VPU channel can transiently return ILLEGAL_PARAM before its first output is ready.
+// Bound the retry budget so a genuinely invalid stream still becomes visible promptly.
+constexpr unsigned int kOutputWarmupRetryCount = 50;
+constexpr auto kOutputWarmupRetryInterval      = std::chrono::milliseconds(1);
+}  // namespace
+
 namespace cosmo {
 namespace media {
 
@@ -96,8 +103,9 @@ namespace media {
             return false;
         }
 
-        code_handle_ = next_handle;
-        frame_       = std::move(next_frame);
+        code_handle_                     = next_handle;
+        frame_                           = std::move(next_frame);
+        output_warmup_retries_remaining_ = kOutputWarmupRetryCount;
         stop_.store(false);
         opened_.store(true);
         LOG_INFO("{} VPU decoder opened", idx_name_);
@@ -124,6 +132,7 @@ namespace media {
         }
 
         frame_.reset();
+        output_warmup_retries_remaining_ = 0;
 
         opened_.store(false);
         LOG_INFO("{} VPU decoder closed", idx_name_);
@@ -196,11 +205,21 @@ namespace media {
         while (!stop_.load()) {
             auto ret = bmvpu_dec_get_output(code_handle_, frame_.get());
             if (ret != BMVidDecRetStatus::BM_ERR_VDEC_SUCCESS) {
+                if (ret == BMVidDecRetStatus::BM_ERR_VDEC_ILLEGAL_PARAM &&
+                    output_warmup_retries_remaining_ > 0) {
+                    --output_warmup_retries_remaining_;
+                    std::this_thread::sleep_for(kOutputWarmupRetryInterval);
+                    continue;
+                }
                 if (ret != BMVidDecRetStatus::BM_ERR_VDEC_BUF_EMPTY) {
-                    LOG_WARN("bmvpu_dec_get_output failed: {}", ret);
+                    const auto status = bmvpu_dec_get_status(code_handle_);
+                    LOG_WARN("{} bmvpu_dec_get_output failed: {}, status: {}, warmup retries remaining: {}",
+                             idx_name_, ret, status, output_warmup_retries_remaining_);
                 }
                 return nullptr;
             }
+
+            output_warmup_retries_remaining_ = 0;
 
             auto pkt_cnt = bmvpu_dec_get_pkt_in_buf_cnt(code_handle_);
             if (pkt_cnt < 0) {
@@ -216,6 +235,10 @@ namespace media {
                 continue;
             }
             break;
+        }
+
+        if (stop_.load()) {
+            return nullptr;
         }
 
         BmImagePtr vpu_frame_image(new bm_image());

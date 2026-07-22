@@ -16,7 +16,7 @@
 #include "service/detail/ServiceRegistry.h"
 #include "service/media/impl/VideoFrameServiceImpl.h"
 
-#if defined(COSMO_NN_USE_CPU_BACKEND)
+#if defined(COSMO_MEDIA_USE_CPU_BACKEND)
 #include <chrono>
 #include <future>
 
@@ -148,7 +148,7 @@ TEST_CASE("VideoFrameServiceImpl: Crop with null frame", "[VideoFrameService][.d
 
 TEST_CASE("VideoFrameServiceImpl serializes complete concurrent OSD sessions",
           "[VideoFrameService][osd][concurrency]") {
-#if !defined(COSMO_NN_USE_CPU_BACKEND)
+#if !defined(COSMO_MEDIA_USE_CPU_BACKEND)
     SKIP("host-backed frame processor required");
 #else
     using namespace std::chrono_literals;

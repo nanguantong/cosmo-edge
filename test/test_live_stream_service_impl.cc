@@ -35,6 +35,19 @@ TEST_CASE("LiveStreamServiceImpl: 视频流管理核心逻辑", "[live-stream]")
                 cosmo::util::ErrorEnum::CameraNotExist);
     }
 
+    SECTION("ViewerCreate 拒绝未绑定到 Channel 的算法") {
+        cosmo::ActionNode dummyAction;
+        auto mockChannel =
+            std::make_shared<cosmo::AlgChannel>("channel_1", "task_1", dummyAction, "rtsp://url");
+        ALLOW_CALL(mocks.cameraSvc, GetChannelInst("channel_1")).RETURN(mockChannel);
+        ALLOW_CALL(mocks.cameraSvc, GetTasks("channel_1"))
+            .RETURN(std::vector<cosmo::service::camera::CameraTaskDto>{});
+
+        cosmo::LiveStream::LiveStreamInfo streamInfo;
+        REQUIRE(sut.ViewerCreate("channel_1", "invalid_alg", streamInfo) ==
+                cosmo::util::ErrorEnum::TaskNotExist);
+    }
+
     SECTION("ViewerHeartBeat 返回 CameraNotExist 当 Channel 不存在") {
         ALLOW_CALL(mocks.cameraSvc, GetChannelInst(trompeloeil::_)).RETURN(nullptr);
         REQUIRE(sut.ViewerHeartBeat("non_exist_channel", "alg_code") ==

@@ -3,8 +3,11 @@
 
 #include "service/media/impl/LiveStreamServiceImpl.h"
 
+#include <algorithm>
+
 #include "flow/stream/StreamViewer.h"
 #include "service/camera/ICameraChannelQuery.h"
+#include "service/camera/ICameraTaskConfig.h"
 #include "service/detail/ServiceRegistry.h"
 #include "util/EnvUtil.h"
 #include "util/ErrorCode.h"
@@ -156,6 +159,16 @@ cosmo::util::ErrorEnum LiveStreamServiceImpl::ViewerCreate(const std::string& ch
         service::ServiceRegistry::Instance().Get<service::ICameraChannelQuery>().GetChannelInst(channelId);
     if (!channel_inst) {
         return cosmo::util::ErrorEnum::CameraNotExist;
+    }
+    if (!algCode.empty()) {
+        const auto tasks =
+            service::ServiceRegistry::Instance().Get<service::ICameraTaskConfig>().GetTasks(channelId);
+        const bool task_exists = std::any_of(tasks.begin(), tasks.end(),
+                                             [&](const auto& task) { return task.algorithmCode == algCode; });
+        if (!task_exists) {
+            LOG_WARN("viewer rejected: stream={}/{} task=absent", channelId, algCode);
+            return cosmo::util::ErrorEnum::TaskNotExist;
+        }
     }
     cosmo::util::ErrorEnum channelState = channel_inst->GetUrlStatus();
     if (cosmo::util::ErrorEnum::Success != channelState) {

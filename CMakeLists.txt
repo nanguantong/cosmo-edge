@@ -296,7 +296,10 @@ if(COSMO_MODEL_GUARD)
     endif()
 endif()
 if(COSMO_NN_USE_CPU_BACKEND)
-    target_compile_definitions(${EXECUTABLE_NAME} PRIVATE COSMO_NN_USE_CPU_BACKEND)
+    target_compile_definitions(${EXECUTABLE_NAME} PRIVATE
+        COSMO_NN_USE_CPU_BACKEND
+        COSMO_NN_USE_HOST_BACKEND
+        COSMO_NN_USE_ONNX_BACKEND)
 endif()
 #Build order: OBJECT libs → third_build (explicit, see foreach above)
 target_link_libraries(${EXECUTABLE_NAME} PRIVATE ${COMMON_LIBS})
@@ -331,7 +334,10 @@ if(BUILD_TESTS)
         endif()
     endif()
     if(COSMO_NN_USE_CPU_BACKEND)
-        target_compile_definitions(cosmo-tests PRIVATE COSMO_NN_USE_CPU_BACKEND)
+        target_compile_definitions(cosmo-tests PRIVATE
+            COSMO_NN_USE_CPU_BACKEND
+            COSMO_NN_USE_HOST_BACKEND
+            COSMO_NN_USE_ONNX_BACKEND)
     endif()
     target_link_libraries(cosmo-tests PRIVATE ${COMMON_LIBS})
     if(COSMO_ENABLE_COVERAGE)

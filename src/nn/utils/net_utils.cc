@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "Eigen/Dense"
-#ifdef COSMO_NN_USE_CPU_BACKEND
+#ifdef COSMO_NN_USE_HOST_BACKEND
 #include "nn/device/cpu/cpu_dino_encode_node.h"
 #else
 #include "nn/device/sophon/sophon_dino_encode_node.h"
@@ -750,7 +750,7 @@ Status NetUtils::ParseDINOOutput(std::vector<std::shared_ptr<Blob>>& blobs, void
                 if (logit_data[token_index] <= text_threshold)
                     continue;
                 const int token_id = padding_input_ids.at(static_cast<std::size_t>(token_index));
-#ifdef COSMO_NN_USE_CPU_BACKEND
+#ifdef COSMO_NN_USE_HOST_BACKEND
                 auto* tokenizer = reinterpret_cast<CpuTokenizer*>(tokenizer_handle);
 #else
                 auto* tokenizer = reinterpret_cast<SophonTokenizer*>(tokenizer_handle);
@@ -761,7 +761,7 @@ Status NetUtils::ParseDINOOutput(std::vector<std::shared_ptr<Blob>>& blobs, void
             if (ids.empty())
                 continue;
 
-#ifdef COSMO_NN_USE_CPU_BACKEND
+#ifdef COSMO_NN_USE_HOST_BACKEND
             auto* tokenizer = reinterpret_cast<CpuTokenizer*>(tokenizer_handle);
 #else
             auto* tokenizer = reinterpret_cast<SophonTokenizer*>(tokenizer_handle);

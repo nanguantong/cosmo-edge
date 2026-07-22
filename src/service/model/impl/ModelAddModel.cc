@@ -327,7 +327,7 @@ util::ErrorEnum ModelImportExporter::WriteNnFile(const std::string& modelType,
                                                  const std::string& model_dir) {
     namespace fs = std::filesystem;
 
-#ifdef COSMO_NN_USE_CPU_BACKEND
+#ifdef COSMO_NN_USE_ONNX_BACKEND
     // CPU/x86: copy .onnx file directly; no Sophon wrapper needed.
     std::string convert_error;
     if (modelType == "sam2") {

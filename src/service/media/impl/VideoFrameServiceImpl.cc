@@ -43,7 +43,7 @@ VideoFramePtr VideoFrameServiceImpl::CopyJpegSrcFrame(VideoFramePtr srcImage) {
         return srcImage;
     }
     if (proc_) {
-#ifdef COSMO_NN_USE_CPU_BACKEND
+#ifdef COSMO_NN_USE_HOST_BACKEND
         // CPU backend: EncodeJpeg uses stb (accepts RGB/BGR/I420 via sws_scale),
         // no need to force I420 like Sophon hardware encoder does.
         // Just copy the frame as-is to avoid lossy BGR→I420→RGB round-trips.

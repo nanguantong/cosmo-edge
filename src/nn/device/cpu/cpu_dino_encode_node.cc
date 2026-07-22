@@ -1,4 +1,4 @@
-#ifdef COSMO_NN_USE_CPU_BACKEND
+#ifdef COSMO_NN_USE_HOST_BACKEND
 
 #include "nn/device/cpu/cpu_dino_encode_node.h"
 
@@ -568,4 +568,4 @@ Status CpuDinoEncodeNode::Forward(std::vector<std::shared_ptr<Blob>>& images,
 
 }  // namespace cosmo::nn
 
-#endif  // COSMO_NN_USE_CPU_BACKEND
+#endif  // COSMO_NN_USE_HOST_BACKEND

@@ -1048,8 +1048,6 @@ namespace media {
 
             // Draw outline (black)
             uint8_t oyv = RgbToY(0, 0, 0);
-            uint8_t ouv = RgbToU(0, 0, 0);
-            uint8_t ovv = RgbToV(0, 0, 0);
             for (int by = 0; by < bmp.height; by++) {
                 int py = y - bmp.offsetY + by;
                 if (py < 0 || py >= h)

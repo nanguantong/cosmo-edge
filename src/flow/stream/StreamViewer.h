@@ -29,6 +29,10 @@ public:
     /// publisher. Safe to call repeatedly from timeout/error/stop paths.
     void Stop();
 
+    /// Mark the stream as externally ready after its first frame reaches SRS.
+    /// The matching lifecycle metric is released exactly once by Stop().
+    void MarkReady(std::chrono::nanoseconds first_frame_latency);
+
     std::string GetChannelId() const {
         return channel_id_;
     }
@@ -113,6 +117,7 @@ private:
     AsyncQueue<VideoFramePtr> async_frame_queue_;
 
     std::atomic<bool> stopped_{false};
+    std::atomic<bool> preview_ready_{false};
     bool packet_queue_attached_{false};
     bool frame_queue_attached_{false};
 };

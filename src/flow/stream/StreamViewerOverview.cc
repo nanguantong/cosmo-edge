@@ -9,6 +9,7 @@
 
 #include "flow/common/FlowTaskUtil.h"
 #include "flow/stream/StreamViewerOverviewTypes.h"
+#include "media/PreviewPipelineMetrics.h"
 #include "service/detail/ServiceRegistry.h"
 #include "service/media/IVideoFrameOSD.h"
 #include "service/task/ITaskQuery.h"
@@ -77,9 +78,11 @@ VideoFramePtr StreamViewerOverview::HandFrame(VideoFramePtr frame) {
     auto osdStart               = std::chrono::steady_clock::now();
     HandOverview(overViewFrame);
     auto osdEnd = std::chrono::steady_clock::now();
-    osd_duration_.duration_ns +=
+    const auto osd_nanoseconds =
         std::chrono::duration_cast<std::chrono::nanoseconds>(osdEnd - osdStart).count();
+    osd_duration_.duration_ns += osd_nanoseconds;
     osd_duration_.count += 1;
+    media::GetPreviewPipelineMetrics().RecordOsdFrame(static_cast<uint64_t>(osd_nanoseconds));
     debug_info_.sendFrames += 1;
     return overViewFrame;
 }

@@ -4,6 +4,7 @@
 
 #include <cstdlib>
 
+#include "media/PreviewPipelineMetrics.h"
 #include "util/EnvUtil.h"
 #include "util/FormatString.h"
 #include "util/Log.h"
@@ -23,7 +24,7 @@ namespace {
         return COSMO_FORMAT("{}/{}", base, streamName);
     }
 
-#ifdef COSMO_NN_USE_CPU_BACKEND
+#ifdef COSMO_MEDIA_USE_CPU_BACKEND
     bool IsEnabledEnv(const char* key) {
         const char* value = std::getenv(key);
         return value &&
@@ -36,6 +37,17 @@ namespace {
 StreamViewer::~StreamViewer() {
     Stop();
     LOG_INFO("{}/{} Delete", channel_id_, alg_id_);
+}
+
+void StreamViewer::MarkReady(std::chrono::nanoseconds first_frame_latency) {
+    if (stopped_.load()) {
+        return;
+    }
+    bool expected = false;
+    if (preview_ready_.compare_exchange_strong(expected, true)) {
+        media::GetPreviewPipelineMetrics().PreviewStarted(!alg_id_.empty(),
+                                                          static_cast<uint64_t>(first_frame_latency.count()));
+    }
 }
 
 void StreamViewer::Stop() {
@@ -64,6 +76,9 @@ void StreamViewer::Stop() {
     encoder_.reset();
     if (video_pusher_) {
         video_pusher_->Stop();
+    }
+    if (preview_ready_.exchange(false)) {
+        media::GetPreviewPipelineMetrics().PreviewStopped(!alg_id_.empty());
     }
     LOG_INFO("{}/{} viewer stopped: publisher released", channel_id_, alg_id_);
 }
@@ -162,7 +177,7 @@ StreamViewer::StreamViewer(AlgChannelPtr channelInst, const std::string& channel
             overviewer_    = std::make_shared<StreamViewerOverview>(channel_id_, alg_id_);
             channelInst->AddViewerFrameQueue(alg_id_, async_frame_queue_);
             frame_queue_attached_ = true;
-#ifdef COSMO_NN_USE_CPU_BACKEND
+#ifdef COSMO_MEDIA_USE_CPU_BACKEND
         } else if (attr.codec == "H264" && IsEnabledEnv("COSMO_CPU_OVERLAY_RAW_FALLBACK")) {
             LOG_WARN("{}/{} overlay encoder unavailable, fallback to raw H264 preview by env", channel_id_,
                      alg_id_);
